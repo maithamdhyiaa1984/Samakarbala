@@ -221,7 +221,7 @@ footer{margin-top:24px;background:color-mix(in srgb,var(--panel) 70%,transparent
 <div class="modal" id="connectModal">
   <div class="box">
     <h3 id="cmTitle">ربط مصادر البيانات (Google Sheets)</h3>
-    <p class="sub" id="cmSub">الصق رابط كل Google Sheet. لا تُحفظ أي بيانات داخل الصفحة. شارك كل شيت "Anyone with the link – Viewer". للملفات الكبيرة استخدم زر «من Excel» بدلاً من ذلك.</p>
+    <p class="sub" id="cmSub">تم تثبيت روابط ملفات الجدود والمفقس والأمهات والتسمين. تُحمّل الصفحة أحدث البيانات تلقائياً عند الفتح. يمكن تعديل الروابط هنا عند استبدال أي ملف.</p>
     <div id="srcList"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn ghost" id="cmClose">إغلاق</button>
@@ -282,7 +282,7 @@ footer{margin-top:24px;background:color-mix(in srgb,var(--panel) 70%,transparent
 <nav><div class="wrap" id="navWrap"></div></nav>
 <div class="wrap" id="sections"></div>
 
-<footer>Sama Karbala · Poultry Supply Intelligence · بيانات حيّة من Excel أو Google Sheets — لا تُخزَّن بيانات التشغيل داخل الصفحة</footer>
+<footer>Sama Karbala · Poultry Supply Intelligence · تحميل تلقائي من Google Sheets مع Excel كخيار احتياطي</footer>
 
 <script>
 /* ==================================================================
@@ -295,9 +295,19 @@ const SOURCES = [
   {key:'ps',ar:'🐔 الأمهات (PS)',en:'Parent Stock (PS)',file:'Breeder Data daily.xlsx',tab:'(multi)',kind:'psall',match:['breederdatadaily','breederdata']},
   {key:'broiler',ar:'🍗 مزارع التسمين والمجزر',en:'Broiler Farms & Processing Plant',file:'Data Broiler & Sales.xlsx',tab:'(multi)',kind:'broilerall',match:['databroiler','broilersales','broiler&sales']},
 ];
-const LS_KEY='sk_supply_sources_v1', LS_THR='sk_supply_thresh_v1';
+const LS_KEY='sk_supply_sources_v54_google', LS_THR='sk_supply_thresh_v1';
+const DEFAULT_SRC={
+  gp:{id:'1hL6n4jjxqiseA0rVBA6UcAZFLHft-4dL70MJKHQTLK8',url:'https://docs.google.com/spreadsheets/d/1hL6n4jjxqiseA0rVBA6UcAZFLHft-4dL70MJKHQTLK8/edit?usp=sharing',tab:'data gp new'},
+  ghatch:{id:'1-PzttAyRZp_JuWb6MrjOmve0EpAL9cLHtJI_OOF_fkI',url:'https://docs.google.com/spreadsheets/d/1-PzttAyRZp_JuWb6MrjOmve0EpAL9cLHtJI_OOF_fkI/edit?usp=sharing',tab:'DB'},
+  ps:{id:'1Lzk98ViGtT4bUG4GP-7zaMBsX7cxJX4-rXv8A0luBv0',url:'https://docs.google.com/spreadsheets/d/1Lzk98ViGtT4bUG4GP-7zaMBsX7cxJX4-rXv8A0luBv0/edit?usp=sharing',tab:'(multi)'},
+  broiler:{id:'1JK4ml6aLjqrnCKRMRfPxj8oRHKR9eZ67dN5BYzSiXKA',url:'https://docs.google.com/spreadsheets/d/1JK4ml6aLjqrnCKRMRfPxj8oRHKR9eZ67dN5BYzSiXKA/edit?usp=sharing',tab:'(multi)'}
+};
 let SRC={};   // key -> {id,url,tab}  (Google Sheets)
-function loadSrcConfig(){ try{SRC=JSON.parse(localStorage.getItem(LS_KEY))||{};}catch(e){SRC={};} }
+function loadSrcConfig(){
+  let saved={};try{saved=JSON.parse(localStorage.getItem(LS_KEY))||{};}catch(e){saved={};}
+  SRC={...DEFAULT_SRC,...saved};
+  SOURCES.forEach(s=>{if(!SRC[s.key]||!SRC[s.key].id)SRC[s.key]={...DEFAULT_SRC[s.key]};});
+}
 function saveSrcConfig(){ localStorage.setItem(LS_KEY, JSON.stringify(SRC)); }
 function extractId(u){ if(!u)return ''; const m=String(u).match(/\/d\/([A-Za-z0-9_-]{20,})/); return m?m[1]:String(u).trim(); }
 const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -314,24 +324,24 @@ function setThr(key,name,v){ THRESH[key]=THRESH[key]||{}; THRESH[key][name]=v; s
 
 /* ==================== i18n ==================== */
 const I={
- ar:{connect:'ربط Sheets',excel:'من Excel',refresh:'تحديث',lang:'English',
-   loading:'⏳ جارٍ جلب أحدث البيانات من Google Sheets…',
+ ar:{connect:'مصادر Sheets',excel:'من Excel',refresh:'تحديث',lang:'English',
+   loading:'⏳ جارٍ جلب أحدث البيانات من ملفات Google Sheets المرتبطة…',
    excelLoading:'⏳ جارٍ قراءة ملفات Excel…',
-   ok:d=>'🟢 متصل — آخر يوم بيانات: '+d, none:'⚪ لم تُربط أي مصادر — اضغط «من Excel» لاختيار الملفات، أو «ربط Sheets».',
+   ok:d=>'🟢 متصل — آخر يوم بيانات: '+d, none:'⚪ تعذّر العثور على الروابط الافتراضية — راجع «مصادر Sheets» أو استخدم «من Excel».',
    err:e=>'🔴 تعذّر الجلب ('+e+')',
    excelOk:(n,d)=>'🟢 محمّل من Excel — '+n+' مصدر · آخر يوم: '+d,
-   connectTitle:'ربط مصادر البيانات (Google Sheets)',save:'حفظ وتحديث',close:'إغلاق',
+   connectTitle:'مصادر البيانات المرتبطة (Google Sheets)',save:'حفظ وتحديث',close:'إغلاق',
    notConnected:'هذا المصدر غير مربوط بعد',connectHint:'اختر ملف Excel المقابل، أو الصق رابط الشيت.',
    alerts:'التنبيهات',tabAlerts:'تنبيهات هذا التبويب',noAlerts:'لا توجد تنبيهات حرجة 👍',
    thrTitle:'⚙ إعدادات تنبيه هذا التبويب',
    thrMortMult:'مضاعف قفزة النفوق',thrMinHe:'أدنى نسبة بيض تفقيس',thrDoa:'أقصى DOA',thrMinW:'أدنى وزن ذبح (kg)',thrDrop:'أقصى هبوط تسكين'},
- en:{connect:'Connect Sheets',excel:'From Excel',refresh:'Refresh',lang:'العربية',
-   loading:'⏳ Fetching latest data from Google Sheets…',
+ en:{connect:'Sheet Sources',excel:'From Excel',refresh:'Refresh',lang:'العربية',
+   loading:'⏳ Fetching the latest data from the linked Google Sheets…',
    excelLoading:'⏳ Reading Excel files…',
-   ok:d=>'🟢 Connected — latest data day: '+d, none:'⚪ No sources connected — click "From Excel" to pick files, or "Connect Sheets".',
+   ok:d=>'🟢 Connected — latest data day: '+d, none:'⚪ Default links are unavailable — review "Sheet Sources" or use "From Excel".',
    err:e=>'🔴 Fetch failed ('+e+')',
    excelOk:(n,d)=>'🟢 Loaded from Excel — '+n+' sources · latest day: '+d,
-   connectTitle:'Connect Data Sources (Google Sheets)',save:'Save & Refresh',close:'Close',
+   connectTitle:'Linked Data Sources (Google Sheets)',save:'Save & Refresh',close:'Close',
    notConnected:'This source is not connected yet',connectHint:'Pick the matching Excel file, or paste the sheet link.',
    alerts:'Alerts',tabAlerts:'Alerts for this tab',noAlerts:'No critical alerts 👍',
    thrTitle:'⚙ Alert settings for this tab',
@@ -341,13 +351,13 @@ let LANG='ar'; const t=()=>I[LANG]; const L=(ar,en)=>LANG==='ar'?ar:en;
 
 /* ==================== gviz live loader ==================== */
 let __gvN=0;
-function gvTab(id,sheet,hdrMode){
+function gvTab(id,sheet,hdrMode,tq,timeoutMs){
   return new Promise((resolve,reject)=>{
     if(!id)return reject('no-id');
-    const h='__gv'+(__gvN++); let done=false;
-    const timer=setTimeout(()=>{if(!done){done=true;cleanup();reject('timeout')}},30000);
+    const h='__gv'+(__gvN++);let done=false;
+    const timer=setTimeout(()=>{if(!done){done=true;cleanup();reject('timeout')}},timeoutMs||45000);
     function cleanup(){clearTimeout(timer);try{delete window[h]}catch(e){window[h]=undefined};if(s.parentNode)s.parentNode.removeChild(s)}
-    window[h]=resp=>{ if(done)return;done=true;
+    window[h]=resp=>{if(done)return;done=true;
       try{
         if(!resp||resp.status==='error')throw (resp&&resp.errors&&resp.errors[0]&&resp.errors[0].detailed_message)||'gviz error';
         const conv=c=>{if(!c||c.v==null)return '';
@@ -357,16 +367,43 @@ function gvTab(id,sheet,hdrMode){
         const ncols=(resp.table.cols||[]).length;
         const rows=resp.table.rows.map(r=>{const cells=(r.c||[]).map(conv);while(cells.length<ncols)cells.push('');return cells;});
         const hdr=(resp.table.cols||[]).map(c=>c&&c.label!=null?c.label:'');
-        cleanup(); resolve(hdrMode===0?rows:[hdr].concat(rows));
+        cleanup();resolve(hdrMode===0?rows:[hdr].concat(rows));
       }catch(err){cleanup();reject(''+err)}
     };
     const hm=(hdrMode===0)?0:1;
     let u='https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?headers='+hm+'&tqx=out:json;responseHandler:'+h+'&cb='+Date.now();
     if(sheet)u+='&sheet='+encodeURIComponent(sheet);
-    const s=document.createElement('script'); s.src=u;
+    if(tq)u+='&tq='+encodeURIComponent(tq);
+    const s=document.createElement('script');s.src=u;
     s.onerror=()=>{if(!done){done=true;cleanup();reject('network')}};
     document.head.appendChild(s);
   });
+}
+function gvizDateISO(d){return d.toISOString().slice(0,10);}
+function gvizAddMonths(d,n){const x=new Date(d);x.setUTCMonth(x.getUTCMonth()+n);return x;}
+async function gvFarmChunks(id,onProgress){
+  let minD=null,maxD=null;
+  try{
+    const mm=await gvTab(id,'Farms',1,"select min(A),max(A) where A is not null",60000);
+    minD=asDate(mm[1]&&mm[1][0]);maxD=asDate(mm[1]&&mm[1][1]);
+  }catch(e){console.warn('[Farms range]',e);}
+  if(!minD||!maxD){
+    const now=new Date(),y=now.getUTCFullYear();
+    minD=new Date(Date.UTC(y-3,0,1));maxD=new Date(Date.UTC(y,11,31));
+  }
+  const chunks=[];let cur=new Date(Date.UTC(minD.getUTCFullYear(),minD.getUTCMonth(),1));
+  const stop=gvizAddMonths(new Date(Date.UTC(maxD.getUTCFullYear(),maxD.getUTCMonth(),1)),1);
+  while(cur<stop){const nxt=gvizAddMonths(cur,4);chunks.push([new Date(cur),nxt<stop?nxt:stop]);cur=nxt;}
+  let header=null,rows=[];
+  for(let i=0;i<chunks.length;i++){
+    const [a,b]=chunks[i];
+    if(onProgress)onProgress(i+1,chunks.length,gvizDateISO(a),gvizDateISO(new Date(b-864e5)));
+    const tq="select A,B,C,D,E,F,G,H where A >= date '"+gvizDateISO(a)+"' and A < date '"+gvizDateISO(b)+"' order by A";
+    const part=await gvTab(id,'Farms',1,tq,90000);
+    if(!header)header=part[0];
+    rows.push(...part.slice(1));
+  }
+  return [header||['Date','Cycle','Farm ID','House ID','Mortality','Culled','Weight','Feed Consumed'],...rows];
 }
 
 /* ==================== helpers ==================== */
@@ -2748,33 +2785,57 @@ async function loadFromSheets(){
   loadSrcConfig();
   const connected=SOURCES.filter(s=>SRC[s.key]&&SRC[s.key].id);
   if(connected.length===0){if(MODE!=='excel'){setLive(t().none,'');renderChain();show(CURRENT);}return;}
-  setLive(t().loading,'');MODE='sheets';let ok=0,lastDay='';
-  await Promise.all(connected.map(async s=>{try{
-    const id=SRC[s.key].id;
-    if(s.kind==='gpall'){
-      RAW.gp=toObjs(await gvTab(id,'data gp new',1));RAW[s.key]=RAW.gp;COMP[s.key]={rows:RAW.gp.length};
-      const md=maxDateOf(RAW.gp,'Begin Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.gp.length,max:md};ok++;return;
+  MODE='sheets';let ok=0,lastDay='';SRCINFO={};
+  for(let si=0;si<connected.length;si++){
+    const s=connected[si],id=SRC[s.key].id;
+    setLive('⏳ '+L('تحميل ','Loading ')+L(s.ar,s.en)+' ('+(si+1)+'/'+connected.length+')…','');
+    try{
+      if(s.kind==='gpall'){
+        RAW.gp=toObjs(await gvTab(id,'data gp new',1,null,90000));RAW[s.key]=RAW.gp;COMP[s.key]={rows:RAW.gp.length};
+        const md=maxDateOf(RAW.gp,'Begin Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.gp.length,max:md};ok++;continue;
+      }
+      if(s.kind==='ghatchall'){
+        const [db,ch,set,recv,disp]=await Promise.all([
+          gvTab(id,'DB',0,null,60000),gvTab(id,'Chicks',1,null,90000),gvTab(id,'Set',1,null,90000),
+          gvTab(id,'egg receiving',1,null,90000),gvTab(id,'Disposal',1,null,60000)
+        ]);
+        RAW.ghatch=db;RAW.ghChicks=toObjs(ch);RAW.ghSet=toObjs(set);RAW.ghRecv=toObjs(recv);RAW.ghDisp=toObjs(disp);COMP[s.key]={rows:RAW.ghChicks.length};
+        const md=maxDateOf(RAW.ghChicks,'Transaction Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.ghChicks.length,max:md};ok++;continue;
+      }
+      if(s.kind==='psall'){
+        const [psr,psp,trans,place]=await Promise.all([
+          gvTab(id,'Field PSR',1,null,60000),gvTab(id,'Field PSP',1,null,90000),
+          gvTab(id,'Transfers',1,null,60000),gvTab(id,'Placements',1,null,60000)
+        ]);
+        RAW.ps={psr:toObjs(psr),psp:toObjs(psp),trans:toObjs(trans),place:toObjs(place)};
+        RAW.psr=RAW.ps.psr;RAW.psp=RAW.ps.psp;RAW.trans=RAW.ps.trans;COMP[s.key]={rows:RAW.psp.length};
+        const md=maxDateOf(RAW.psp,'Begin Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.psp.length,max:md};ok++;continue;
+      }
+      if(s.kind==='broilerall'){
+        const [pl,pr,sa]=await Promise.all([
+          gvTab(id,'Placement',1,null,60000),gvTab(id,'Processing Plan',1,null,60000),gvTab(id,'Live Sales',1,null,60000)
+        ]);
+        const fa=await gvFarmChunks(id,(i,n,a,b)=>{
+          setLive('⏳ '+L('تحميل مزارع التسمين ','Loading broiler farms ')+i+'/'+n+' · '+a+' → '+b,'');
+        });
+        const place=toObjs(pl),farms=dedupeExactRows(toObjs(fa),'broilerFarmsSheets'),proc=toObjs(pr),sales=toObjs(sa);
+        RAW.broiler={place,farms,proc,sales};
+        RAW.bplace=place.filter(o=>{const c=String(pick(o,'Cycle')||'');return c&&!/open/i.test(c)&&String(pick(o,'Farm ID')||'')!=='';});
+        RAW.bfarm=farms;RAW.proc=proc;RAW.sales=sales;COMP[s.key]={rows:farms.length};
+        const md=maxDateOf(farms,'Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:farms.length,max:md};ok++;continue;
+      }
+    }catch(e){
+      console.error('[Google Sheets]',s.key,e);
+      SRCINFO[s.key]={rows:0,max:'',error:String(e)};
     }
-    if(s.kind==='ghatchall'){
-      const [db,ch,set,recv,disp]=await Promise.all([gvTab(id,'DB',0),gvTab(id,'Chicks',1),gvTab(id,'Set',1),gvTab(id,'egg receiving',1),gvTab(id,'Disposal',1)]);
-      RAW.ghatch=db;RAW.ghChicks=toObjs(ch);RAW.ghSet=toObjs(set);RAW.ghRecv=toObjs(recv);RAW.ghDisp=toObjs(disp);COMP[s.key]={rows:RAW.ghChicks.length};
-      const md=maxDateOf(RAW.ghChicks,'Transaction Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.ghChicks.length,max:md};ok++;return;
-    }
-    if(s.kind==='psall'){
-      const [psr,psp,trans,place]=await Promise.all([gvTab(id,'Field PSR',1),gvTab(id,'Field PSP',1),gvTab(id,'Transfers',1),gvTab(id,'Placements',1)]);
-      RAW.ps={psr:toObjs(psr),psp:toObjs(psp),trans:toObjs(trans),place:toObjs(place)};RAW.psr=RAW.ps.psr;RAW.psp=RAW.ps.psp;RAW.trans=RAW.ps.trans;COMP[s.key]={rows:RAW.psp.length};
-      const md=maxDateOf(RAW.psp,'Begin Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:RAW.psp.length,max:md};ok++;return;
-    }
-    if(s.kind==='broilerall'){
-      const [pl,fa,pr,sa]=await Promise.all([gvTab(id,'Placement',1),gvTab(id,'Farms',1),gvTab(id,'Processing Plan',1),gvTab(id,'Live Sales',1)]);
-      const place=toObjs(pl),farms=dedupeExactRows(toObjs(fa),'broilerFarmsSheets'),proc=toObjs(pr),sales=toObjs(sa);
-      RAW.broiler={place,farms,proc,sales};RAW.bplace=place.filter(o=>{const c=String(pick(o,'Cycle')||'');return c&&!/open/i.test(c)&&String(pick(o,'Farm ID')||'')!=='';});RAW.bfarm=farms;RAW.proc=proc;RAW.sales=sales;COMP[s.key]={rows:farms.length};
-      const md=maxDateOf(farms,'Date');if(md>lastDay)lastDay=md;SRCINFO[s.key]={rows:farms.length,max:md};ok++;return;
-    }
-  }catch(e){console.warn('[load]',s.key,e);}}));
+  }
   buildMaps();renderChain();refreshNavCounts();
-  if(ok>0){ensureDefaultOverviewPeriod(lastDay||latestDataISO());setLive(t().ok(lastDay||'—')+'  <a href="#" id="lref" style="color:var(--gold2)">'+t().refresh+'</a>','ok');const lr=$('#lref');if(lr)lr.onclick=e=>{e.preventDefault();loadFromSheets();};}
-  else setLive(t().err('no data'),'err');
+  if(ok>0){
+    ensureDefaultOverviewPeriod(lastDay||latestDataISO());
+    const rep=connected.map(s=>{const x=SRCINFO[s.key]||{};return L(s.ar,s.en)+': '+(x.error?L('تعذّر التحميل','Failed'):fmt(x.rows)+L(' صف',' rows'));}).join(' · ');
+    setLive(t().ok(lastDay||'—')+' <a href="#" id="lref" style="color:var(--gold2)">'+t().refresh+'</a><div style="margin-top:4px;font-size:10px;opacity:.8">'+rep+'</div>','ok');
+    const lr=$('#lref');if(lr)lr.onclick=e=>{e.preventDefault();loadFromSheets();};
+  }else setLive(t().err('no data'),'err');
   show(CURRENT);
 }
 function setLive(html,cls){const el=$('#liveChip');if(el){el.innerHTML=html;el.className='note '+(cls||'');}}
@@ -2798,6 +2859,7 @@ function applyLang(){ const H=document.documentElement; H.lang=LANG==='ar'?'ar':
   $('#connectLbl').textContent=t().connect; $('#excelLbl').textContent=t().excel; $('#refreshLbl').textContent=t().refresh; $('#langBtn').textContent=t().lang;
   const hl=$('#homeLbl'); if(hl)hl.textContent=L('الرئيسية','Home');
   $('#cmTitle').textContent=t().connectTitle; $('#cmSave').textContent=t().save; $('#cmClose').textContent=t().close;
+  const cms=$('#cmSub');if(cms)cms.textContent=L('تم تثبيت روابط ملفات الجدود والمفقس والأمهات والتسمين. تُحمّل الصفحة أحدث البيانات تلقائياً عند الفتح. يمكن تعديل الروابط هنا عند استبدال أي ملف.','The GP, hatchery, parent-stock and broiler links are preconfigured. The latest data loads automatically when the page opens. Update a link here only when replacing a source file.');
   const ar=LANG==='ar';const emt=$('#excelModalTitle'),ems=$('#excelModalSub'),edt=$('#excelDropTitle'),eds=$('#excelDropSub'),emc=$('#excelModalClose'),eml=$('#excelModalLoad');
   if(emt)emt.textContent=ar?'تحميل ملفات بيانات السلسلة':'Load Supply-Chain Workbooks';
   if(ems)ems.textContent=ar?'اختر ملفات Excel الأربعة معاً. تتعرّف الصفحة على كل ملف من أسماء الشيتات، ويمكن إسقاط الملفات داخل المنطقة أدناه.':'Select the four Excel workbooks together. Files are detected by their sheet names and may be dropped below.';
@@ -2827,7 +2889,7 @@ $('#excelModalInput').onchange=e=>showExcelFiles(e.target.files);
 $('#excelDrop').addEventListener('drop',e=>showExcelFiles(e.dataTransfer.files));
 $('#excelModalLoad').onclick=()=>{if(PENDING_EXCEL_FILES.length){const f=PENDING_EXCEL_FILES.slice();closeExcelModal();showExcelFiles([]);loadFromExcel(f);}};
 $('#xlsxInput').onchange=e=>{if(e.target.files&&e.target.files.length)loadFromExcel(e.target.files);e.target.value='';};
-$('#refreshBtn').onclick=()=>{if(MODE==='excel')openExcelModal();else loadFromSheets();};
+$('#refreshBtn').onclick=()=>loadFromSheets();
 
 
 function refreshTableExports(){const h=$('#sec_'+CURRENT);if(h)injectTableExportButtons(h);}
