@@ -2633,7 +2633,18 @@ function pullPSCadence(s,throughDate){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(
 function pullOffSexMap(psEvents){const m={},asOf=asDate(ACTIVE_FLOCK_SNAPSHOT.date);(psEvents||[]).filter(x=>x.source!=='actual-rearing').forEach(x=>x.offSexDates.forEach(d=>{if(d<asOf)return;const k=gmDateISO(d);m[k]=(m[k]||0)+PULL_PLAN_RULES.offSexHouse;}));return m;}
 function pullChoosePlacement(kill,s,H){for(const age of [31,30,32]){const p=brhAddDays(kill,-age),set=brhAddDays(p,-22),hatch=brhAddDays(set,21);if(p.getUTCDay()===6||set.getUTCDay()===5||pullIsHoliday(p,H)||pullIsHoliday(hatch,H))continue;return {placement:p,set,hatch,age,valid:true};}return {placement:brhAddDays(kill,-31),set:brhAddDays(kill,-53),hatch:brhAddDays(kill,-32),age:31,valid:false};}
 function pullBuildBroiler(s,psEvents){const H=pullHolidaySet(s),offSex=pullOffSexMap(psEvents),rows=[],killDays=plannerDays(s.from,s.to).filter(d=>(+s.killOffDow<0||d.getUTCDay()!==+s.killOffDow)&&!pullIsHoliday(d,H));killDays.forEach(kill=>{const c=pullChoosePlacement(kill,s,H),need=num(s.dailyKill)/num(s.survival||.95),off=num(offSex[gmDateISO(c.placement)]||0),normal=Math.max(0,need-off),normalHouses=Math.ceil(normal/num(s.headsHouse||34000)),placed=normalHouses*num(s.headsHouse||34000)+off,eggs=normal/num(s.hatch||.84);rows.push({killDate:kill,...c,targetKill:num(s.dailyKill),needPlace:need,offSex:off,normalChicks:normal,normalHouses,placed,eggs,expectedKill:placed*num(s.survival||.95)});});const occ={},birdOcc={};rows.forEach(r=>{for(let d=new Date(r.placement),e=new Date(r.killDate);d<=e;d=brhAddDays(d,1)){const k=gmDateISO(d);occ[k]=(occ[k]||0)+r.normalHouses+(r.offSex>0?1:0);birdOcc[k]=(birdOcc[k]||0)+r.placed;}});const cap=pullBroilerCapacity(),maxH=Math.max(0,...Object.values(occ)),maxB=Math.max(0,...Object.values(birdOcc));return {rows,totalKill:rows.reduce((a,x)=>a+x.targetKill,0),totalPlaced:rows.reduce((a,x)=>a+x.placed,0),totalEggs:rows.reduce((a,x)=>a+x.eggs,0),totalOffSex:rows.reduce((a,x)=>a+x.offSex,0),maxHouses:maxH,maxBirds:maxB,farmsNeeded:Math.ceil(maxH/16),capacity:cap,invalid:rows.filter(x=>!x.valid)};}
-function pullPSAvailable(date,events,s){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(z.date),flocks=[];(z.psp||[]).forEach(x=>{const age=x.age+(asDate(date)-asOf)/864e5/7;if(age>=25&&age<=70&&x.female>=5000)flocks.push({source:'actual-production',flock:x.flock,female:x.female,male:x.male,age});});(events||[]).forEach(x=>{if(x.polDate>asDate(date)||x.depletion<asDate(date))return;if((z.psp||[]).some(y=>y.flock===x.flock))return;const age=25+(asDate(date)-x.polDate)/864e5/7;if(age>=25&&age<=70)flocks.push({source:x.source,flock:x.flock,female:x.femalePOL,male:x.malePOL,age});});let hens=0,males=0,he=0,stdHE=0;const fct=pullScenarioFactor('PS',date,s.scenario);flocks.forEach(x=>{const rate=r308psHEweek(x.age)/7;hens+=x.female;males+=x.male;stdHE+=x.female*rate;he+=x.female*rate*fct.used;});return {hens,males,he,stdHE,rate:hens?he/hens:0,factor:fct.used,rawFactor:fct.raw,flocks};}
+function pullPSAvailable(date,events,s){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(z.date),flocks=[];/* FIX: same frozen-head problem on the PS side. Measured loss is 0.226% a week, 9.7% over a
+     45-week lay, so late-cycle output was overstated by up to 10.7%. */
+  (z.psp||[]).forEach(x=>{
+    const wks=(asDate(date)-asOf)/864e5/7, age=x.age+wks;
+    if(age<25||age>70||!(x.female>=5000))return;
+    const dcy=Math.pow(1-PLAN.layLossPerWeek.ps,Math.max(0,wks));
+    flocks.push({source:'actual-production',flock:x.flock,
+      female:x.female*dcy,male:x.male*dcy,age});
+  });(events||[]).forEach(x=>{if(x.polDate>asDate(date)||x.depletion<asDate(date))return;if((z.psp||[]).some(y=>y.flock===x.flock))return;const age=25+(asDate(date)-x.polDate)/864e5/7;
+    if(age<25||age>70)return;
+    const dcy=Math.pow(1-PLAN.layLossPerWeek.ps,Math.max(0,age-25));
+    flocks.push({source:x.source,flock:x.flock,female:x.femalePOL*dcy,male:x.malePOL*dcy,age});});let hens=0,males=0,he=0,stdHE=0;const fct=pullScenarioFactor('PS',date,s.scenario);flocks.forEach(x=>{const rate=r308psHEweek(x.age)/7;hens+=x.female;males+=x.male;stdHE+=x.female*rate;he+=x.female*rate*fct.used;});return {hens,males,he,stdHE,rate:hens?he/hens:0,factor:fct.used,rawFactor:fct.raw,flocks};}
 function pullPersistent(rows,predicate,n){let c=0;for(const x of rows){c=predicate(x)?c+1:0;if(c>=n)return rows[rows.indexOf(x)-n+1]||x;}return null;}
 function pullAnalyzePS(s,broiler,events){const demand={};broiler.rows.forEach(r=>{const k=gmDateISO(r.set);demand[k]=(demand[k]||0)+r.eggs;});const asOf=asDate(ACTIVE_FLOCK_SNAPSHOT.date),keys=Object.keys(demand).filter(k=>asDate(k)>asOf).sort(),start=brhAddDays(asOf,1),end=keys.length?asDate(keys[keys.length-1]):start,opening=Math.max(0,num((computeBRHatchall()||{}).currentBalance));let bank=opening,totalDemand=0,totalProd=0,totalSold=0,rateNum=0,rateDen=0;const daily=[];for(let d=new Date(start);d<=end;d=brhAddDays(d,1)){const k=gmDateISO(d),a=pullPSAvailable(d,events,s),need=num(demand[k]);bank+=a.he-need;
     /* FIX: PS production runs ahead of the broiler hatchery's setting need, so the bank grew
@@ -2659,7 +2670,32 @@ function pullGPAvailable(date,lk,gps,s){
   if(PGA_CACHE[_k])return PGA_CACHE[_k];
   return PGA_CACHE[_k]=pullGPAvailableRaw(date,lk,gps,s);
 }
-function pullGPAvailableRaw(date,lk,gps,s){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(z.date),flocks=[];(z.gp||[]).forEach(x=>{const age=x.age+(asDate(date)-asOf)/864e5/7,heads=lk==='FML'?x.L8:x.L4;if(age>=25&&age<=70&&heads>0)flocks.push({source:'actual',flock:x.flock,farm:x.farm,heads,age});});(gps.rows||[]).forEach(x=>{const age=(asDate(date)-x.placement)/864e5/7,heads=lk==='FML'?x.L8POL:x.L4POL;if(age>=25&&age<=70)flocks.push({source:x.source,flock:x.flock,farm:x.farm,heads,age});});const fct=pullScenarioFactor('GP',date,s.scenario,lk);let hens=0,he=0,stdHE=0;flocks.forEach(x=>{const o=gpStdObj(x.age,lk),rate=o?o.heHD:0;hens+=x.heads;stdHE+=x.heads*rate;he+=x.heads*rate*fct.used;});return {hens,he,stdHE,rate:hens?he/hens:0,factor:fct.used,rawFactor:fct.raw,flocks};}
+function pullGPAvailableRaw(date,lk,gps,s){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(z.date),flocks=[];/* FIX: head counts were frozen at their snapshot value for the whole horizon, so a flock
+     at week 30 today still contributed full production at week 65. GP loses 0.676% of hens a
+     week during lay, i.e. 26% over a full cycle, so the forecast overstated late-cycle eggs by
+     up to 36%. Decay the heads by the measured rate over the weeks elapsed, and retire the
+     flock on its planned depletion date rather than a blanket 70-week cut. */
+  (z.gp||[]).forEach(x=>{
+    const wks=(asDate(date)-asOf)/864e5/7, age=x.age+wks;
+    const plan=(CHAIN_PLAN_DATA.gp||[]).find(p=>num(p.flock)===num(x.flock));
+    const dep=plan?asDate(plan.depletion):null;
+    if(dep&&asDate(date)>dep)return;                    /* already out of service */
+    const endWk=dep?null:OPS_PLAN.GP_END_WK;
+    if(age<25||(endWk&&age>endWk))return;
+    const base=lk==='FML'?x.L8:x.L4;
+    if(!(base>0))return;
+    const heads=base*Math.pow(1-PLAN.layLossPerWeek.gp,Math.max(0,wks));
+    flocks.push({source:'actual',flock:x.flock,farm:x.farm,heads,age,retired:false});
+  });  (gps.rows||[]).forEach(x=>{
+    const d0=asDate(date),age=(d0-x.placement)/864e5/7;
+    if(x.depletion&&d0>x.depletion)return;
+    if(age<25||age>OPS_PLAN.GP_END_WK)return;
+    const base=lk==='FML'?x.L8POL:x.L4POL;
+    /* planned flocks start decaying from point of lay */
+    const wksInLay=Math.max(0,age-25);
+    const heads=base*Math.pow(1-PLAN.layLossPerWeek.gp,wksInLay);
+    flocks.push({source:x.source,flock:x.flock,farm:x.farm,heads,age});
+  });const fct=pullScenarioFactor('GP',date,s.scenario,lk);let hens=0,he=0,stdHE=0;flocks.forEach(x=>{const o=gpStdObj(x.age,lk),rate=o?o.heHD:0;hens+=x.heads;stdHE+=x.heads*rate;he+=x.heads*rate*fct.used;});return {hens,he,stdHE,rate:hens?he/hens:0,factor:fct.used,rawFactor:fct.raw,flocks};}
 function pullCompareGP(s,gpr,gps){const demand=Object.fromEntries(gpr.daily.map(x=>[gmDateISO(x.date),x])),asOf=asDate(ACTIVE_FLOCK_SNAPSHOT.date),keys=Object.keys(demand).filter(k=>asDate(k)>asOf).sort(),end=keys.length?asDate(keys[keys.length-1]):asOf,opening=gpHatcheryClosing(),bank={L8:num(opening.F),L4:num(opening.M)},rows=[];let l8p=0,l4p=0,offSexL8=0,offSexL4=0;const daily=[];
   /* PERF: scenarioRates() -> opsCalibrate() scans ~134,000 rows. It was being called twice
      per simulated day inside the loop below, i.e. ~174 million row visits over a 650-day
@@ -2747,6 +2783,8 @@ function renderPullPlannerNow(host){const s=pullLoadState(),r=pullCompute(s),z=r
   h+='<div class="pull-kpis"><div class="pull-kpi"><span>'+L('مرجع الخطة اليومي','Daily plan baseline')+'</span><b>'+fmt(r.baseline.planPlaced)+'</b><small>'+fmt(r.baseline.houses)+' '+L('هاوس · ذبح متوقع ','houses · expected kill ')+fmt(r.baseline.expectedKill)+'</small></div><div class="pull-kpi"><span>'+L('هدف الذبح للفترة','Period kill target')+'</span><b>'+fmt(r.broiler.totalKill)+'</b><small>'+fmt(r.broiler.rows.length)+' '+L('يوم تشغيل','operating days')+'</small></div><div class="pull-kpi"><span>'+L('التسكين المطلوب','Required placement')+'</span><b>'+fmt(r.broiler.totalPlaced)+'</b><small>'+L('Off-Sex ','Off-Sex ')+fmt(r.broiler.totalOffSex)+'</small></div><div class="pull-kpi"><span>'+L('أقل بنك HE للأمهات','Minimum PS HE bank')+'</span><b>'+fmt(r.ps.minBank)+'</b><small>'+L('الأمان ','safety ')+fmt(r.ps.safetyStock)+'</small></div><div class="pull-kpi"><span>'+L('أقل بنك L8','Minimum L8 bank')+'</span><b>'+fmt(r.gpBank.minL8)+'</b><small>'+L('الأمان ','safety ')+fmt(r.gpBank.safeL8)+'</small></div><div class="pull-kpi"><span>'+L('أقل بنك L4','Minimum L4 bank')+'</span><b>'+fmt(r.gpBank.minL4)+'</b><small>'+L('الأمان ','safety ')+fmt(r.gpBank.safeL4)+'</small></div></div>';
   try{ h+=pullValidationHTML(s); }catch(e){}
 try{ h+=fullChainHTML(); }catch(e){}
+try{ h+=flockExitHTML(); }catch(e){}
+try{ h+=farmOccupancyHTML(); }catch(e){}
 h+='<div class="pull-flow"><div class="pull-flow-card"><b>'+L('المجزر','Plant')+'</b><strong>'+fmt(r.broiler.totalKill)+'</strong></div><div class="pull-flow-card"><b>'+L('التسمين','Broiler')+'</b><strong>'+fmt(r.broiler.totalPlaced)+'</strong><small>'+fmt(r.broiler.maxHouses)+' '+L('حضيرة ذروة','peak houses')+'</small></div><div class="pull-flow-card"><b>'+L('مفقس التسمين','Broiler hatchery')+'</b><strong>'+fmt(r.broiler.totalEggs)+'</strong><small>HE @84%</small></div><div class="pull-flow-card"><b>'+L('إناث PS المطلوبة وسطياً','Average PS hens needed')+'</b><strong>'+fmt(r.ps.requiredTotalHens)+'</strong></div><div class="pull-flow-card"><b>'+L('قطيع PS معتمد','Approved PS flock')+'</b><strong>'+fmt(s.psFemale)+'</strong><small>+ '+fmt(s.psMale)+' ♂</small></div><div class="pull-flow-card"><b>'+L('L8 نظري/قطيع إنتاج','Theoretical L8 / producing flock')+'</b><strong>'+fmt(r.gpr.requiredL8PerFlock)+'</strong></div><div class="pull-flow-card"><b>'+L('L8 الخطة القادمة','Next planned L8')+'</b><strong>'+fmt(r.gps.rows[0]?.L8||0)+'</strong></div></div>';
   h+='<div class="pull-decision-grid"><div class="pull-decision"><h3>'+L('قرار قطيع الأمهات القادم','Next PS flock decision')+'</h3><span class="pull-chip '+pullDecisionTone(nextPS.type)+'">'+(nextPS.type==='planned'?L('موجود بالخطة','In approved plan'):nextPS.type==='covered'?L('لا حاجة إضافية','No additional flock'):nextPS.type==='late'?L('داخل فترة القيادة','Inside lead time'):L('مراجعة إضافة قطيع','Review an additional flock'))+'</span><p><strong>'+(nextPS.flock?L('قطيع ','Flock ')+nextPS.flock:'')+'</strong></p><p>'+nextPS.text+'</p><p>'+L('تاريخ التسكين/المقترح: ','Placement / proposed date: ')+(nextPS.placeDate?gmDateISO(nextPS.placeDate):'—')+'</p></div><div class="pull-decision"><h3>'+L('قرار قطيع الجدود القادم','Next GP flock decision')+'</h3><span class="pull-chip '+pullDecisionTone(nextGP.type)+'">'+(nextGP.type==='planned'?L('مثبت بالخطة','In approved plan'):nextGP.type==='covered'?L('التغطية كافية','Coverage sufficient'):nextGP.type==='late'?L('داخل فترة القيادة','Inside lead time'):L('مراجعة إضافة/تقديم','Review add/advance'))+'</span><p><strong>'+(nextGP.flock?L('قطيع ','Flock ')+nextGP.flock:'')+'</strong></p><p>'+nextGP.text+'</p><p>'+L('تاريخ التسكين/المقترح: ','Placement / proposed date: ')+(nextGP.placement?gmDateISO(nextGP.placement):'—')+'</p></div></div>';
   h+='<div class="sim-grid2"><div class="sim-section"><div class="sim-section-head"><div><h2>'+L('الجرد الفعلي المتحقق','Validated active inventory')+'</h2><p>'+L('فقط القطعان التي لها ترانزكشن في آخر يوم بيانات لكل مرحلة.','Only flocks with a transaction on the latest data day for their stage.')+'</p></div></div><div class="tbl-scroll" style="max-height:420px"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th>'+L('القطيع','Flock')+'</th><th>'+L('المزرعة','Farm')+'</th><th>'+L('العمر','Age')+'</th><th>'+L('إناث/L8','Female/L8')+'</th><th>'+L('ذكور/L7','Male/L7')+'</th><th>L4</th><th>L1</th><th>'+L('الإجمالي','Total')+'</th></tr></thead><tbody>'+z.gp.map(x=>'<tr><td>GP</td><td>'+x.flock+'</td><td>GP'+String(x.farm).padStart(2,'0')+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.L8)+'</td><td>'+fmt(x.L7)+'</td><td>'+fmt(x.L4)+'</td><td>'+fmt(x.L1)+'</td><td>'+fmt(x.total)+'</td></tr>').join('')+z.psp.map(x=>'<tr><td>PSP</td><td>'+x.flock+'</td><td>'+x.farm+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.female)+'</td><td>'+fmt(x.male)+'</td><td>—</td><td>—</td><td>'+fmt(x.total)+'</td></tr>').join('')+z.psr.map(x=>'<tr><td>PSR</td><td>'+x.flock+'</td><td>'+x.farm+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.female)+'</td><td>'+fmt(x.male)+'</td><td>—</td><td>—</td><td>'+fmt(x.total)+'</td></tr>').join('')+'</tbody></table></div></div><div class="sim-section"><div class="sim-section-head"><div><h2>'+L('تدقيق القطعان المستبعدة','Excluded-flock audit')+'</h2><p>'+L('هذه القطعان لا تدخل في التوقع أو الطاقة.','These flocks do not enter forecast supply or capacity.')+'</p></div></div><div class="tbl-scroll" style="max-height:420px"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th>'+L('القطيع','Flock')+'</th><th>'+L('آخر ترانزكشن','Last transaction')+'</th><th>'+L('آخر يوم للمرحلة','Stage latest day')+'</th><th>'+L('السبب','Reason')+'</th></tr></thead><tbody>'+((r.audit.excluded||[]).length?r.audit.excluded.slice(0,PULL_MAX_ROWS).map(x=>'<tr class="pull-audit-row"><td>'+x.stage+'</td><td>'+x.flock+'</td><td>'+x.last+'</td><td>'+x.stageLast+'</td><td>'+x.reason+'</td></tr>').join(''):'<tr><td colspan="5">'+L('لا توجد استبعادات','No exclusions')+'</td></tr>')+'</tbody></table></div></div></div>';
@@ -6009,6 +6047,11 @@ const PLAN = Object.freeze({
     /* End of lay. Measured from the PS plan: depletion age runs 455-497 days, median 490.
        These were referenced by the forward/backward planners but never defined, so the
        laying window came out NaN and the cadence silently became null. */
+    /* Measured weekly loss during lay (mortality + culls), from the daily field files:
+       PS females 0.226%/week -> 9.7% over a 45-week lay
+       GP females 0.676%/week -> 26.3% over the same span
+       Holding head counts flat, as the forecast used to, overstates late-cycle output by
+       up to 10.7% on PS and 35.7% on GP. */
     psLastHatchDays:   490,
     gpLastHatchDays:   490,
     psTransferAge:     141
@@ -6037,6 +6080,7 @@ const PLAN = Object.freeze({
     gpIntervalDays:  90
   }),
   /* --- forecast blending: how far the plan may lean on standards vs measured actuals --- */
+  layLossPerWeek: Object.freeze({ ps:0.00226, gp:0.00676 }),
   psHePerHenDay: 0.62,   /* hatching eggs per hen per day across the laying cycle */
   forecast: Object.freeze({
     basis: 'blended',        /* standard | actual | blended */
@@ -6979,6 +7023,341 @@ function wireFullChain(host){
   const b=host.querySelector('#fcbRun');if(!b)return;
   b.onclick=()=>{const d=host.querySelector('#fcbDate'),k=host.querySelector('#fcbKill');
     FCB_STATE={date:d&&d.value,kill:num(k&&k.value)};renderPullPlanner(host);};
+}
+
+
+/* ==========================================================================================
+   FLOCK EXIT CALENDAR AND PRODUCTION STABILITY
+   Every breeder flock has a finite life and is culled at end of lay. If the forecast keeps
+   crediting eggs to a flock that has already left service, the plan looks fed when it is not.
+   This walks the horizon day by day, retires each flock on its own depletion date, applies the
+   measured weekly loss while it is still laying, and reports:
+     - which flocks exit, when, and how many laying hens go with them
+     - the egg-production step-down at each exit
+     - whether the replacement flock reaches point of lay in time to hold output steady
+   ========================================================================================== */
+function flockExitCalendar(daysAhead){
+  daysAhead=daysAhead||540;
+  const z=ACTIVE_FLOCK_SNAPSHOT||{},asOf=asDate(z.date)||asDate(latestDataISO())||new Date();
+  const end=brhAddDays(asOf,daysAhead);
+  const out={asOf:gmDateISO(asOf),horizonDays:daysAhead,gp:[],ps:[],series:[],dips:[]};
+
+  /* ---- GP flocks in service, with their own end date ---- */
+  (z.gp||[]).forEach(x=>{
+    const plan=(CHAIN_PLAN_DATA.gp||[]).find(p=>num(p.flock)===num(x.flock));
+    const dep=plan?asDate(plan.depletion):brhAddDays(asOf,Math.max(0,(OPS_PLAN.GP_END_WK-x.age)*7));
+    out.gp.push({stage:'GP',flock:x.flock,farm:'GP'+String(x.farm).padStart(2,'0'),
+      ageNow:x.age,exit:dep?gmDateISO(dep):null,
+      hensL8:num(x.L8),hensL4:num(x.L4),
+      weeksLeft:dep?Math.max(0,Math.round((dep-asOf)/864e5/7)):null,
+      source:plan?'plan':'estimated'});
+  });
+  /* ---- PS production flocks ---- */
+  (z.psp||[]).forEach(x=>{
+    const plan=(RAW.psplan||[]).find(p=>num(String(pick(p,'Flock#')||'').replace(/\D/g,''))===num(x.flock));
+    const dep=plan?asDate(pick(plan,'Flock End Date')):brhAddDays(asOf,Math.max(0,(70-x.age)*7));
+    out.ps.push({stage:'PS',flock:x.flock,farm:x.farm,ageNow:x.age,
+      exit:dep?gmDateISO(dep):null,hens:num(x.female),males:num(x.male),
+      weeksLeft:dep?Math.max(0,Math.round((dep-asOf)/864e5/7)):null,
+      source:plan?'plan':'estimated'});
+  });
+  out.gp.sort((a,b)=>String(a.exit||'').localeCompare(String(b.exit||'')));
+  out.ps.sort((a,b)=>String(a.exit||'').localeCompare(String(b.exit||'')));
+
+  /* ---- daily laying-hen and egg curve, weekly sampled ---- */
+  const psRate=a=>{try{return r308psHEweek(a)/7;}catch(e){return PLAN.psHePerHenDay||0.62;}};
+  for(let d=new Date(asOf);d<=end;d=brhAddDays(d,7)){
+    const wks=(d-asOf)/864e5/7;
+    let psHens=0,psEggs=0,gpHens=0,gpEggs=0,exiting=[];
+    (z.psp||[]).forEach(x=>{
+      const age=x.age+wks,rec=out.ps.find(r=>r.flock===x.flock);
+      if(rec&&rec.exit&&gmDateISO(d)>rec.exit)return;
+      if(age<25||age>70)return;
+      const h=num(x.female)*Math.pow(1-PLAN.layLossPerWeek.ps,Math.max(0,wks));
+      psHens+=h;psEggs+=h*psRate(age);
+    });
+    /* planned PS flocks reaching lay inside the horizon */
+    (RAW.psplan||[]).forEach(p=>{
+      const pol=asDate(pick(p,'Date (171 Day','Date (175 Day'))||null;
+      const dep=asDate(pick(p,'Flock End Date'));
+      if(!pol||d<pol||(dep&&d>dep))return;
+      const age=25+(d-pol)/864e5/7; if(age>70)return;
+      const base=num(pick(p,'Hen (POL)'))||num(pick(p,'Actual  Transfer (Females)'))||74100;
+      const h=base*Math.pow(1-PLAN.layLossPerWeek.ps,Math.max(0,age-25));
+      psHens+=h;psEggs+=h*psRate(age);
+    });
+    (z.gp||[]).forEach(x=>{
+      const age=x.age+wks,rec=out.gp.find(r=>r.flock===x.flock);
+      if(rec&&rec.exit&&gmDateISO(d)>rec.exit)return;
+      if(age<25||age>OPS_PLAN.GP_END_WK)return;
+      const h=num(x.L8)*Math.pow(1-PLAN.layLossPerWeek.gp,Math.max(0,wks));
+      const o=gpStdObj(Math.round(age),'FML');
+      gpHens+=h;gpEggs+=h*(o?o.heHD:0);
+    });
+    [...out.gp,...out.ps].forEach(r=>{
+      if(r.exit&&r.exit>gmDateISO(d)&&r.exit<=gmDateISO(brhAddDays(d,7)))
+        exiting.push(r.stage+'-'+r.flock);
+    });
+    out.series.push({date:gmDateISO(d),psHens,psEggs,gpHens,gpEggs,exiting});
+  }
+  /* ---- where does output step down week over week? ---- */
+  for(let i=1;i<out.series.length;i++){
+    const p=out.series[i-1],c=out.series[i];
+    const dPs=p.psEggs>0?(c.psEggs-p.psEggs)/p.psEggs:0;
+    const dGp=p.gpEggs>0?(c.gpEggs-p.gpEggs)/p.gpEggs:0;
+    if(dPs<-0.05||dGp<-0.05)
+      out.dips.push({date:c.date,psDropPct:dPs,gpDropPct:dGp,exiting:c.exiting,
+        psEggs:c.psEggs,gpEggs:c.gpEggs});
+  }
+  const eggs=out.series.map(x=>x.psEggs).filter(x=>x>0);
+  out.psEggsMin=eggs.length?Math.min.apply(null,eggs):0;
+  out.psEggsMax=eggs.length?Math.max.apply(null,eggs):0;
+  out.psSwingPct=out.psEggsMax>0?(out.psEggsMax-out.psEggsMin)/out.psEggsMax:null;
+  const geggs=out.series.map(x=>x.gpEggs).filter(x=>x>0);
+  out.gpEggsMin=geggs.length?Math.min.apply(null,geggs):0;
+  out.gpEggsMax=geggs.length?Math.max.apply(null,geggs):0;
+  out.gpSwingPct=out.gpEggsMax>0?(out.gpEggsMax-out.gpEggsMin)/out.gpEggsMax:null;
+  /* can the trough still feed the kill target? */
+  const cal=opsCalibrate();
+  out.killAtTrough=out.psEggsMin*cal.BR_HATCH*(1-cal.BROILER_DEPLETION);
+  out.killAtPeak  =out.psEggsMax*cal.BR_HATCH*(1-cal.BROILER_DEPLETION);
+  out.verdict=out.dips.length
+    ? ('إنتاج البيض ينخفض بأكثر من 5% في '+out.dips.length+' موضع بسبب خروج قطعان — الذبح الممكن عند القاع '+fmt(out.killAtTrough)+' طير/يوم')
+    : 'الإنتاج مستقر خلال الأفق — لا انخفاض يتجاوز 5% بين أسبوع وآخر';
+  return out;
+}
+
+
+/* ---- Flock-exit panel: who leaves when, and does egg output stay steady ---------------- */
+function flockExitHTML(){
+  let C=null;try{C=flockExitCalendar(540);}catch(e){return '<p class="sub">exit calendar: '+e+'</p>';}
+  const swing=C.psSwingPct||0;
+  const col=swing>0.30?'var(--bad)':swing>0.15?'var(--warn)':'var(--good)';
+  let h='<div class="sim-section"><div class="sim-section-head"><div><h2>'+
+    L('خروج القطعان واستقرار إنتاج البيض','Flock exits and egg-production stability')+'</h2><p>'+
+    L('كل قطيع أمهات وجدود له عمر محدد ويُجزَر في نهايته. هذا القسم يُخرج كل قطيع في تاريخه، ويطبّق النفوق الأسبوعي المقيس أثناء الإنتاج، ويكشف أين ينخفض البيض بسبب الخروج وهل تصل قطعان الإحلال في وقتها.',
+      'Every breeder and GP flock has a finite life and is culled at the end of it. This retires each flock on its own date, applies the measured weekly loss while it lays, and shows where egg output steps down and whether replacements arrive in time.')+
+    '</p></div></div>';
+  h+='<div class="grid k4">'+
+    '<div class="card kpi"><div class="lbl">'+L('قاع بيض الأمهات','PS egg trough')+'</div><div class="val num">'+fmt(C.psEggsMin)+'</div><div class="sub">'+L('ذروة ','peak ')+fmt(C.psEggsMax)+'</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('تذبذب الإنتاج','Output swing')+'</div><div class="val num" style="color:'+col+'">'+fmt(100*swing,1)+'%</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('الذبح الممكن عند القاع','Kill at trough')+'</div><div class="val num">'+fmt(C.killAtTrough)+'</div><div class="sub">'+L('طير/يوم','birds/day')+'</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('انخفاضات فوق 5%','Drops over 5%')+'</div><div class="val num" style="color:'+(C.dips.length?'var(--warn)':'var(--good)')+'">'+C.dips.length+'</div></div>'+
+    '</div>';
+  /* exit tables */
+  const tbl=(rows,title,hens)=>{
+    if(!rows.length)return '';
+    let t='<div class="card" style="margin-top:10px"><h4>'+title+'</h4><div class="tbl-wrap"><table><thead><tr><th>'+
+      L('القطيع','Flock')+'</th><th>'+L('المزرعة','Farm')+'</th><th class="num">'+L('العمر الآن','Age now')+
+      '</th><th class="num">'+hens+'</th><th>'+L('تاريخ الخروج','Exit date')+'</th><th class="num">'+
+      L('أسابيع باقية','Weeks left')+'</th><th>'+L('المصدر','Source')+'</th></tr></thead><tbody>';
+    rows.slice(0,26).forEach(r=>{
+      const soon=r.weeksLeft!=null&&r.weeksLeft<=8;
+      t+='<tr'+(soon?' style="background:rgba(255,180,0,.08)"':'')+'><td>'+r.flock+'</td><td>'+r.farm+
+         '</td><td class="num">'+fmt(r.ageNow,0)+'w</td><td class="num">'+fmt(r.hens!=null?r.hens:r.hensL8)+
+         '</td><td>'+(r.exit||'—')+'</td><td class="num"'+(soon?' style="color:var(--warn)"':'')+'>'+
+         (r.weeksLeft==null?'—':r.weeksLeft)+'</td><td class="sub">'+r.source+'</td></tr>';});
+    t+='</tbody></table></div></div>';return t;};
+  h+=tbl(C.gp,L('قطعان الجدود — تواريخ الخروج','GP flocks — exit dates'),L('إناث L8','L8 hens'));
+  h+=tbl(C.ps,L('قطعان الأمهات — تواريخ الخروج','PS flocks — exit dates'),L('إناث','Hens'));
+  /* production curve, sampled */
+  h+='<div class="card" style="margin-top:10px"><h4>'+L('منحنى الإنتاج مع الخروج والإحلال','Output curve with exits and replacements')+
+     '</h4><div class="tbl-wrap"><table><thead><tr><th>'+L('التاريخ','Date')+'</th><th class="num">'+
+     L('إناث أمهات','PS hens')+'</th><th class="num">'+L('بيض أمهات/يوم','PS eggs/day')+'</th><th class="num">'+
+     L('إناث جدود','GP hens')+'</th><th class="num">'+L('بيض جدود/يوم','GP eggs/day')+'</th><th>'+
+     L('يخرج','Exiting')+'</th></tr></thead><tbody>';
+  (C.series||[]).filter((_,i)=>i%3===0).slice(0,40).forEach(x=>{
+    h+='<tr><td>'+x.date+'</td><td class="num">'+fmt(x.psHens)+'</td><td class="num">'+fmt(x.psEggs)+
+       '</td><td class="num">'+fmt(x.gpHens)+'</td><td class="num">'+fmt(x.gpEggs)+
+       '</td><td class="sub"'+(x.exiting.length?' style="color:var(--warn)"':'')+'>'+(x.exiting.join(', ')||'—')+'</td></tr>';});
+  h+='</tbody></table></div>';
+  if(C.dips.length){
+    h+='<h4 style="margin-top:12px">'+L('مواضع الانخفاض فوق 5%','Drops beyond 5%')+'</h4><div class="tbl-wrap"><table><thead><tr><th>'+
+       L('التاريخ','Date')+'</th><th class="num">'+L('أمهات','PS')+'</th><th class="num">'+L('جدود','GP')+
+       '</th><th>'+L('القطعان الخارجة','Flocks exiting')+'</th></tr></thead><tbody>';
+    C.dips.slice(0,14).forEach(dp=>{h+='<tr><td>'+dp.date+'</td><td class="num" style="color:'+(dp.psDropPct<-0.05?'var(--bad)':'var(--mut)')+'">'+
+      fmt(100*dp.psDropPct,1)+'%</td><td class="num" style="color:'+(dp.gpDropPct<-0.05?'var(--bad)':'var(--mut)')+'">'+
+      fmt(100*dp.gpDropPct,1)+'%</td><td class="sub">'+(dp.exiting.join(', ')||'—')+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='<p class="sub" style="margin-top:8px;color:'+col+'">'+C.verdict+'</p>';
+  h+='<p class="sub">'+L('النفوق الأسبوعي المقيس أثناء الإنتاج: الأمهات ','Measured weekly loss in lay: PS ')+
+     fmt(100*PLAN.layLossPerWeek.ps,3)+L('% · الجدود ','% · GP ')+fmt(100*PLAN.layLossPerWeek.gp,3)+
+     L('%. بدون هذا النفوق كان التوقع يبالغ حتى 10.7% للأمهات و35.7% للجدود في آخر الدورة.',
+       '%. Without it the forecast overstated late-cycle output by up to 10.7% on PS and 35.7% on GP.')+'</p></div></div>';
+  return h;
+}
+
+
+/* ==========================================================================================
+   FARM OCCUPANCY MODEL — with the turnaround (clean, disinfect, fumigate) period
+   A farm is not free the day a flock leaves. Occupancy per flock is:
+        rearing days + laying days + turnaround days
+   Divide that by the placement interval and you get the number of farms that must exist.
+   This is what decides whether an extra flock is even possible, and how many farms a
+   tighter cadence would require. The earlier build applied turnaround only to the GP
+   rotation table; the exit calendar and the backward chain ignored it entirely.
+   ========================================================================================== */
+const TURNAROUND = Object.freeze({ gp:35, psRearing:35, psProduction:35 });
+
+function farmOccupancyModel(opts){
+  opts=opts||{};
+  const L=PLAN.lag;
+  const prep={gp:num(opts.gpPrep)||TURNAROUND.gp,
+              psR:num(opts.psRearPrep)||TURNAROUND.psRearing,
+              psP:num(opts.psProdPrep)||TURNAROUND.psProduction};
+  const gpInterval=num(opts.gpInterval)||PLAN.rules.gpIntervalDays;
+  const psCadence =num(opts.psCadence)||PLAN.rules.psCadenceDaysNow;
+  const transfer  =L.psTransferAge;          /* rearing ends, production begins */
+  const depletion =L.psLastHatchDays;        /* end of lay */
+
+  const stage=(name,rearDays,layDays,prepDays,interval,farmsAvail,housesPerFarm)=>{
+    const occupancy=rearDays+layDays+prepDays;
+    const farmsNeeded=interval>0?occupancy/interval:null;
+    const maxCadence=farmsAvail>0?occupancy/farmsAvail:null;   /* shortest interval possible */
+    const concurrentProducing=layDays>0&&interval>0?layDays/interval:null;
+    return {name,rearDays,layDays,prepDays,occupancy,interval,farmsAvail,housesPerFarm,
+      farmsNeeded,maxCadence,concurrentProducing,
+      utilisation:farmsAvail>0?farmsNeeded/farmsAvail:null,
+      fits:farmsNeeded<=farmsAvail,
+      shortFarms:Math.max(0,farmsNeeded-farmsAvail),
+      /* if it does not fit, how much turnaround would have to be surrendered */
+      prepAvailable: farmsAvail>0 ? Math.max(0,farmsAvail*interval-(rearDays+layDays)) : null};
+  };
+
+  const gp = stage('GP',L.gpPlaceToPOL,depletion-L.gpPlaceToPOL,prep.gp,gpInterval,
+                   FACILITY.gp.farms,FACILITY.gp.housesPerFarm);
+  const psR= stage('PS rearing',transfer,0,prep.psR,psCadence,
+                   FACILITY.psRearing.farmsNow,FACILITY.psRearing.housesPerFarm);
+  psR.layDays=0;psR.rearDays=transfer;
+  const psP= stage('PS production',0,depletion-transfer,prep.psP,psCadence,
+                   FACILITY.psProduction.farms,FACILITY.psProduction.housesPerFarm);
+
+  /* after the approved expansion */
+  const psRAfter=stage('PS rearing (after expansion)',transfer,0,prep.psR,psCadence,
+                       FACILITY.psRearing.farmsAfterExpansion,FACILITY.psRearing.housesPerFarm);
+  const psPAfter=stage('PS production (after expansion)',0,depletion-transfer,prep.psP,psCadence,
+                       FACILITY.psProduction.farms+12,FACILITY.psProduction.housesPerFarm);
+
+  const stages=[gp,psR,psP];
+  const blocked=stages.filter(x=>!x.fits);
+  return {prep,gpInterval,psCadence,stages,psRAfter,psPAfter,
+    blocked:blocked.map(x=>x.name),
+    /* can one more GP flock be squeezed in? */
+    extraGpFlock:(()=>{
+      const tighter=gp.occupancy/(FACILITY.gp.farms);   /* shortest interval with today's farms */
+      return {shortestInterval:tighter,
+        possibleAtCurrentFarms: tighter<=gpInterval,
+        farmsNeededForOneMore: gp.occupancy/(gpInterval*0.75),
+        note: tighter<=gpInterval
+          ? 'الفاصل الحالي أطول من الحد الأدنى، فيوجد هامش ضيق'
+          : 'لا يمكن تقصير الفاصل بالمزارع الحالية'};
+    })(),
+    verdict: blocked.length
+      ? ('الطاقة لا تكفي في: '+blocked.map(x=>x.name).join(' · ')+' — التهيئة تُضغط قسراً')
+      : 'إشغال المزارع يستوعب الفاصل الحالي مع التهيئة الكاملة'};
+}
+
+/* Does the chain always hold ~3 producing GP flocks, and where does it break? */
+function gpChainContinuity(daysAhead){
+  daysAhead=daysAhead||900;
+  const z=ACTIVE_FLOCK_SNAPSHOT||{},asOf=asDate(z.date)||new Date();
+  const flocks=[];
+  (z.gp||[]).forEach(x=>{
+    const plan=(CHAIN_PLAN_DATA.gp||[]).find(p=>num(p.flock)===num(x.flock));
+    const pol=plan&&asDate(plan.polDate)?asDate(plan.polDate)
+              :brhAddDays(asOf,Math.round((25-x.age)*7));
+    const dep=plan&&asDate(plan.depletion)?asDate(plan.depletion)
+              :brhAddDays(asOf,Math.round((OPS_PLAN.GP_END_WK-x.age)*7));
+    flocks.push({flock:x.flock,farm:x.farm,pol,dep,source:'actual'});
+  });
+  (CHAIN_PLAN_DATA.gp||[]).forEach(p=>{
+    if((z.gp||[]).some(x=>num(x.flock)===num(p.flock)))return;
+    const pl=asDate(p.placement);if(!pl)return;
+    flocks.push({flock:num(p.flock),farm:num(String(p.farm||'').replace(/\D/g,''))||null,
+      pol:asDate(p.polDate)||brhAddDays(pl,PLAN.lag.gpPlaceToPOL),
+      dep:asDate(p.depletion)||brhAddDays(pl,PLAN.lag.psLastHatchDays),source:'plan'});
+  });
+  const series=[],gaps=[];
+  for(let d=new Date(asOf);d<=brhAddDays(asOf,daysAhead);d=brhAddDays(d,7)){
+    const live=flocks.filter(f=>f.pol&&f.dep&&d>=f.pol&&d<=f.dep);
+    series.push({date:gmDateISO(d),producing:live.length,flocks:live.map(f=>f.flock)});
+    if(live.length<3)gaps.push({date:gmDateISO(d),producing:live.length,flocks:live.map(f=>f.flock)});
+  }
+  const counts=series.map(x=>x.producing);
+  return {series,gaps,flocks,
+    minProducing:counts.length?Math.min.apply(null,counts):0,
+    maxProducing:counts.length?Math.max.apply(null,counts):0,
+    target:3,
+    verdict: gaps.length
+      ? ('السلسلة تنكسر في '+gaps.length+' أسبوعاً — أقل عدد منتج '+Math.min.apply(null,counts))
+      : 'السلسلة تحافظ على 3 قطعان منتجة أو أكثر طوال الأفق'};
+}
+
+
+/* ---- Farm occupancy + GP chain continuity panel ---------------------------------------- */
+function farmOccupancyHTML(){
+  let M=null,C=null;
+  try{M=farmOccupancyModel();C=gpChainContinuity(900);}catch(e){return '<p class="sub">occupancy: '+e+'</p>';}
+  let h='<div class="sim-section"><div class="sim-section-head"><div><h2>'+
+    L('إشغال المزارع وفترة التهيئة','Farm occupancy and turnaround')+'</h2><p>'+
+    L('المزرعة لا تتحرر يوم خروج القطيع: إشغالها = التربية + الإنتاج + التهيئة للتنظيف والتعقيم والتعفير. قسمة الإشغال على الفاصل تعطي عدد المزارع اللازم — وهي التي تحدد إن كان قطيع إضافي ممكناً أصلاً.',
+      'A farm is not free the day a flock leaves: occupancy = rearing + lay + turnaround for cleaning, disinfection and fumigation. Occupancy divided by the placement interval gives the number of farms required — which is what decides whether an extra flock is even possible.')+
+    '</p></div></div>';
+  h+='<div class="card"><div class="tbl-wrap"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th class="num">'+
+     L('تربية','Rear')+'</th><th class="num">'+L('إنتاج','Lay')+'</th><th class="num">'+L('تهيئة','Prep')+
+     '</th><th class="num">'+L('الإشغال','Occupancy')+'</th><th class="num">'+L('الفاصل','Interval')+
+     '</th><th class="num">'+L('متاح','Available')+'</th><th class="num">'+L('مطلوب','Required')+
+     '</th><th class="num">'+L('الاستغلال','Utilisation')+'</th><th>'+L('الحكم','Verdict')+'</th></tr></thead><tbody>';
+  M.stages.forEach(x=>{
+    const col=x.fits?'var(--good)':'var(--bad)';
+    h+='<tr><td>'+x.name+'</td><td class="num">'+x.rearDays+'</td><td class="num">'+x.layDays+
+       '</td><td class="num">'+x.prepDays+'</td><td class="num"><b>'+x.occupancy+'</b></td><td class="num">'+
+       x.interval+'</td><td class="num">'+x.farmsAvail+'</td><td class="num">'+fmt(x.farmsNeeded,2)+
+       '</td><td class="num" style="color:'+col+'">'+fmt(100*x.utilisation,0)+'%</td><td style="color:'+col+'">'+
+       (x.fits?L('يكفي','Fits'):L('ينقص ','short ')+fmt(x.shortFarms,2)+L(' مزرعة',' farms'))+'</td></tr>';});
+  h+='</tbody></table></div>';
+  h+='<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th class="num">'+
+     L('أقصر فاصل ممكن','Shortest interval')+'</th><th class="num">'+L('قطعان منتجة متزامنة','Concurrent in lay')+
+     '</th><th class="num">'+L('التهيئة المتاحة فعلياً','Turnaround actually available')+'</th></tr></thead><tbody>';
+  M.stages.forEach(x=>{
+    const squeezed=!x.fits;
+    h+='<tr><td>'+x.name+'</td><td class="num">'+fmt(x.maxCadence,1)+L(' يوم',' d')+'</td><td class="num">'+
+       (x.concurrentProducing?fmt(x.concurrentProducing,1):'—')+'</td><td class="num"'+
+       (squeezed?' style="color:var(--bad)"':'')+'>'+(x.prepAvailable==null?'—':fmt(x.prepAvailable,0)+L(' يوم',' d')+
+       (squeezed?L(' بدل ',' instead of ')+x.prepDays:''))+'</td></tr>';});
+  h+='</tbody></table></div>';
+  h+='<p class="sub" style="margin-top:8px;color:'+(M.blocked.length?'var(--bad)':'var(--good)')+'">'+M.verdict+'</p>';
+  /* after expansion */
+  h+='<h4 style="margin-top:12px">'+L('بعد التوسعة المعتمدة','After the approved expansion')+'</h4><div class="tbl-wrap"><table><thead><tr><th>'+
+     L('المرحلة','Stage')+'</th><th class="num">'+L('متاح','Available')+'</th><th class="num">'+L('مطلوب','Required')+
+     '</th><th>'+L('الحكم','Verdict')+'</th></tr></thead><tbody>';
+  [M.psRAfter,M.psPAfter].forEach(x=>{const col=x.fits?'var(--good)':'var(--bad)';
+    h+='<tr><td>'+x.name+'</td><td class="num">'+x.farmsAvail+'</td><td class="num">'+fmt(x.farmsNeeded,2)+
+       '</td><td style="color:'+col+'">'+(x.fits?L('يكفي','Fits'):L('ينقص ','short ')+fmt(x.shortFarms,2))+'</td></tr>';});
+  h+='</tbody></table></div>';
+  h+='<p class="sub" style="margin-top:8px">'+L('إضافة قطيع جدود: أقصر فاصل ممكن بـ','Extra GP flock: shortest interval with ')+
+     FACILITY.gp.farms+L(' مزارع = ',' farms = ')+fmt(M.extraGpFlock.shortestInterval,1)+
+     L(' يوم، والفاصل الحالي ',' days, current interval ')+M.gpInterval+L(' يوم. ',' days. ')+M.extraGpFlock.note+'</p></div>';
+  /* continuity */
+  const gcol=C.gaps.length?'var(--warn)':'var(--good)';
+  h+='<div class="card" style="margin-top:10px"><h4>'+L('استمرارية سلسلة الجدود','GP chain continuity')+'</h4>';
+  h+='<p class="sub">'+L('يخرج قطيع ويدخل آخر من التربية إلى الإنتاج. الهدف 3 قطعان منتجة على الأقل في كل وقت.',
+    'One flock leaves as another moves from rearing into lay. The target is at least three flocks in production at any time.')+'</p>';
+  h+='<div class="grid k4">'+
+    '<div class="card kpi"><div class="lbl">'+L('أقل عدد منتج','Minimum in lay')+'</div><div class="val num" style="color:'+gcol+'">'+C.minProducing+'</div><div class="sub">'+L('الهدف 3','target 3')+'</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('أقصى عدد منتج','Maximum in lay')+'</div><div class="val num">'+C.maxProducing+'</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('أسابيع تحت الهدف','Weeks below target')+'</div><div class="val num" style="color:'+gcol+'">'+C.gaps.length+'</div></div>'+
+    '<div class="card kpi"><div class="lbl">'+L('قطعان منتجة متزامنة نظرياً','Theoretical concurrent')+'</div><div class="val num">'+fmt(M.stages[0].concurrentProducing,1)+'</div></div></div>';
+  if(C.gaps.length){
+    h+='<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>'+L('التاريخ','Date')+'</th><th class="num">'+
+       L('قطعان منتجة','In lay')+'</th><th>'+L('القطعان','Flocks')+'</th></tr></thead><tbody>';
+    C.gaps.slice(0,14).forEach(g=>{h+='<tr><td>'+g.date+'</td><td class="num" style="color:var(--bad)">'+g.producing+
+      '</td><td class="sub">'+g.flocks.join(', ')+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='<p class="sub" style="margin-top:8px;color:'+gcol+'">'+C.verdict+'</p></div></div>';
+  return h;
 }
 
 </script>
