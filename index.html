@@ -2630,76 +2630,92 @@ function pullPSCadence(s,throughDate){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(
   let p=last?brhAddDays(last.place1,15):brhAddDays(asOf,15),fn=last?last.flock+1:1;while(p<=throughDate){const e={source:'cadence-extension',flock:fn++,place1:new Date(p),place2:brhAddDays(p,2),place3:brhAddDays(p,4),rearFarm:'PSR-TBD',prodFarm:'PSP-TBD',femalePlaced:num(s.psFemale)||78000,malePlaced:num(s.psMale)||11700,femalePOL:Math.round((num(s.psFemale)||78000)*.95),malePOL:Math.round((num(s.psMale)||11700)*.75),transferFrom:brhAddDays(p,140),transferTo:brhAddDays(p,144),polDate:brhAddDays(p,175),depletion:brhAddDays(p,490),offSexDates:[new Date(p),brhAddDays(p,2),brhAddDays(p,4)]};events.push(e);p=brhAddDays(p,15);}
   return events.sort((a,b)=>a.place1-b.place1);
 }
-function pullOffSexMap(psEvents){
-  /* الأوف-سكس صفة **فقسة أمهات** لا صفة يوم ذبح: من كل قطيع أمهات ثلاث دفعات
-     على أيام 0 و 2 و 4، أي **يوم راحة بين كل حضيرة والتالية**، وحضيرة واحدة
-     لكل دفعة. تُبنى الخريطة بتاريخها الخاص، ثم تُستهلك مرة واحدة فقط.        */
-  const m={},plan=[],asOf=asDate(ACTIVE_FLOCK_SNAPSHOT.date);
-  (psEvents||[]).filter(x=>x.source!=='actual-rearing').forEach(x=>{
-    const ds=(x.offSexDates||[]).slice().sort((p,q)=>p-q);
-    ds.forEach((d,i)=>{
-      if(!d||d<asOf)return;
-      const k=gmDateISO(d);
-      m[k]=(m[k]||0)+PULL_PLAN_RULES.offSexHouse;
-      plan.push({date:new Date(d),iso:k,psFlock:x.flock,batch:i+1,
-        houses:1,chicks:PULL_PLAN_RULES.offSexHouse,
-        gapFromPrev:i>0?Math.round((d-ds[i-1])/864e5):null});
-    });
-  });
-  plan.sort((p,q)=>p.date-q.date);
-  /* تدقيق القاعدة: الفجوة بين دفعتين متتاليتين لنفس القطيع يجب أن تكون يومين */
-  const violations=plan.filter(p=>p.gapFromPrev!=null&&p.gapFromPrev!==2);
-  const dup=Object.keys(m).filter(k=>m[k]>PULL_PLAN_RULES.offSexHouse);
-  Object.defineProperty(m,'__plan',{value:plan,enumerable:false});
-  Object.defineProperty(m,'__violations',{value:violations,enumerable:false});
-  Object.defineProperty(m,'__duplicates',{value:dup,enumerable:false});
-  return m;
-}
+
 function pullChoosePlacement(kill,s,H){for(const age of [31,30,32]){const p=brhAddDays(kill,-age),set=brhAddDays(p,-22),hatch=brhAddDays(set,21);if(p.getUTCDay()===6||set.getUTCDay()===5||pullIsHoliday(p,H)||pullIsHoliday(hatch,H))continue;return {placement:p,set,hatch,age,valid:true};}return {placement:brhAddDays(kill,-31),set:brhAddDays(kill,-53),hatch:brhAddDays(kill,-32),age:31,valid:false};}
 function pullBuildBroiler(s,psEvents){
-  const H=pullHolidaySet(s),offSex=pullOffSexMap(psEvents),rows=[];
-  const killDays=plannerDays(s.from,s.to).filter(d=>
-    (+s.killOffDow<0||d.getUTCDay()!==+s.killOffDow)&&!pullIsHoliday(d,H));
-  /* كل تاريخ أوف-سكس يُستهلك مرة واحدة فقط — هذا كان الخلل:
-     يومَا ذبح مختلفان قد يقعان على نفس تاريخ التسكين فيطالبان بنفس الحضيرة. */
-  const remaining=Object.assign({},offSex);
+  const H=pullHolidaySet(s),rows=[];
+  const isWork=d=>(+s.killOffDow<0||d.getUTCDay()!==+s.killOffDow)&&!pullIsHoliday(d,H);
+  const killDays=plannerDays(s.from,s.to).filter(isWork);
+  const cap=num(s.headsHouse||34000), hatch=num(s.hatch||.84), surv=num(s.survival||.95);
+  const ages=PULL_PLAN_RULES.broilerAge||[31,30,32];
+
+  /* ---------------------------------------------------------------------
+     الأوف-سكس لا يأتي من مفقس التسمين إطلاقاً. هو كتاكيت الجنس المعاكس
+     الناتجة عن فقس قطعان الأمهات في **مفقس الجدود**. كل قطيع أمهات له
+     ثلاث فقسات: يوم فقس → ترسل حضيرة، يوم راحة، يوم فقس → حضيرة، يوم
+     راحة، يوم فقس → حضيرة. أي أيام 0 و 2 و 4.
+     ولذلك يُبنى الجدول **إلى الأمام** من تاريخ الفقس، ثم يُطرح من حاجة
+     يوم الذبح الذي تُذبح فيه تلك الحضيرة — لا من يوم تسكين مُشتق.
+     --------------------------------------------------------------------- */
+  const asOf=asDate(ACTIVE_FLOCK_SNAPSHOT.date);
+  const from=asDate(s.from), to=asDate(s.to);
+  const offSexPlacements=[];
+  (psEvents||[]).filter(x=>x.source!=='actual-rearing').forEach(x=>{
+    const ds=(x.offSexDates||[]).slice().filter(Boolean).sort((p,q)=>p-q);
+    ds.forEach((d,i)=>{
+      if(d<asOf)return;
+      /* عمر ثابت بلا إزاحة. الإزاحة لتجنّب الجمعة كانت تكسر التباعد:
+         فقس 16 · 18 · 20 كان يصبح ذبحاً 16 · 17 · 20. والتسكين يوم الجمعة
+         عادي في الواقع، فلا حاجة لأي إزاحة.                              */
+      const kd=brhAddDays(d,ages[0]);
+      offSexPlacements.push({placement:new Date(d),iso:gmDateISO(d),
+        psFlock:x.flock,batch:i+1,houses:1,chicks:cap,
+        killDate:kd,killISO:gmDateISO(kd),
+        age:Math.round((kd-d)/864e5),
+        gapFromPrev:i>0?Math.round((d-ds[i-1])/864e5):null,
+        source:L('مفقس الجدود','GP hatchery')});
+    });
+  });
+  offSexPlacements.sort((p,q)=>p.placement-q.placement);
+  /* الأوف-سكس المذبوح في كل يوم ذبح */
+  const offByKill={};
+  offSexPlacements.forEach(o=>{ if(!(o.killDate>=from&&o.killDate<=to))return;
+    const k=o.killISO; offByKill[k]=offByKill[k]||{chicks:0,houses:0,flocks:[]};
+    offByKill[k].chicks+=o.chicks; offByKill[k].houses+=o.houses;
+    offByKill[k].flocks.push(o.psFlock+'/'+o.batch); });
+
   killDays.forEach(kill=>{
     const c=pullChoosePlacement(kill,s,H);
-    const need=num(s.dailyKill)/num(s.survival||.95);
-    const pk=gmDateISO(c.placement);
-    const off=num(remaining[pk]||0);
-    if(off>0)remaining[pk]=0;                      /* استُهلك */
-    const normal=Math.max(0,need-off);
-    const normalHouses=Math.ceil(normal/num(s.headsHouse||34000));
-    const placed=normalHouses*num(s.headsHouse||34000)+off;
-    const eggs=normal/num(s.hatch||.84);
-    rows.push({killDate:kill,...c,targetKill:num(s.dailyKill),needPlace:need,
-      offSex:off,offSexHouses:off>0?Math.round(off/PULL_PLAN_RULES.offSexHouse):0,
-      normalChicks:normal,normalHouses,placed,eggs,
-      expectedKill:placed*num(s.survival||.95)});
+    const need=num(s.dailyKill)/surv;
+    const ok=offByKill[gmDateISO(kill)]||{chicks:0,houses:0,flocks:[]};
+    /* كتاكيت الأوف-سكس تُذبح هذا اليوم فتُخصم من الحاجة */
+    const offKill=ok.chicks*surv;
+    const normalKill=Math.max(0,num(s.dailyKill)-offKill);
+    const normal=normalKill/surv;
+    const normalHouses=Math.ceil(normal/cap);
+    const placed=normalHouses*cap;
+    /* بيض مفقس التسمين يُحسب من الحضائر العادية فقط */
+    const eggs=normal/hatch;
+    rows.push({killDate:kill,...c,targetKill:num(s.dailyKill),
+      offSexHouses:ok.houses,offSexChicks:ok.chicks,offSexKill:offKill,
+      offSexFlocks:ok.flocks.join(', '),
+      normalChicks:normal,normalHouses,brHatcheryEggs:eggs,eggs,
+      placed,totalHouses:normalHouses+ok.houses,
+      expectedKill:placed*surv+offKill});
   });
-  /* تواريخ أوف-سكس لم يطالب بها أي يوم ذبح — تُضاف صراحة بدل أن تُفقد */
-  const orphans=Object.keys(remaining).filter(k=>num(remaining[k])>0)
-    .map(k=>({iso:k,chicks:num(remaining[k]),
-      houses:Math.round(num(remaining[k])/PULL_PLAN_RULES.offSexHouse)}))
-    .sort((x,y)=>x.iso<y.iso?-1:1);
+
+  /* الإشغال: الحضائر العادية من تاريخ تسكينها، والأوف-سكس من تاريخ فقسه */
   const occ={},birdOcc={};
   rows.forEach(r=>{for(let d=new Date(r.placement),e=new Date(r.killDate);d<=e;d=brhAddDays(d,1)){
-    const k=gmDateISO(d);occ[k]=(occ[k]||0)+r.normalHouses+(r.offSex>0?r.offSexHouses:0);
-    birdOcc[k]=(birdOcc[k]||0)+r.placed;}});
-  const cap=pullBroilerCapacity();
+    const k=gmDateISO(d);occ[k]=(occ[k]||0)+r.normalHouses;birdOcc[k]=(birdOcc[k]||0)+r.placed;}});
+  offSexPlacements.forEach(o=>{for(let d=new Date(o.placement),e=new Date(o.killDate);d<=e;d=brhAddDays(d,1)){
+    const k=gmDateISO(d);occ[k]=(occ[k]||0)+o.houses;birdOcc[k]=(birdOcc[k]||0)+o.chicks;}});
+
+  const capReg=pullBroilerCapacity();
   const maxH=Math.max(0,...Object.values(occ)),maxB=Math.max(0,...Object.values(birdOcc));
-  return {rows,
+  const inWindow=offSexPlacements.filter(o=>o.killDate>=from&&o.killDate<=to);
+  const violations=offSexPlacements.filter(o=>o.gapFromPrev!=null&&o.gapFromPrev!==2);
+  return {rows,offSexPlacements:inWindow,offSexViolations:violations,
+    offSexHousesPlanned:inWindow.length,
+    offSexChicksTotal:inWindow.reduce((a,o)=>a+o.chicks,0),
+    offSexFlocks:[...new Set(inWindow.map(o=>o.psFlock))].length,
     totalKill:rows.reduce((a,x)=>a+x.targetKill,0),
-    totalPlaced:rows.reduce((a,x)=>a+x.placed,0),
-    totalEggs:rows.reduce((a,x)=>a+x.eggs,0),
-    totalOffSex:rows.reduce((a,x)=>a+x.offSex,0),
-    offSexPlan:offSex.__plan||[],offSexViolations:offSex.__violations||[],
-    offSexDuplicates:offSex.__duplicates||[],offSexOrphans:orphans,
-    offSexHousesPlanned:(offSex.__plan||[]).length,
-    offSexHousesAllocated:rows.reduce((a,x)=>a+(x.offSexHouses||0),0),
+    totalPlaced:rows.reduce((a,x)=>a+x.placed,0)+inWindow.reduce((a,o)=>a+o.chicks,0),
+    totalEggs:rows.reduce((a,x)=>a+x.brHatcheryEggs,0),
+    totalOffSex:inWindow.reduce((a,o)=>a+o.chicks,0),
+    normalHousesTotal:rows.reduce((a,x)=>a+x.normalHouses,0),
     maxHouses:maxH,maxBirds:maxB,farmsNeeded:Math.ceil(maxH/16),
-    capacity:cap,invalid:rows.filter(x=>!x.valid)};
+    capacity:capReg,invalid:rows.filter(x=>!x.valid)};
 }
 function pullPSAvailable(date,events,s){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=asDate(z.date),flocks=[];/* FIX: same frozen-head problem on the PS side. Measured loss is 0.226% a week, 9.7% over a
      45-week lay, so late-cycle output was overstated by up to 10.7%. */
@@ -2861,8 +2877,28 @@ try{ h+=farmOccupancyHTML(); }catch(e){}
 h+='<div class="pull-flow"><div class="pull-flow-card"><b>'+L('المجزر','Plant')+'</b><strong>'+fmt(r.broiler.totalKill)+'</strong></div><div class="pull-flow-card"><b>'+L('التسمين','Broiler')+'</b><strong>'+fmt(r.broiler.totalPlaced)+'</strong><small>'+fmt(r.broiler.maxHouses)+' '+L('حضيرة ذروة','peak houses')+'</small></div><div class="pull-flow-card"><b>'+L('مفقس التسمين','Broiler hatchery')+'</b><strong>'+fmt(r.broiler.totalEggs)+'</strong><small>HE @84%</small></div><div class="pull-flow-card"><b>'+L('إناث PS المطلوبة وسطياً','Average PS hens needed')+'</b><strong>'+fmt(r.ps.requiredTotalHens)+'</strong></div><div class="pull-flow-card"><b>'+L('قطيع PS معتمد','Approved PS flock')+'</b><strong>'+fmt(s.psFemale)+'</strong><small>+ '+fmt(s.psMale)+' ♂</small></div><div class="pull-flow-card"><b>'+L('L8 نظري/قطيع إنتاج','Theoretical L8 / producing flock')+'</b><strong>'+fmt(r.gpr.requiredL8PerFlock)+'</strong></div><div class="pull-flow-card"><b>'+L('L8 الخطة القادمة','Next planned L8')+'</b><strong>'+fmt(r.gps.rows[0]?.L8||0)+'</strong></div></div>';
   h+='<div class="pull-decision-grid"><div class="pull-decision"><h3>'+L('قرار قطيع الأمهات القادم','Next PS flock decision')+'</h3><span class="pull-chip '+pullDecisionTone(nextPS.type)+'">'+(nextPS.type==='planned'?L('موجود بالخطة','In approved plan'):nextPS.type==='covered'?L('لا حاجة إضافية','No additional flock'):nextPS.type==='late'?L('داخل فترة القيادة','Inside lead time'):L('مراجعة إضافة قطيع','Review an additional flock'))+'</span><p><strong>'+(nextPS.flock?L('قطيع ','Flock ')+nextPS.flock:'')+'</strong></p><p>'+nextPS.text+'</p><p>'+L('تاريخ التسكين/المقترح: ','Placement / proposed date: ')+(nextPS.placeDate?gmDateISO(nextPS.placeDate):'—')+'</p></div><div class="pull-decision"><h3>'+L('قرار قطيع الجدود القادم','Next GP flock decision')+'</h3><span class="pull-chip '+pullDecisionTone(nextGP.type)+'">'+(nextGP.type==='planned'?L('مثبت بالخطة','In approved plan'):nextGP.type==='covered'?L('التغطية كافية','Coverage sufficient'):nextGP.type==='late'?L('داخل فترة القيادة','Inside lead time'):L('مراجعة إضافة/تقديم','Review add/advance'))+'</span><p><strong>'+(nextGP.flock?L('قطيع ','Flock ')+nextGP.flock:'')+'</strong></p><p>'+nextGP.text+'</p><p>'+L('تاريخ التسكين/المقترح: ','Placement / proposed date: ')+(nextGP.placement?gmDateISO(nextGP.placement):'—')+'</p></div></div>';
   h+='<div class="sim-grid2"><div class="sim-section"><div class="sim-section-head"><div><h2>'+L('الجرد الفعلي المتحقق','Validated active inventory')+'</h2><p>'+L('فقط القطعان التي لها ترانزكشن في آخر يوم بيانات لكل مرحلة.','Only flocks with a transaction on the latest data day for their stage.')+'</p></div></div><div class="tbl-scroll" style="max-height:420px"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th>'+L('القطيع','Flock')+'</th><th>'+L('المزرعة','Farm')+'</th><th>'+L('العمر','Age')+'</th><th>'+L('إناث/L8','Female/L8')+'</th><th>'+L('ذكور/L7','Male/L7')+'</th><th>L4</th><th>L1</th><th>'+L('الإجمالي','Total')+'</th></tr></thead><tbody>'+z.gp.map(x=>'<tr><td>GP</td><td>'+x.flock+'</td><td>GP'+String(x.farm).padStart(2,'0')+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.L8)+'</td><td>'+fmt(x.L7)+'</td><td>'+fmt(x.L4)+'</td><td>'+fmt(x.L1)+'</td><td>'+fmt(x.total)+'</td></tr>').join('')+z.psp.map(x=>'<tr><td>PSP</td><td>'+x.flock+'</td><td>'+x.farm+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.female)+'</td><td>'+fmt(x.male)+'</td><td>—</td><td>—</td><td>'+fmt(x.total)+'</td></tr>').join('')+z.psr.map(x=>'<tr><td>PSR</td><td>'+x.flock+'</td><td>'+x.farm+'</td><td>'+fmt(x.age,1)+'</td><td>'+fmt(x.female)+'</td><td>'+fmt(x.male)+'</td><td>—</td><td>—</td><td>'+fmt(x.total)+'</td></tr>').join('')+'</tbody></table></div></div><div class="sim-section"><div class="sim-section-head"><div><h2>'+L('تدقيق القطعان المستبعدة','Excluded-flock audit')+'</h2><p>'+L('هذه القطعان لا تدخل في التوقع أو الطاقة.','These flocks do not enter forecast supply or capacity.')+'</p></div></div><div class="tbl-scroll" style="max-height:420px"><table><thead><tr><th>'+L('المرحلة','Stage')+'</th><th>'+L('القطيع','Flock')+'</th><th>'+L('آخر ترانزكشن','Last transaction')+'</th><th>'+L('آخر يوم للمرحلة','Stage latest day')+'</th><th>'+L('السبب','Reason')+'</th></tr></thead><tbody>'+((r.audit.excluded||[]).length?r.audit.excluded.slice(0,PULL_MAX_ROWS).map(x=>'<tr class="pull-audit-row"><td>'+x.stage+'</td><td>'+x.flock+'</td><td>'+x.last+'</td><td>'+x.stageLast+'</td><td>'+x.reason+'</td></tr>').join(''):'<tr><td colspan="5">'+L('لا توجد استبعادات','No exclusions')+'</td></tr>')+'</tbody></table></div></div></div>';
-  try{ h+=pullOffSexAuditHTML(r.broiler); }catch(e){}
-  h+='<div class="sim-section"><div class="sim-section-head"><div><h2>'+L('برنامج المجزر والتسمين ومفقس التسمين','Plant, broiler and hatchery schedule')+'</h2></div></div><div class="tbl-scroll" style="max-height:430px"><table><thead><tr><th>'+L('الذبح','Kill')+'</th><th>'+L('التسكين','Placement')+'</th><th>'+L('العمر','Age')+'</th><th>'+L('التاركت','Target')+'</th><th>Off-Sex</th><th>'+L('حضائر أوف-سكس','Off-sex houses')+'</th><th>'+L('حضائر عادية','Normal houses')+'</th><th>'+L('إيداع البيض','Egg set')+'</th><th>'+L('بيض مطلوب','Eggs required')+'</th></tr></thead><tbody>'+r.broiler.rows.slice(0,PULL_MAX_ROWS).map(x=>'<tr><td>'+gmDateISO(x.killDate)+'</td><td>'+gmDateISO(x.placement)+'</td><td>'+x.age+'</td><td>'+fmt(x.targetKill)+'</td><td>'+fmt(x.offSex)+'</td><td>'+(x.offSexHouses||0)+'</td><td>'+fmt(x.normalHouses)+'</td><td>'+gmDateISO(x.set)+'</td><td>'+fmt(x.eggs)+'</td></tr>').join('')+'</tbody></table></div></div>';
+  h+='<div class="sim-section"><div class="sim-section-head"><div><h2>'
+   +L('برنامج المجزر والتسمين ومفقس التسمين','Plant, broiler and broiler-hatchery schedule')+'</h2><p>'
+   +L('هذا الجدول لمفقس التسمين وحده. **لا أوف-سكس فيه** — حضائر الأوف-سكس تخرج من مفقس الجدود وتُسكَّن في مزارع التسمين فقط، وجدولها في قسم مفقس الجدود.',
+     'This table is the broiler hatchery alone. There is no off-sex in it — off-sex houses come out of the GP hatchery and are only housed in broiler farms; their schedule sits in the GP hatchery section.')
+   +'</p></div></div>'
+   +'<div class="grid k4">'
+   +'<div class="card kpi"><div class="lbl">'+L('حضائر مفقس التسمين','Broiler-hatchery houses')+'</div><div class="val num">'+fmt(r.broiler.normalHousesTotal,0)+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('بيض مفقس التسمين','Broiler-hatchery eggs')+'</div><div class="val num">'+fmt(r.broiler.totalEggs,0)+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('أيام الذبح','Kill days')+'</div><div class="val num">'+fmt(r.broiler.rows.length,0)+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('إجمالي الذبح','Total kill')+'</div><div class="val num">'+fmt(r.broiler.totalKill,0)+'</div></div></div>'
+   +'<div class="tbl-scroll" style="max-height:430px"><table><thead><tr>'
+   +'<th>'+L('الذبح','Kill')+'</th><th>'+L('تسكين حضائر مفقس التسمين','Broiler-hatchery placement')+'</th>'
+   +'<th>'+L('العمر','Age')+'</th><th>'+L('التاركت','Target')+'</th>'
+   +'<th>'+L('حضائر مفقس التسمين','Broiler-hatchery houses')+'</th>'
+   +'<th>'+L('إيداع البيض','Egg set')+'</th>'
+   +'<th>'+L('بيض مفقس التسمين','Broiler-hatchery eggs')+'</th></tr></thead><tbody>'
+   +r.broiler.rows.slice(0,PULL_MAX_ROWS).map(x=>'<tr>'
+     +'<td>'+gmDateISO(x.killDate)+'</td><td>'+gmDateISO(x.placement)+'</td><td>'+x.age+'</td>'
+     +'<td>'+fmt(x.targetKill)+'</td>'
+     +'<td>'+fmt(x.normalHouses)+'</td><td>'+gmDateISO(x.set)+'</td>'
+     +'<td>'+fmt(x.brHatcheryEggs)+'</td></tr>').join('')
+   +'</tbody></table></div></div>';
   h+='<div class="sim-grid2"><div class="sim-section"><div class="sim-section-head"><div><h2>'+L('بنك بيض الأمهات اليومي','Daily PS egg bank')+'</h2><p class="sub">'+
   L('الرصيد مقيّد بسياسة الإدارة 4.0–4.5 مليون؛ ما يفوق السقف يُباع بيض تفقيس. إجمالي البيع المقترح: ',
     'Bank held inside the 4.0-4.5M policy band; anything above the ceiling is sold as hatching eggs. Total sale proposed: ')+
@@ -2872,6 +2908,32 @@ h+='<div class="pull-flow"><div class="pull-flow-card"><b>'+L('المجزر','Pl
     'Every egg is set — the files show 94% of received eggs enter the setters. Whatever exceeds PS need still hatches and leaves as off-sex chicks for the broilers, not as banked eggs.')+
   '</p><p class="sub">'+L('كتاكيت أوف-سكس متولدة — L8: ','Off-sex chicks generated — L8: ')+fmt(r.gpBank.offSexL8)+
   L(' · L4: ',' · L4: ')+fmt(r.gpBank.offSexL4)+L(' · الإجمالي: ',' · total: ')+fmt(r.gpBank.offSexTotal)+'</p></div></div><div class="tbl-scroll" style="max-height:430px"><table><thead><tr><th>'+L('الإيداع','Set date')+'</th><th>'+L('قطيع PS','PS flock')+'</th><th>L8 '+L('إنتاج','Production')+'</th><th>L8 '+L('مطلوب','Required')+'</th><th>L8 '+L('رصيد','Bank')+'</th><th>L4 '+L('إنتاج','Production')+'</th><th>L4 '+L('مطلوب','Required')+'</th><th>L4 '+L('رصيد','Bank')+'</th></tr></thead><tbody>'+r.gpBank.rows.slice(0,100).map(x=>'<tr><td>'+gmDateISO(x.date)+'</td><td>'+x.psFlocks+'</td><td>'+fmt(x.L8Production)+'</td><td>'+fmt(x.L8Demand)+'</td><td class="'+(x.L8Closing<r.gpBank.safeL8?'down':'up')+'">'+fmt(x.L8Closing)+'</td><td>'+fmt(x.L4Production)+'</td><td>'+fmt(x.L4Demand)+'</td><td class="'+(x.L4Closing<r.gpBank.safeL4?'down':'up')+'">'+fmt(x.L4Closing)+'</td></tr>').join('')+'</tbody></table></div></div></div>';
+  /* ---- الأوف-سكس مُخرَج من مفقس الجدود، فجدوله هنا لا في مفقس التسمين ---- */
+  try{
+   const OP=(r.broiler&&r.broiler.offSexPlacements)||[];
+   const OV=(r.broiler&&r.broiler.offSexViolations)||[];
+   h+='<div class="card" style="margin-top:10px"><h4>'
+    +L('حضائر الأوف-سكس الخارجة من مفقس الجدود إلى مزارع التسمين','Off-sex houses leaving the GP hatchery for the broiler farms')+'</h4>'
+    +'<p class="sub">'+L('لكل قطيع أمهات ثلاث فقسات في مفقس الجدود، وفي كل فقسة تُرسل **حضيرة واحدة** إلى مزارع التسمين، وبين كل فقسة والتالية **يوم راحة** — أي أيام ٠ و ٢ و ٤. هذه الحضائر تُسكَّن في مزارع التسمين فقط ولا علاقة لها بمفقس التسمين. والتسكين يوم الجمعة عادي.',
+      'Each PS flock hatches three times in the GP hatchery; each hatch sends one house to the broiler farms, with a rest day between hatches - days 0, 2 and 4. These houses are only placed in broiler farms and have nothing to do with the broiler hatchery. Placement on Friday is normal.')+'</p>'
+    +'<div class="grid k4">'
+    +'<div class="card kpi"><div class="lbl">'+L('حضائر أوف-سكس','Off-sex houses')+'</div><div class="val num">'+fmt(OP.length,0)+'</div><div class="sub">'+fmt((r.broiler&&r.broiler.offSexFlocks)||0,0)+L(' قطيع × ٣ فقسات',' flocks x 3 hatches')+'</div></div>'
+    +'<div class="card kpi"><div class="lbl">'+L('كتاكيت أوف-سكس','Off-sex chicks')+'</div><div class="val num">'+fmt((r.broiler&&r.broiler.offSexChicksTotal)||0,0)+'</div></div>'
+    +'<div class="card kpi"><div class="lbl">'+L('خارقة لقاعدة يوم الراحة','Breaking the rest-day rule')+'</div><div class="val num" style="color:'+(OV.length?'var(--bad)':'var(--good)')+'">'+OV.length+'</div></div>'
+    +'<div class="card kpi"><div class="lbl">'+L('عمر الذبح','Kill age')+'</div><div class="val num">'+((PULL_PLAN_RULES.broilerAge||[31])[0])+L(' يوم',' d')+'</div><div class="sub">'+L('ثابت بلا إزاحة','fixed, no shifting')+'</div></div></div>'
+    +'<div class="tbl-scroll" style="max-height:400px"><table><thead><tr>'
+    +'<th>'+L('قطيع الأمهات','PS flock')+'</th><th>'+L('الفقسة','Hatch')+'</th>'
+    +'<th>'+L('يوم الفقس والإرسال','Hatch and dispatch day')+'</th>'
+    +'<th class="num">'+L('الفجوة عن الفقسة السابقة','Gap from previous hatch')+'</th>'
+    +'<th class="num">'+L('حضائر','Houses')+'</th><th class="num">'+L('كتاكيت','Chicks')+'</th>'
+    +'<th>'+L('يوم ذبحها','Its kill day')+'</th></tr></thead><tbody>'
+    +OP.slice(0,150).map(o=>'<tr><td><b>'+o.psFlock+'</b></td><td>'+o.batch+'</td><td>'+o.iso+'</td>'
+      +'<td class="num"'+(o.gapFromPrev!=null&&o.gapFromPrev!==2?' style="color:var(--bad)"':'')+'>'
+      +(o.gapFromPrev==null?L('أول فقسة','first'):o.gapFromPrev+L(' يوم',' d'))+'</td>'
+      +'<td class="num">'+o.houses+'</td><td class="num">'+fmt(o.chicks)+'</td>'
+      +'<td>'+o.killISO+'</td></tr>').join('')
+    +'</tbody></table></div></div>';
+  }catch(e){}
   h+='<div class="pull-assumption"><strong>'+L('قراءة النتيجة: ','How to read the result: ')+'</strong>'+L('الرقم النظري يوضح الحد الأدنى الرياضي عند متوسط المنحنى، لكنه لا يستبدل حجم القطيع المعتمد. قرار زيادة القطعان يعتمد على عجز مستمر تحت مخزون الأمان، وتعارض السعات، وفترة القيادة البيولوجية.','The theoretical number is a mathematical minimum at the average curve; it does not replace the approved flock size. Increasing flock count depends on a sustained safety-stock deficit, capacity conflict and biological lead time.')+'</div></div>';host.innerHTML=h;injectTableExportButtons(host);
 try{ wireFullChain(host); }catch(e){}
   const read=()=>({from:$('#pullFrom').value,to:$('#pullTo').value,dailyKill:num($('#pullKill').value),killOffDow:+$('#pullOff').value,holidays:$('#pullHolidays').value,survival:.95,hatch:.84,headsHouse:num($('#pullHouse').value)||34000,gpPrepDays:num($('#pullGPP').value)||35,scenario:$('#pullScenario').value,safetyDays:num($('#pullSafety').value)||5,persistDays:num($('#pullPersist').value)||3,psFemale:num($('#pullPSF').value)||78000,psMale:num($('#pullPSM').value)||11700});
@@ -10007,49 +10069,7 @@ function gpReplacementHTML(opts){
 }
 
 
-/* ---- تدقيق حضائر الأوف-سكس: دفعة كل يومين، حضيرة لكل دفعة ---------------- */
-function pullOffSexAuditHTML(b){
-  if(!b||!b.offSexPlan)return '';
-  const P=b.offSexPlan, V=b.offSexViolations||[], D=b.offSexDuplicates||[], O=b.offSexOrphans||[];
-  const ok=V.length===0&&D.length===0&&O.length===0;
-  let h='<div class="sim-section"><div class="sim-section-head"><div><h2>'
-   +L('حضائر الأوف-سكس — دفعة كل يومين','Off-sex houses — one batch every second day')+'</h2><p>'
-   +L('قطيع الأمهات يُسكَّن كل ١٥ يوماً على ثلاث دفعات في أيام ٠ و ٢ و ٤، أي **يوم راحة بين كل حضيرة أوف-سكس والتالية لنفس القطيع**، وحضيرة واحدة لكل دفعة (٣ لكل قطيع).',
-     'A PS flock is placed every 15 days in three batches on days 0, 2 and 4 — one rest day between each off-sex house and the next for the same flock, one house per batch (3 per flock).')
-   +'</p></div></div>';
-  h+='<div class="card"><div class="grid k4">'
-   +'<div class="card kpi"><div class="lbl">'+L('حضائر مخططة','Houses planned')+'</div><div class="val num">'+P.length+'</div></div>'
-   +'<div class="card kpi"><div class="lbl">'+L('حضائر مُخصَّصة لأيام الذبح','Allocated to kill days')+'</div><div class="val num">'+(b.offSexHousesAllocated||0)+'</div></div>'
-   +'<div class="card kpi"><div class="lbl">'+L('مكرّرة على نفس اليوم','Duplicated on a day')+'</div><div class="val num" style="color:'+(D.length?'var(--bad)':'var(--good)')+'">'+D.length+'</div></div>'
-   +'<div class="card kpi"><div class="lbl">'+L('خارقة لقاعدة اليومين','Breaking the 2-day rule')+'</div><div class="val num" style="color:'+(V.length?'var(--bad)':'var(--good)')+'">'+V.length+'</div></div></div>';
-  h+='<p class="sub" style="color:'+(ok?'var(--good)':'var(--warn)')+'">'
-   +(ok?L('كل الحضائر على تواريخها الصحيحة: يوم واحد فاصل بين الدفعات، ولا تكرار ولا فقدان.',
-        'Every house sits on its correct date: one rest day between batches, no duplication, none lost.')
-      :L('راجع الجداول أدناه.','See the tables below.'))+'</p>';
-  if(O.length){
-    h+='<p class="sub" style="color:var(--warn)">'+L('تواريخ أوف-سكس لم يطالب بها أي يوم ذبح (تُسكَّن على تاريخها الخاص): ',
-      'Off-sex dates no kill day claimed (they are placed on their own date): ')
-      +O.map(x=>x.iso+' ('+x.houses+')').join(' · ')+'</p>';
-  }
-  if(V.length){
-    h+='<div class="tbl-wrap"><table><thead><tr><th>'+L('التاريخ','Date')+'</th><th>'+L('قطيع الأمهات','PS flock')
-     +'</th><th class="num">'+L('الدفعة','Batch')+'</th><th class="num">'+L('الفجوة عن السابقة','Gap from previous')
-     +'</th><th>'+L('المطلوب','Required')+'</th></tr></thead><tbody>';
-    V.forEach(x=>h+='<tr><td>'+x.iso+'</td><td>'+x.psFlock+'</td><td class="num">'+x.batch
-     +'</td><td class="num" style="color:var(--bad)">'+x.gapFromPrev+L(' يوم',' d')+'</td><td>'+L('يومان','2 days')+'</td></tr>');
-    h+='</tbody></table></div>';
-  }
-  h+='<div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>'+L('تاريخ التسكين','Placement date')
-   +'</th><th>'+L('قطيع الأمهات','PS flock')+'</th><th class="num">'+L('الدفعة','Batch')+'</th>'
-   +'<th class="num">'+L('حضائر','Houses')+'</th><th class="num">'+L('كتاكيت','Chicks')+'</th>'
-   +'<th class="num">'+L('الفجوة عن الدفعة السابقة','Gap from previous batch')+'</th></tr></thead><tbody>';
-  P.slice(0,60).forEach(x=>{
-    h+='<tr><td>'+x.iso+'</td><td><b>'+x.psFlock+'</b></td><td class="num">'+x.batch+'</td>'
-     +'<td class="num">'+x.houses+'</td><td class="num">'+fmt(x.chicks)+'</td>'
-     +'<td class="num"'+(x.gapFromPrev!=null&&x.gapFromPrev!==2?' style="color:var(--bad)"':'')+'>'
-     +(x.gapFromPrev==null?L('أول دفعة','first'):x.gapFromPrev+L(' يوم',' d'))+'</td></tr>';});
-  return h+'</tbody></table></div></div></div>';
-}
+
 
 </script>
 </body>
