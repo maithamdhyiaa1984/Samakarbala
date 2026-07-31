@@ -10828,11 +10828,28 @@ const gphOriginalComputeGHatch=computeGHatch;
 computeGHatch=function(){
   const c=gphOriginalComputeGHatch();if(!c||c.empty)return c;
   const ledger=gphLedger(gphSelectedRange().to||gphLatestDates().receive||new Date()),selected=gphLineSelection();
-  c.bankF=(!selected||selected==='F')?ledger.calc.F:0;c.bankM=(!selected||selected==='M')?ledger.calc.M:0;
-  c.calcClose=ledger.calc;c.ledgerVariance=ledger.variance;c.rawLedger=ledger;
+  /* The audited balance is the single display source.  Using ledger.calc here
+     bypassed the declared/rebuilt guard in gphLedger() and could re-introduce an
+     implausible balance even after the opening/closing sections were mapped. */
+  const effective=ledger.balance||ledger.calc;
+  c.bankF=(!selected||selected==='F')?effective.F:0;c.bankM=(!selected||selected==='M')?effective.M:0;
+  c.calcClose=ledger.calc;c.effectiveClose=effective;c.ledgerVariance=ledger.variance;c.rawLedger=ledger;
   return c;
 };
 window.computeGHatch=computeGHatch;
+
+/* Keep the chain overview and the hatchery module on the same audited ledger.
+   This also guarantees that opening inventory comes only from the Opening
+   Balance block; Closing Balance remains a reconciliation reference. */
+gpHatcheryClosing=function(){
+  const ledger=gphLedger(gphSelectedRange().to||gphLatestDates().receive||new Date()),
+    selected=gphLineSelection(),effective=ledger.balance||ledger.calc,
+    F=(!selected||selected==='F')?effective.F:0,
+    M=(!selected||selected==='M')?effective.M:0;
+  return {F,M,total:F+M,source:'audited-ledger',calc:ledger.calc,
+    declared:ledger.official,anchored:ledger.anchored,variance:ledger.variance};
+};
+window.gpHatcheryClosing=gpHatcheryClosing;
 
 function gphEntries(o){return Object.entries(o||{}).sort((a,b)=>b[1]-a[1]);}
 function gphPct(v){return v==null||!isFinite(v)?'—':fmt(v*100,1)+'%';}
@@ -10850,7 +10867,8 @@ function gphMachineTable(rows,type,capacity,asOf){
 function gphVarianceNote(ledger){
   const v=ledger.variance.total,abs=Math.abs(v),date=gphDateKey(gphLatestDates().disposal);
   if(v===0)return L('الرصيد المحسوب مطابق لرصيد DB.','The calculated balance matches the DB closing balance.');
-  return L('يوجد فرق '+gphSigned(v)+' بيضة بين الحركات الخام ورصيد DB. آخر حركة Disposal بتاريخ '+date+'؛ يعتمد التقرير الرصيد المحسوب ويُبقي رصيد DB للمراجعة.','There is a '+gphSigned(v)+'-egg variance between raw transactions and the DB closing. The latest Disposal movement is dated '+date+'; the report uses the calculated balance and keeps the DB balance visible for review.');
+  const guarded=ledger.anchored&&ledger.anchored.flagged;
+  return L('يوجد فرق '+gphSigned(v)+' بيضة بين الحركات الخام ورصيد DB. آخر حركة Disposal بتاريخ '+date+'؛ يعتمد التقرير '+(guarded?'الرصيد المدقَّق':'رصيد الحركات الخام')+' ويُبقي الرقمين للمراجعة.','There is a '+gphSigned(v)+'-egg variance between raw transactions and the DB closing. The latest Disposal movement is dated '+date+'; the report uses the '+(guarded?'audited':'raw-transaction')+' balance and keeps both figures visible for review.');
 }
 function gphRenderPBI(host,d){
   const inv=d.inventory,h=d.hatch,m=d.machines,led=d.ledger;
