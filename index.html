@@ -3150,7 +3150,7 @@ const RENDER={
     h+='<div class="section-head"><div><h2>'+L('تفاصيل مشاريع السلسلة','Supply Chain Project Detail')+'</h2><p>'+L('اضغط أي بطاقة لفتح التقارير والجداول والجارتات الخاصة بالمشروع.','Open any card for the project reports, tables and charts.')+'</p></div></div>';
     h+='<div class="stage-grid">';
     h+=stageCard({nav:'gp',code:'GP',accent:'#efbe5b',title:L('الجدود','Grandparents'),subtitle:L('أرصدة الطيور وإنتاج البيض','Bird stock & egg production'),primaryLabel:L('الرصيد الحالي للطيور','Current bird stock'),primary:fmt(gp.total),stats:[[L('إناث','Females'),fmt(gp.F)],[L('ذكور','Males'),fmt(gp.M)],[L('معدل HE اليومي','Daily HE avg'),fmt(gpHEday.avg)],[L('معدل البيض الكلي','Total-egg avg'),fmt(gpTEday.avg)]],last:gp.last});
-    h+=stageCard({nav:'ghatch',code:'GPH',accent:'#63b7e6',title:L('مفقس الجدود','GP Hatchery'),subtitle:L('رصيد بنك البيض والإيداع','Egg bank & setting'),primaryLabel:L('رصيد البيض الحالي','Current egg balance'),primary:fmt(gph.total),stats:[[L('خط الإناث L8','Female line L8'),fmt(gph.F)],[L('خط الذكور L4','Male line L4'),fmt(gph.M)],[L('معدل الإيداع اليومي','Daily set avg'),fmt(gpSetDay.avg)],[L('أيام التغطية','Coverage days'),eggCoverDays?fmt(eggCoverDays,1):'—']],last:gpSetDay.last||maxDateOf(RAW.ghRecv||[],'Transaction Date')});
+    h+=stageCard({nav:'ghatch',code:'GPH',accent:'#63b7e6',title:L('مفقس الجدود','GP Hatchery'),subtitle:L('رصيد بنك البيض والإيداع','Egg bank & setting'),primaryLabel:L('رصيد البيض الحالي','Current egg balance'),primary:fmt(gph.total),stats:[[L('خط الإناث L8','Female line L8'),fmt(gph.F)+((gph.anchored&&gph.anchored.F==='declared')?' ⚠':'')],[L('خط الذكور L4','Male line L4'),fmt(gph.M)+((gph.anchored&&gph.anchored.M==='declared')?' ⚠':'')],[L('معدل الإيداع اليومي','Daily set avg'),fmt(gpSetDay.avg)],[L('أيام التغطية','Coverage days'),eggCoverDays?fmt(eggCoverDays,1):'—']],last:gpSetDay.last||maxDateOf(RAW.ghRecv||[],'Transaction Date')});
     h+=stageCard({nav:'ps',stage:'PSR',code:'PSR',accent:'#9e89e8',title:L('الأمهات — التربية','Parent Stock — Rearing'),subtitle:L('الأرصدة الحالية قبل التحويل للإنتاج','Current stock before transfer to production'),primaryLabel:L('إجمالي طيور التربية','Total rearing birds'),primary:fmt(psr.total),stats:[[L('إناث','Females'),fmt(psr.F)],[L('ذكور','Males'),fmt(psr.M)],[L('القطعان النشطة','Active flocks'),fmt(psr.flocks)],[L('نسبة الذكور','Male share'),psr.total?pct(psr.M/psr.total):'—']],last:psr.last});
     h+=stageCard({nav:'ps',stage:'PSP',code:'PSP',accent:'#4fc58d',title:L('الأمهات — الإنتاج','Parent Stock — Production'),subtitle:L('أرصدة الطيور ومعدل إنتاج البيض','Bird stock & daily egg output'),primaryLabel:L('إجمالي طيور الإنتاج','Total production birds'),primary:fmt(psp.total),stats:[[L('إناث','Females'),fmt(psp.F)],[L('ذكور','Males'),fmt(psp.M)],[L('معدل HE اليومي','Daily HE avg'),fmt(psHEday.avg)],[L('معدل البيض الكلي','Total-egg avg'),fmt(psTEday.avg)]],last:psp.last});
     h+=stageCard({nav:'brhatch',code:'BRH',accent:'#35c9b0',title:L('مفقس التسمين','Broiler Hatchery'),subtitle:L('المفقسان مجتمعان: الاستلام والإيداع والفقس والكتاكيت الصالحة','Two hatcheries combined: receipt, setting, hatch and saleable chicks'),primaryLabel:L('رصيد بيض التفقيس الحالي','Current hatch-egg balance'),primary:fmt(brh.currentBalance),stats:[
@@ -10512,8 +10512,27 @@ function gphLedger(asOf){
   });
   const sold=gphDBSoldTo(asOf);
   const calc={F:open.F+recv.F-disp.F-set.F-sold.F,M:open.M+recv.M-disp.M-set.M-sold.M};
+  /* ------------------------------------------------------------------
+     FIX: كان العرض يأخذ calc دائماً ويتجاهل الرصيد المعلن في قاعدة بيانات
+     المفقس نفسها، فظهر رصيد خط الذكور ٣ ملايين بيضة — وهو مستحيل: طلب خط
+     الذكور نحو ١,٤٠٠ بيضة يومياً، أي أن الرقم يعادل آلاف الأيام من التغطية.
+     السبب أن calc يخلط مصدرين: الافتتاحي من شبكة DB والحركة من الأوراق
+     المسطّحة، فأي فارق في النطاق أو التصنيف يتراكم بلا سقف.
+     العلاج: الرصيد المعلن في DB هو المرجع متى وُجد وانحرف calc عنه انحرافاً
+     مادياً، مع إظهار الرقمين والفارق صراحة بدل إخفائه.
+     ------------------------------------------------------------------ */
+  const TOL=0.25;                                  /* انحراف مادي = ٢٥٪ */
+  const anchor=(c,o)=>{
+    if(!(o>0))return {v:c,used:'calc',drift:0};
+    const dr=Math.abs(c-o)/Math.max(1,o);
+    return dr>TOL ? {v:o,used:'declared',drift:dr} : {v:c,used:'calc',drift:dr};
+  };
+  const aF=anchor(calc.F,official.F), aM=anchor(calc.M,official.M);
+  const balance={F:aF.v,M:aM.v};
+  const anchored={F:aF.used,M:aM.used,driftF:aF.drift,driftM:aM.drift,
+    flagged:(aF.used==='declared'||aM.used==='declared')};
   return {
-    asOf,open,recv,disp,set,sold,calc,official,
+    asOf,open,recv,disp,set,sold,calc,official,balance,anchored,tolerance:TOL,
     variance:{F:calc.F-official.F,M:calc.M-official.M,total:(calc.F+calc.M)-(official.F+official.M)}
   };
 }
@@ -10535,9 +10554,12 @@ function gmGPEggBankState(asOfISO){
 
   const raw={F:0,M:0};
   Object.values(lots).forEach(x=>{if(x.balance>0&&x.line)raw[x.line]+=x.balance;});
-  const target={F:Math.max(0,ledger.calc.F),M:Math.max(0,ledger.calc.M)};
+  /* يستعمل الرصيد المُرسى (المعلن عند الانحراف المادي) لا calc الخام */
+  const B=ledger.balance||ledger.calc;
+  const target={F:Math.max(0,B.F),M:Math.max(0,B.M)};
   const scale={F:raw.F>0?target.F/raw.F:0,M:raw.M>0?target.M/raw.M:0};
   const out={total:0,F:0,M:0,a03:0,a47:0,a811:0,a12:0,tracked:raw.F+raw.M,unknown:0,
+    anchored:ledger.anchored,calcF:ledger.calc.F,calcM:ledger.calc.M,declaredF:ledger.official.F,declaredM:ledger.official.M,
     byLine:{F:{total:target.F,a07:0,a811:0,a12:0},M:{total:target.M,a07:0,a811:0,a12:0}},byGrade:{},byFlock:{},byDay:{}};
   const selected=gphLineSelection();
   ['F','M'].forEach(l=>{out[l]=(!selected||selected===l)?target[l]:0;});
