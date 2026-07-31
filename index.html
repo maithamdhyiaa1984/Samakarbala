@@ -2872,8 +2872,17 @@ function pullBuildGPSchedule(s,throughDate){const z=ACTIVE_FLOCK_SNAPSHOT,asOf=a
 let PGA_CACHE={};
 function pullGPAvailableReset(){PGA_CACHE={};RGF_CACHE={};RPF_CACHE={};}
 /* Called after any load so every cache above is rebuilt from the new data. */
-function resetPerfCaches(){try{_PUSH_CACHE.clear();_CURVE_CACHE.clear();_FR_CACHE.clear();_PP2.clear();_TA_CACHE.clear();_BR_CACHE.clear();_BC_CACHE.clear();}catch(e){}_SHAPE_CACHE.clear();PGA_CACHE={};RGF_CACHE={};RPF_CACHE={};OPSCAL_CACHE=null;
-  SCENRATES_CACHE=null;LATESTISO_CACHE=null;PULL_COMPUTE_CACHE=null;CANON_CACHE={};}
+function resetPerfCaches(){
+  ['_PUSH_CACHE','_CURVE_CACHE','_FR_CACHE','_PP2','_TA_CACHE','_BR_CACHE','_BC_CACHE',
+   '_NORM_CACHE','_SHAPE_CACHE'].forEach(function(n){
+    try{var c=(typeof window!=='undefined')?window[n]:null;
+        if(c&&typeof c.clear==='function')c.clear();}catch(e){}
+  });
+  try{_CURVE_CACHE.clear();_FR_CACHE.clear();_PP2.clear();_TA_CACHE.clear();
+      _BR_CACHE.clear();_BC_CACHE.clear();_NORM_CACHE.clear();_SHAPE_CACHE.clear();}catch(e){}
+  try{PGA_CACHE={};RGF_CACHE={};RPF_CACHE={};OPSCAL_CACHE=null;
+      SCENRATES_CACHE=null;LATESTISO_CACHE=null;PULL_COMPUTE_CACHE=null;CANON_CACHE={};}catch(e){}
+}
 function pullGPAvailable(date,lk,gps,s){
   const _k=gmDateISO(asDate(date)||new Date(0))+'|'+lk+'|'+(s&&s.scenario||'');
   if(PGA_CACHE[_k])return PGA_CACHE[_k];
@@ -2994,7 +3003,6 @@ function renderPullPlannerNow(host){const s=pullLoadState(),r=pullCompute(s),z=r
 try{ h+=fullChainHTML(); }catch(e){}
 try{ h+=flockExitHTML(); }catch(e){}
 try{ h+=planV2HTML(); }catch(e){}
-try{ h+=pushPlanShell(); }catch(e){}
 try{ h+=planTabShell(); }catch(e){}
 try{ h+=workWeekShell(); }catch(e){}
 try{ h+=capacityPlanShell(); }catch(e){}
@@ -3100,6 +3108,8 @@ function renderIntegratedPlanner(host){const st=plannerLoadState(),r=plannerComp
   host.innerHTML=h;injectTableExportButtons(host);const goReverse=$('#simGoReverse'),goApproved=$('#simGoApproved');if(goReverse)goReverse.onclick=()=>$('#simReverseInputs')?.scrollIntoView({behavior:'smooth',block:'start'});if(goApproved)goApproved.onclick=()=>$('#simApprovedPlan')?.scrollIntoView({behavior:'smooth',block:'start'});const C=themeColors();if($('#simCapacityChart'))mkChart($('#simCapacityChart'),{data:{labels:[L('مزارع التسمين','Broiler farms'),L('إناث الأمهات','PS females'),L('GP L8 إناث','GP L8 hens'),L('GP L4 إناث','GP L4 hens')],datasets:[{type:'bar',label:L('المطلوب','Required'),data:[r.farmsNeeded,psPeak.requiredHens,...(r.gpDaily.length?[Math.max(...r.gpDaily.map(x=>x.L8ReqHens)),Math.max(...r.gpDaily.map(x=>x.L4ReqHens))]:[0,0])],backgroundColor:C.gold},{type:'bar',label:L('المتاح/المتوقع','Available / projected'),data:[r.availableFarms,psPeak.projectedHens,...(r.gpDaily.length?[Math.max(...r.gpDaily.map(x=>x.L8Hens)),Math.max(...r.gpDaily.map(x=>x.L4Hens))]:[0,0])],backgroundColor:C.sky}]}});const run=$('#simRun');if(run)run.onclick=()=>{const ns={from:$('#simFrom').value,to:$('#simTo').value,dailyKill:num($('#simKill').value),killOffDow:+$('#simOff').value,survival:.95,hatch:.84,headsHouse:num($('#simHouse').value)||34000,housesFarm:num($('#simFarm').value)||16,psPolDays:175,gpLeadDays:203};plannerSaveState(ns);renderIntegratedPlanner(host);};const reset=$('#simReset');if(reset)reset.onclick=()=>{CHAIN_SIM_STATE=plannerDefaultState();plannerSaveState(CHAIN_SIM_STATE);renderIntegratedPlanner(host);};const pb=$('#simPlanFiles'),pi=$('#simPlanInput');if(pb&&pi){pb.onclick=()=>pi.click();pi.onchange=()=>chainPlanLoadFiles([...pi.files],host);}}
 
 const RENDER={
+  pushPlan(host){ try{ host.innerHTML=pushModuleHTML(); }catch(e){ host.innerHTML='<p class="sub" style="color:var(--bad)">'+e+'</p>'; } },
+
   planning(host){renderPullPlanner(host);},
   overview(host){
     renderFilterBarOverview();
@@ -4888,10 +4898,11 @@ function buildNav(){
   let nh='<button data-k="overview" class="on">'+L('الواجهة الرئيسية','Main Dashboard')+'</button>';
   nh+='<button data-k="chainAnalytics">⌁ '+L('تحليل السلسلة','Chain Analytics')+'</button>';
   nh+='<button data-k="planning">◉ '+L('الخطة والخطة العكسية','Plan & Reverse Planning')+'</button>';
+  nh+='<button data-k="pushPlan">▶ '+L('خطة الدفع والخطط الثلاث','Push Plan & Plan Sheets')+'</button>';
   nh+='<button data-k="monthly">▣ '+L('الشهر القادم والسابق','Month Ahead & Look Back')+'</button>';
   nh+='<button data-k="quarterly">▥ '+L('المراجعة الفصلية','Quarterly Review')+'</button>';
   nh+='<button data-k="alerts">△ '+t().alerts+' <span class="cnt" id="navAlertCnt" style="display:none"></span></button>';
-  let sh='<section id="sec_overview" class="on"></section><section id="sec_chainAnalytics"></section><section id="sec_planning"></section><section id="sec_monthly"></section><section id="sec_quarterly"></section><section id="sec_alerts"></section>';
+  let sh='<section id="sec_overview" class="on"></section><section id="sec_chainAnalytics"></section><section id="sec_planning"></section><section id="sec_pushPlan"></section><section id="sec_monthly"></section><section id="sec_quarterly"></section><section id="sec_alerts"></section>';
   SOURCES.forEach(s=>{if(s.hidden)return;sh+='<section id="sec_'+s.key+'"></section>';});
   nav.innerHTML=nh;secs.innerHTML=sh;
   nav.querySelectorAll('button').forEach(b=>b.onclick=()=>show(b.dataset.k));
@@ -4957,6 +4968,7 @@ function show(k){
   if(k==='overview'){RENDER.overview(host);return;}
   if(k==='chainAnalytics'){renderFilterBarOverview('chainAnalytics');RENDER.chainAnalytics(host);return;}
   if(k==='planning'){renderFilterBar(null);RENDER.planning(host);return;}
+  if(k==='pushPlan'){RENDER.pushPlan(host);return;}
   if(k==='monthly'){renderFilterBar(null);RENDER.monthly(host);return;}
   if(k==='quarterly'){renderFilterBar(null);RENDER.quarterly(host);return;}
   if(k==='alerts'){renderFilterBar(null);RENDER.alerts(host);return;}
@@ -11738,7 +11750,8 @@ function ageForWeight(targetKg,basis){
    pushPlan — المحرك: يدفع السلسلة من تسكين الجدود إلى المجزر.
    كل مرحلة تُغذّي التي تليها، ولا رقم يُنسخ من ملفات الخطة.
    ========================================================================== */
-const _PUSH_CACHE=new Map();
+var _PUSH_CACHE=(typeof _PUSH_CACHE!=='undefined'&&_PUSH_CACHE)||new Map();
+try{window._PUSH_CACHE=_PUSH_CACHE;}catch(e){}
 function pushPlan(opts){
   opts=opts||{};
   const ck='push:'+JSON.stringify({y:opts.years,w:opts.targetWeightKg,b:opts.basis,
@@ -12196,10 +12209,6 @@ function pushPlanShell(){
    +'<div style="align-self:end"><button class="btn" onclick="pushPlanRender()">'
    +L('احسب خطة الدفع','Compute the push plan')+'</button></div></div></div>'
    +'<div id="pushout" style="margin-top:10px"></div>'
-   +'<div class="sim-section-head" style="margin-top:14px"><div><h2>'
-   +L('الخطط الثلاث بنمط ملفاتكم','The three plans in your own format')+'</h2><p>'
-   +L('نفس أعمدة ومنطق ملفات الجدود والأمهات وإيداع التسمين، محسوبة لا منسوخة.',
-     'The same columns and logic as your GP, PS and broiler egg-set files — computed, not copied.')+'</p></div></div>'
    +planSheetsShell()+'</div>';
 }
 
@@ -12505,6 +12514,43 @@ function planSheetsShell(){
    +'<div style="align-self:end"><button class="btn" onclick="planSheetsRender()">'
    +L('أخرج الخطط الثلاث','Generate the three plans')+'</button></div></div></div>'
    +'<div id="sheetsout" style="margin-top:10px"></div>';
+}
+
+
+/* ============================================================================
+   موديول مستقل: خطة الدفع والخطط الثلاث — بنفس مبدأ ملفاتكم الثلاثة
+   ========================================================================== */
+function pushModuleHTML(){
+  let reg=null; try{reg=broilerRegisterFromData();}catch(e){}
+  const totH=BF_REGISTER.reduce((s,f)=>s+f.houses,0);
+  const totC=BF_REGISTER.reduce((s,f)=>s+f.capFarm,0);
+  let h='<div class="sim-section"><div class="sim-section-head"><div><h2>'
+   +L('خطة الدفع والخطط الثلاث — من تسكين الجدود إلى المجزر','Push plan and the three sheets — GP placement to the plant')+'</h2><p>'
+   +L('موديول مستقل بنفس مبدأ ملفاتكم الثلاثة: خطة تسكين الجدود · خطة تسكين الأمهات · خطة إيداع مفقس التسمين وتسكين المزارع. نفس تسلسل المزارع وأرقامها وحضائرها وسعاتها، وكل رقم محسوب من القياسيات والفعلي لا منسوخ.',
+     'A standalone module built on the same principle as your three files: GP placement, PS placement, and broiler egg-set and farm placement. The same farm sequence, numbers, houses and capacities, with every figure computed from standards and measured actuals rather than copied.')
+   +'</p></div></div>';
+  /* سجل المزارع بالتسلسل — الأساس الذي تعمل عليه الأوراق */
+  h+='<div class="card"><h4>'+L('سجل مزارع التسمين بالتسلسل المعتمد','Broiler farm register in the approved sequence')+'</h4>'
+   +'<div class="grid k4">'
+   +'<div class="card kpi"><div class="lbl">'+L('المزارع الفعالة','Active farms')+'</div><div class="val num">'+BF_REGISTER.length+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('الحضائر','Houses')+'</div><div class="val num">'+fmt(totH,0)+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('السعة الكلية','Total capacity')+'</div><div class="val num">'+fmt(totC,0)+'</div></div>'
+   +'<div class="card kpi"><div class="lbl">'+L('سعة المجزر (٢٠ ساعة)','Plant capacity (20h)')+'</div><div class="val num">'+fmt(PUSH.plant.capacityPerDay20h,0)+'</div></div></div>'
+   +'<p class="sub">'+L('مغلقة: ','Closed: ')+BF_CLOSED.join(' · ')
+   +L(' · أقفاص: ',' · cage: ')+BF_REGISTER.filter(f=>f.cage).map(f=>f.farm+' ('+f.houses+'×'+fmt(f.capHouse,0)+')').join(' · ')
+   +(reg?L(' · المرصود في البيانات: ',' · seen in data: ')+reg.farms+L(' مزرعة · ',' farms · ')+reg.totalHouses+L(' حضيرة',' houses'):'')+'</p>'
+   +'<div class="tbl-scroll" style="max-height:260px"><table><thead><tr>'
+   +'<th class="num">'+L('التسلسل','Seq')+'</th><th>'+L('المزرعة','Farm #')+'</th>'
+   +'<th class="num">'+L('حضائر/مزرعة','Houses/Farm')+'</th><th class="num">'+L('سعة/حضيرة','Capacity/House')+'</th>'
+   +'<th class="num">'+L('سعة/مزرعة','Capacity/Farm')+'</th><th>'+L('النوع','Note')+'</th></tr></thead><tbody>';
+  BF_REGISTER.forEach(f=>h+='<tr><td class="num">'+f.seq+'</td><td><b>'+f.farm+'</b></td>'
+    +'<td class="num">'+f.houses+'</td><td class="num">'+fmt(f.capHouse,0)+'</td>'
+    +'<td class="num">'+fmt(f.capFarm,0)+'</td><td class="sub">'
+    +(f.cage?L('حضائر أقفاص','Cage Houses'):L('حضائر أرضية','Floor Houses'))+'</td></tr>');
+  h+='</tbody></table></div></div>';
+  /* المدخلات ثم المخرجات */
+  h+='<div style="margin-top:10px">'+pushPlanShell()+'</div>';
+  return h;
 }
 
 </script>
