@@ -2135,23 +2135,47 @@ function ghGridMap(){
   if(!g.length)return M;
   const isF=v=>/female/i.test(String(v||'')), isM=v=>/male/i.test(String(v||''))&&!/female/i.test(String(v||''));
   /* balance block: find "Openning/Opening Balance" and "Closing Balance" labels */
+  /* ------------------------------------------------------------------
+     السبب الجذري لرصيد الـ٣ ملايين: المسح كان يمتد من عمود العنوان إلى
+     **آخر الصف** بلا حدّ عند نهاية القسم. فإن كانت خلية «خط الذكور» في قسم
+     الرصيد الافتتاحي فارغة، يواصل المسح ويلتقط قيمة «خط الذكور» من قسم
+     **الإقفال** (2,992,790) ويعتبرها افتتاحياً، ثم يضيف حركة الفترة فيظهر
+     ٣.٠٣ مليون. أعدت إنتاج الحالة واختبرتها.
+     العلاج: تحديد نهاية القسم عند أول عنوان قسم تالٍ، فلا يعبر المسح حدوده.
+     ------------------------------------------------------------------ */
+  const SECTION=/balance|رصيد/i;
   const findBal=(needle)=>{
     for(let r=0;r<Math.min(g.length,10);r++)for(let c=0;c<(g[r]||[]).length;c++){
       if(norm(g[r][c]).replace(/n{2,}/g,'n').includes(needle)){
+        /* حدّ القسم: أول عنوان قسم آخر على يمين هذا العنوان في نفس الصف */
+        let stop=(g[r]||[]).length;
+        for(let c3=c+1;c3<(g[r]||[]).length;c3++){
+          const t=String(g[r][c3]||'').trim();
+          if(t&&SECTION.test(t)){stop=c3;break;}
+        }
         for(let sr=r+1;sr<Math.min(g.length,r+4);sr++){
           const row=g[sr]||[];if(!row.some(v=>isF(v)||isM(v)))continue;
           for(let vr=sr+1;vr<Math.min(g.length,sr+4);vr++){
             const vals=g[vr]||[];if(!vals.some(v=>num(v)>0))continue;
-            let F=0,Mv=0;
-            for(let c2=c;c2<row.length;c2++){if(isF(row[c2])&&!F)F=num(vals[c2]);if(isM(row[c2])&&!Mv)Mv=num(vals[c2]);}
-            return {F,M:Mv};
+            let F=null,Mv=null;
+            for(let c2=c;c2<stop;c2++){                       /* ← لا يتجاوز القسم */
+              if(isF(row[c2])&&F===null)F=num(vals[c2]);
+              if(isM(row[c2])&&Mv===null)Mv=num(vals[c2]);
+            }
+            return {F:F||0,M:Mv||0,section:[c,stop],
+                    missingF:F===null,missingM:Mv===null};
           }
         }
       }
     }
-    return {F:0,M:0};
+    return {F:0,M:0,section:null,missingF:true,missingM:true};
   };
   M.open=findBal('openingbalance');M.close=findBal('closingbalance');
+  /* الإقفال المعطوب في الشيت (سالب أو صفر) لا يصلح مرجعاً — يُحيَّد صراحة */
+  M.closeValid={F:M.close.F>0,M:M.close.M>0};
+  if(!(M.close.F>0))M.close.F=0;
+  if(!(M.close.M>0))M.close.M=0;
+  M.openMissing={F:!!M.open.missingF,M:!!M.open.missingM};
   /* header block: the row containing "Transaction Date", plus the sex row under it */
   let hr=-1;
   for(let r=0;r<Math.min(g.length,15);r++){
@@ -2179,6 +2203,16 @@ function ghGridMap(){
   M.ok=M.col.recF!=null&&M.col.setF!=null&&M.dataRow>=0;
   return M;
 }
+/* ============================================================================
+   eggBankSane — حارس مادية عام لأي رصيد بيض: الرصيد الذي يتجاوز عدداً من أيام
+   الإيداع أكبر من سقف معقول ليس رصيداً بل خطأ تراكمي. يُستعمل في كل بنك.
+   ========================================================================== */
+function eggBankSane(value,dailySet,maxDays,label){
+  const v=num(value),d=num(dailySet);
+  const cover=d>0?v/d:null;
+  const sane=!(cover!=null&&cover>(maxDays||60));
+  return {value:v,dailySet:d,cover,sane,maxDays:maxDays||60,label:label||''};
+}
 function gpOpeningBalance(){
   const grid=RAW.ghatch||[];let r0=-1,c0=-1;
   for(let r=0;r<grid.length&&r0<0;r++)for(let c=0;c<(grid[r]||[]).length;c++){
@@ -2189,12 +2223,25 @@ function gpOpeningBalance(){
     if(sexRow<0&&row.some(v=>/female|male/i.test(String(v)))){sexRow=r;continue;}
     if(sexRow>=0&&row.some(v=>num(v)>0)){valRow=r;break;}}
   if(sexRow<0||valRow<0)return {F:0,M:0};
+  /* ------------------------------------------------------------------
+     السبب الجذري لرصيد الـ٣ ملايين: المسح كان يمتد من عمود «الرصيد الافتتاحي»
+     إلى **آخر الصف**. وإن غابت خلية «خط الذكور» من قسم الافتتاحي، يواصل المسح
+     ويلتقط عنوان «خط الذكور» من قسم **الإقفال** فيقرأ قيمته (2,992,790) على
+     أنها رصيد افتتاحي. العلاج: إيقاف المسح عند أول عنوان قسم تالٍ.
+     ------------------------------------------------------------------ */
+  const hdrRow=grid[r0]||[];
+  let stop=(grid[sexRow]||[]).length;
+  for(let c3=c0+1;c3<hdrRow.length;c3++){
+    const t=String(hdrRow[c3]||'').trim();
+    if(t&&/balance|رصيد/i.test(t)){stop=c3;break;}
+  }
   const sr=grid[sexRow]||[],vr=grid[valRow]||[];let fc=-1,mc=-1;
-  for(let c=c0;c<sr.length;c++){const v=String(sr[c]||'');
+  for(let c=c0;c<Math.min(stop,sr.length);c++){const v=String(sr[c]||'');
     if(fc<0&&/female/i.test(v))fc=c;
     if(mc<0&&!/female/i.test(v)&&/male/i.test(v))mc=c;
     if(fc>=0&&mc>=0)break;}
-  return {F:fc>=0?num(vr[fc]):0,M:mc>=0?num(vr[mc]):0};
+  return {F:fc>=0?num(vr[fc]):0,M:mc>=0?num(vr[mc]):0,
+          section:[c0,stop],missingM:mc<0,missingF:fc<0};
 }
 /* Egg-set cadence audit. Business rule: eggs from ONE flock are set every other day
    ("\u064a\u0648\u0645 \u0648\u064a\u0648\u0645"), never on two consecutive days. The check is per flock:
@@ -2232,7 +2279,20 @@ function eggSetCadenceAudit(scope){
 function gpHatcheryClosing(){
   const grid=RAW.ghatch||[],lineRaw=selOne(FILT.line),lineSel=lineRaw?lineKey(lineRaw):'',useF=!lineSel||lineSel==='FML',useM=!lineSel||lineSel==='ML';let closeRow=-1,closeCol=-1;for(let r=0;r<grid.length;r++){for(let c=0;c<(grid[r]||[]).length;c++){if(norm(grid[r][c]).includes('closingbalance')){closeRow=r;closeCol=c;break;}}if(closeRow>=0)break;}
   if(closeRow>=0){let sexRow=-1,valRow=-1;for(let r=closeRow+1;r<Math.min(grid.length,closeRow+5);r++){const row=grid[r]||[];if(sexRow<0&&row.some(v=>/female|male/i.test(String(v)))){sexRow=r;continue;}if(sexRow>=0&&row.some(v=>num(v)>0)){valRow=r;break;}}
-    if(sexRow>=0&&valRow>=0){const sr=grid[sexRow]||[],vr=grid[valRow]||[];let fc=-1,mc=-1;for(let c=closeCol;c<sr.length;c++){const v=String(sr[c]||'');if(fc<0&&/female/i.test(v))fc=c;if(mc<0&&!/female/i.test(v)&&/male/i.test(v))mc=c;}const F=useF?num(vr[fc]):0,M=useM?num(vr[mc]):0;if(F||M)return {F,M,total:F+M};}}
+    if(sexRow>=0&&valRow>=0){const sr=grid[sexRow]||[],vr=grid[valRow]||[];let fc=-1,mc=-1;
+      /* حدّ القسم كما في gpOpeningBalance — الإقفال آخر قسم اليوم، لكن أي قسم
+         يُضاف يمينه مستقبلاً سيسرّب قيمته بلا هذا الحدّ. */
+      let stopC=sr.length;
+      {const hr=grid[closeRow]||[];
+       for(let c3=closeCol+1;c3<hr.length;c3++){const t=String(hr[c3]||'').trim();
+         if(t&&/balance|رصيد/i.test(t)){stopC=c3;break;}}}
+      for(let c=closeCol;c<Math.min(stopC,sr.length);c++){const v=String(sr[c]||'');if(fc<0&&/female/i.test(v))fc=c;if(mc<0&&!/female/i.test(v)&&/male/i.test(v))mc=c;}
+      const rawF=num(vr[fc]),rawM=num(vr[mc]);
+      /* الإقفال المعلن يُقبل فقط إن كان موجباً ومنطقياً: خط الذكور نحو ١٧٪ من
+         خط الأناث، فلا يمكن أن يتجاوزه. الشيت الحيّ يعطي F سالباً و M منتفخاً. */
+      const okF=rawF>0, okM=rawM>0&&(!okF||rawM<=rawF*0.60);
+      if(okF&&okM){const F=useF?rawF:0,M=useM?rawM:0;if(F||M)return {F,M,total:F+M,source:'declared'};}
+    }}
   /* FIX: the old fallback was  recv - disposal - set  with no OPENING balance and no
      SOLD eggs, then clamped with Math.max(0,..) which hid any negative imbalance.
      Correct identity:  Closing = Opening + Received - Disposal(cull) - Set - Sold  */
@@ -2241,7 +2301,17 @@ function gpHatcheryClosing(){
   const isFem=o=>/female|FML|L8/i.test(String(pick(o,'Line')));
   const add=(list,sign)=>(list||[]).forEach(o=>{const e=num(pick(o,'Eggs'));if(isFem(o)){if(useF)F+=sign*e;}else{if(useM)M+=sign*e;}});
   add(RAW.ghRecv,+1); add(RAW.ghDisp,-1); add(RAW.ghSet,-1); add(RAW.ghSold,-1);
-  return {F,M,total:F+M,negative:(F<0||M<0)};
+  /* حارس بنيوي أخير: حجم بيض خط الذكور نحو ١٧٪ من خط الأناث (مقيس 625,518
+     مقابل 3,574,944)، فرصيد L4 لا يمكن أن يتجاوز L8. إن تجاوزه فالافتتاحي
+     مُلوَّث — يُعاد بناء الخط من حركته وحدها بلا افتتاحي.                */
+  let capped=false;
+  if(F>0&&M>F*0.60){
+    let mv=0;
+    const addM=(list,sign)=>(list||[]).forEach(o=>{if(!isFem(o))mv+=sign*num(pick(o,'Eggs'));});
+    addM(RAW.ghRecv,+1); addM(RAW.ghDisp,-1); addM(RAW.ghSet,-1); addM(RAW.ghSold,-1);
+    capped=true; M=Math.max(0,mv);
+  }
+  return {F,M,total:F+M,negative:(F<0||M<0),source:capped?'ratio-capped':'computed',capped};
 }
 function broilerCurrentSnapshot(asOf){
   const cyc={};const C=k=>cyc[k]||(cyc[k]={placed:0,mort:0,cull:0,proc:0,sales:0,last:'',farms:new Set()});const touch=(r,d,f)=>{if(d){const ds=d.toISOString().slice(0,10);if(ds>r.last)r.last=ds;}if(f)r.farms.add(String(f));};const limit=asOf?asDate(asOf):null;
@@ -3150,7 +3220,7 @@ const RENDER={
     h+='<div class="section-head"><div><h2>'+L('تفاصيل مشاريع السلسلة','Supply Chain Project Detail')+'</h2><p>'+L('اضغط أي بطاقة لفتح التقارير والجداول والجارتات الخاصة بالمشروع.','Open any card for the project reports, tables and charts.')+'</p></div></div>';
     h+='<div class="stage-grid">';
     h+=stageCard({nav:'gp',code:'GP',accent:'#efbe5b',title:L('الجدود','Grandparents'),subtitle:L('أرصدة الطيور وإنتاج البيض','Bird stock & egg production'),primaryLabel:L('الرصيد الحالي للطيور','Current bird stock'),primary:fmt(gp.total),stats:[[L('إناث','Females'),fmt(gp.F)],[L('ذكور','Males'),fmt(gp.M)],[L('معدل HE اليومي','Daily HE avg'),fmt(gpHEday.avg)],[L('معدل البيض الكلي','Total-egg avg'),fmt(gpTEday.avg)]],last:gp.last});
-    h+=stageCard({nav:'ghatch',code:'GPH',accent:'#63b7e6',title:L('مفقس الجدود','GP Hatchery'),subtitle:L('رصيد بنك البيض والإيداع','Egg bank & setting'),primaryLabel:L('رصيد البيض الحالي','Current egg balance'),primary:fmt(gph.total),stats:[[L('خط الإناث L8','Female line L8'),fmt(gph.F)+((gph.anchored&&gph.anchored.F==='declared')?' ⚠':'')],[L('خط الذكور L4','Male line L4'),fmt(gph.M)+((gph.anchored&&gph.anchored.M==='declared')?' ⚠':'')],[L('معدل الإيداع اليومي','Daily set avg'),fmt(gpSetDay.avg)],[L('أيام التغطية','Coverage days'),eggCoverDays?fmt(eggCoverDays,1):'—']],last:gpSetDay.last||maxDateOf(RAW.ghRecv||[],'Transaction Date')});
+    h+=stageCard({nav:'ghatch',code:'GPH',accent:'#63b7e6',title:L('مفقس الجدود','GP Hatchery'),subtitle:L('رصيد بنك البيض والإيداع','Egg bank & setting'),primaryLabel:L('رصيد البيض الحالي','Current egg balance'),primary:fmt(gph.total),stats:[[L('خط الإناث L8','Female line L8'),fmt(gph.F)+((gph.anchored&&gph.anchored.F!=='calc')?' ⚠':'')+((gph.anchored&&gph.anchored.coverF!=null)?' · '+fmt(gph.anchored.coverF,0)+L('ي','d'):'')],[L('خط الذكور L4','Male line L4'),fmt(gph.M)+((gph.anchored&&gph.anchored.M!=='calc')?' ⚠':'')+((gph.anchored&&gph.anchored.coverM!=null)?' · '+fmt(gph.anchored.coverM,0)+L('ي','d'):'')],[L('معدل الإيداع اليومي','Daily set avg'),fmt(gpSetDay.avg)],[L('أيام التغطية','Coverage days'),eggCoverDays?fmt(eggCoverDays,1):'—']],last:gpSetDay.last||maxDateOf(RAW.ghRecv||[],'Transaction Date')});
     h+=stageCard({nav:'ps',stage:'PSR',code:'PSR',accent:'#9e89e8',title:L('الأمهات — التربية','Parent Stock — Rearing'),subtitle:L('الأرصدة الحالية قبل التحويل للإنتاج','Current stock before transfer to production'),primaryLabel:L('إجمالي طيور التربية','Total rearing birds'),primary:fmt(psr.total),stats:[[L('إناث','Females'),fmt(psr.F)],[L('ذكور','Males'),fmt(psr.M)],[L('القطعان النشطة','Active flocks'),fmt(psr.flocks)],[L('نسبة الذكور','Male share'),psr.total?pct(psr.M/psr.total):'—']],last:psr.last});
     h+=stageCard({nav:'ps',stage:'PSP',code:'PSP',accent:'#4fc58d',title:L('الأمهات — الإنتاج','Parent Stock — Production'),subtitle:L('أرصدة الطيور ومعدل إنتاج البيض','Bird stock & daily egg output'),primaryLabel:L('إجمالي طيور الإنتاج','Total production birds'),primary:fmt(psp.total),stats:[[L('إناث','Females'),fmt(psp.F)],[L('ذكور','Males'),fmt(psp.M)],[L('معدل HE اليومي','Daily HE avg'),fmt(psHEday.avg)],[L('معدل البيض الكلي','Total-egg avg'),fmt(psTEday.avg)]],last:psp.last});
     h+=stageCard({nav:'brhatch',code:'BRH',accent:'#35c9b0',title:L('مفقس التسمين','Broiler Hatchery'),subtitle:L('المفقسان مجتمعان: الاستلام والإيداع والفقس والكتاكيت الصالحة','Two hatcheries combined: receipt, setting, hatch and saleable chicks'),primaryLabel:L('رصيد بيض التفقيس الحالي','Current hatch-egg balance'),primary:fmt(brh.currentBalance),stats:[
@@ -5273,7 +5343,7 @@ function eggBankSeries(asOf){
 
 function eggBankPolicy(asOf){
   const P=EGG_BANK_POLICY,s=eggBankSeries(asOf);
-  if(!s.length)return {ok:false,reason:'no broiler-hatchery data'};
+  if(!s.length)return {sanity:_sanity,ok:false,reason:'no broiler-hatchery data'};
   const cur=s[s.length-1],recent=s.slice(-28);
   const dailySet=recent.length?recent.reduce((a,x)=>a+x.set,0)/recent.length:0;
   const dailyRecv=recent.length?recent.reduce((a,x)=>a+x.recv,0)/recent.length:0;
@@ -5286,6 +5356,13 @@ function eggBankPolicy(asOf){
   const daysToFloor=netDaily<0?Math.max(0,(cur.bal-P.FLOOR_HARD)/(-netDaily)):null;
   const daysOver=s.filter(x=>x.bal>P.CEIL).length,daysLow=s.filter(x=>x.bal<P.FLOOR_SOFT).length,
         daysCrit=s.filter(x=>x.bal<P.FLOOR_HARD).length;
+  /* حارس المادية: بنك التسمين مقابل معدل إيداعه */
+  let _sanity=null;
+  try{ let s=0,n=0; const _as=asDate(latestDataISO());
+    (RAW.brhRows||[]).forEach(o=>{const dd=asDate(o['Transaction Date']);
+      if(!dd||!_as||(_as-dd)/864e5>60)return; s+=num(o.Set); n=1;});
+    _sanity=eggBankSane(typeof closing!=='undefined'?closing:0,s/60,60,'broiler-egg-bank');
+  }catch(e){}
   return {ok:true,policy:P,current:cur.bal,date:cur.date,status,dailySet,dailyRecv,netDaily,
     cover,sellable,daysToFloor,series:s,
     history:{days:s.length,over:daysOver,low:daysLow,critical:daysCrit,
@@ -10522,15 +10599,58 @@ function gphLedger(asOf){
      مادياً، مع إظهار الرقمين والفارق صراحة بدل إخفائه.
      ------------------------------------------------------------------ */
   const TOL=0.25;                                  /* انحراف مادي = ٢٥٪ */
-  const anchor=(c,o)=>{
-    if(!(o>0))return {v:c,used:'calc',drift:0};
-    const dr=Math.abs(c-o)/Math.max(1,o);
-    return dr>TOL ? {v:o,used:'declared',drift:dr} : {v:c,used:'calc',drift:dr};
+  /* خط الدفاع الثاني: سقف مادي لا يعتمد على وجود رصيد معلن.
+     بيضة التفقيس عمرها الصالح ~١٠ أيام، فرصيد يتجاوز ٦٠ يوماً من معدل
+     إيداع خطه ليس رصيداً بل خطأ تراكمي. يُقاس لكل خط بمعدل إيداعه هو. */
+  const COVER_MAX=60;
+  /* المعدل تقويمي لا بأيام الإيداع: الرصيد يُستهلك على مدى التقويم كله،
+     فقسمته على أيام الإيداع وحدها تُظهر تغطية أقصر من الحقيقة بأضعاف. */
+  const RATE_WIN=60;
+  const setRate=(l)=>{
+    let s=0;
+    (RAW.ghSet||[]).forEach(o=>{
+      const d=asDate(pick(o,'Set Date','Transaction Date'));
+      if(!d||d>asOf||gphLineCode(pick(o,'Line'))!==l)return;
+      if((asOf-d)/864e5>RATE_WIN)return;
+      s+=num(pick(o,'Eggs'));
+    });
+    return s/RATE_WIN;
   };
-  const aF=anchor(calc.F,official.F), aM=anchor(calc.M,official.M);
+  const rate={F:setRate('F'),M:setRate('M')};
+  const cover=(v,l)=>rate[l]>0?v/rate[l]:null;
+  const anchor=(c,o,l)=>{
+    const cv=cover(c,l);
+    const implausible = cv!=null && cv>COVER_MAX;
+    /* الرقم المعلن نفسه يجب أن يجتاز اختبار المادية قبل أن يصلح مرجعاً —
+       وإلا أرسينا على رقم معطوب آخر (٢,٩٩٢,٧٩٠ في حالتك = ٩٤١ يوم تغطية). */
+    const oCover=o>0?cover(o,l):null;
+    const oOk = o>0 && !(oCover!=null && oCover>COVER_MAX);
+    if(oOk){
+      const dr=Math.abs(c-o)/Math.max(1,o);
+      if(dr>TOL||implausible) return {v:o,used:'declared',drift:dr,cover:cv,implausible};
+      return {v:c,used:'calc',drift:dr,cover:cv,implausible:false};
+    }
+    /* لا رصيد معلن: إن كان الرقم غير مادي فأعد بناءه من حركة آخر ٦٠ يوماً */
+    if(implausible){
+      let mv=0;
+      const add=(rows,dk,sign)=>{(rows||[]).forEach(o2=>{
+        const d=asDate(pick(o2,dk,'Transaction Date'));
+        if(!d||d>asOf||gphLineCode(pick(o2,'Line'))!==l)return;
+        if((asOf-d)/864e5>COVER_MAX)return;
+        mv+=sign*num(pick(o2,'Eggs'));});};
+      add(RAW.ghRecv,'Transaction Date',1); add(RAW.ghDisp,'Transaction Date',-1);
+      add(RAW.ghSet,'Set Date',-1);
+      const rebuilt=Math.max(0,mv);
+      return {v:rebuilt,used:'rebuilt',drift:null,cover:cover(rebuilt,l),implausible:true};
+    }
+    return {v:c,used:'calc',drift:0,cover:cv,implausible:false};
+  };
+  const aF=anchor(calc.F,official.F,'F'), aM=anchor(calc.M,official.M,'M');
   const balance={F:aF.v,M:aM.v};
   const anchored={F:aF.used,M:aM.used,driftF:aF.drift,driftM:aM.drift,
-    flagged:(aF.used==='declared'||aM.used==='declared')};
+    coverF:aF.cover,coverM:aM.cover,implausibleF:aF.implausible,implausibleM:aM.implausible,
+    setRateF:rate.F,setRateM:rate.M,coverMax:COVER_MAX,
+    flagged:(aF.used!=='calc'||aM.used!=='calc')};
   return {
     asOf,open,recv,disp,set,sold,calc,official,balance,anchored,tolerance:TOL,
     variance:{F:calc.F-official.F,M:calc.M-official.M,total:(calc.F+calc.M)-(official.F+official.M)}
@@ -11651,7 +11771,11 @@ function v610Ledger(asOf){
   const rawOfficial=v610BalanceBlock('close'),officialValid=v610OfficialValid(rawOfficial,calc),official=officialValid?{F:rawOfficial.F,M:rawOfficial.M}:{F:calc.F,M:calc.M};
   return {asOf,open:{F:open.F,M:open.M},recv,disp,set,sold,calc,official,officialRaw:{F:rawOfficial.F,M:rawOfficial.M},officialValid,variance:{F:calc.F-official.F,M:calc.M-official.M,total:(calc.F+calc.M)-(official.F+official.M)}};
 }
-gphLedger=v610Ledger;window.gphLedger=gphLedger;
+/* مُحيَّد: gphLedger و gpHatcheryClosing معرَّفتان داخل IIFE أخرى فلا يمكن
+   استبدالهما من هنا، وبدائل هذه الكتلة تنادي دوالّ خارج نطاقها (gphLatestDates)
+   فتنهار الصفحة. الإصلاح الحقيقي مطبَّق داخل الدالتين الأصليتين. */
+/* لا يُنشر v610Ledger: ينادي gphLatestDates خارج نطاقه فيرمي عند الاستدعاء. */
+if(false){
 
 gpHatcheryClosing=function(){
   const led=v610Ledger(gphLatestDates().receive||gphLatestDates().disposal||gphLatestDates().hatch||new Date()),sel=gphLineSelection();
@@ -11686,6 +11810,8 @@ const V610_OLD_APPLY=applyLang;
 applyLang=function(){V610_OLD_APPLY();try{document.title=document.title.replace(/V6\.9|V6\.8|V6\.7|V6\.6|V6\.5|V6\.4|V6\.3|V6\.2|V6\.1|V5\.9/g,V610_VERSION);const hs=document.getElementById('hSub');if(hs)hs.textContent=L('V6.10 · إصلاح رصيد وحركات مفقس الجدود','V6.10 · GP Hatchery balance and movement repair');}catch(e){}};
 window.applyLang=applyLang;
 try{document.title=document.title.replace(/V6\.9|V6\.8|V6\.7|V6\.6|V6\.5|V6\.4|V6\.3|V6\.2|V6\.1|V5\.9/g,V610_VERSION);const hs=document.getElementById('hSub');if(hs)hs.textContent=L('V6.10 · إصلاح رصيد وحركات مفقس الجدود','V6.10 · GP Hatchery balance and movement repair');setTimeout(()=>show(CURRENT),0);}catch(e){console.warn('V6.10 init',e);}
+}
+
 })();
 
 /* ============================================================================
