@@ -13443,7 +13443,8 @@ function qplanCompute(o){
   const hatchStd=(STD.hatchability&&STD.hatchability.psEggs)||0.84;
   const phases=(o.targets||[]).map((t,i)=>{
     const solve=pccSolve(t.kill,{targetDate:t.date,liveability:0.95,brHatch:o.basis==='standard'?hatchStd:null});
-    return {index:i+1,date:t.date,kill:t.kill,solve:solve};
+    /* نحافظ على رقم خانة المستخدم Q1–Q4 حتى بعد ترتيب التواريخ. */
+    return {index:num(t.slot)||i+1,order:i+1,date:t.date,kill:t.kill,solve:solve};
   });
   /* قبل أول هدف مرحلي يستمر المشروع على هدفه التشغيلي الحالي 650 ألف/يوم عمل،
      وليس على إنتاج متذبذب يجعل بعض أيام التسكين 14 حضيرة بلا سبب. */
@@ -13607,38 +13608,61 @@ function qplanPSPerformanceFactor(Q){
 }
 function qplanBuildPSEggBank(Q){
   const asOf=asDate(Q.asOf),end=asDate(Q.horizon),floor=4000000,ceiling=4500000,target=4250000;
+  const designHouses=24,operatingHouses=22,houseChicks=Math.max(1,num(HOUSE_CAP.broiler)||34000);
   let opening=0,sourceOK=false;
   try{const c=computeBRHatchall()||{};opening=Math.max(0,num(c.currentBalance));sourceOK=!!(c.rows||opening);}catch(e){}
   const factor=qplanPSPerformanceFactor(Q),weekMap={};(Q.weekly||[]).forEach(w=>weekMap[w.key]=w);
-  const setByDay={};
-  (Q.B&&Q.B.rows||[]).forEach(r=>{
-    let normalBirds=0;
-    (r.detail||[]).forEach(d=>{const hp=num(d.houses),cap=hp>0?num(d.birds)/hp:HOUSE_CAP.broiler;normalBirds+=num(d.normal)*cap;});
-    if(!(normalBirds>0))normalBirds=Math.max(0,num(r.birds)-num(r.offSexChicks));
-    if(!(normalBirds>0)||!r.setDate)return;
-    const wk=weekMap[qplanWeekKey(r.setDate)],rate=Math.max(.40,Math.min(.95,num(wk&&wk.brHatchRate)||num(STD.hatchability&&STD.hatchability.psEggs)||.84));
-    setByDay[r.setDate]=(setByDay[r.setDate]||0)+normalBirds/rate;
-  });
+  const baselineKill=num(PCC_RULES.plant.capacityPerDay)||650000;
+  const targetForKillDate=d=>{const ph=qplanPhaseFor(d,Q.phases||[]);return ph?num(ph.kill):baselineKill;};
   const base=[];let guard=0;
   for(let d=brhAddDays(asOf,1);d<=end&&guard++<2200;d=brhAddDays(d,1)){
-    const ps=qplanPsEggsAt(Q.P.ps,d,asOf),production=Math.max(0,ps.eggs*factor),setting=Math.max(0,num(setByDay[gmDateISO(d)]));
-    base.push({date:new Date(d),hens:ps.hens,factor,production,setting,net:production-setting});
+    const key=gmDateISO(d),ps=qplanPsEggsAt(Q.P.ps,d,asOf),production=Math.max(0,ps.eggs*factor);
+    const wk=weekMap[qplanWeekKey(d)],rate=Math.max(.40,Math.min(.95,num(wk&&wk.brHatchRate)||num(STD.hatchability&&STD.hatchability.psEggs)||.84));
+    const holiday=(typeof isHoliday==='function')?isHoliday(d):false;
+    const settingStopped=d.getUTCDay()===OPS_PLAN.BROILER_NO_SET_DOW||holiday;
+    const placementDate=brhAddDays(d,OPS_PLAN.SET_TO_PLACE_DAYS),killDate=brhAddDays(placementDate,Q.P.killAgeInt);
+    const targetKill=targetForKillDate(killDate);
+    /* الإيداع الاعتيادي مستمر في كل يوم إيداع تشغيلي، ولا يعتمد على تقطع تخصيص المزارع.
+       لذلك لا تظهر توقفات عشوائية؛ التوقف فقط الجمعة/العطلة، والعجز يظهر كفجوة طاقة. */
+    const requiredHouses=settingStopped?0:Math.ceil(targetKill/.95/houseChicks);
+    const requiredSetting=requiredHouses*houseChicks/rate;
+    const operatingEggCapacity=operatingHouses*houseChicks/rate,designEggCapacity=designHouses*houseChicks/rate;
+    const plannedSetting=Math.min(requiredSetting,designEggCapacity),capacityGap=Math.max(0,requiredSetting-plannedSetting);
+    const plannedHouses=plannedSetting*rate/houseChicks;
+    const usesReserve=requiredHouses>operatingHouses+.001&&requiredHouses<=designHouses+.001;
+    let reason='';
+    if(requiredSetting<=0){
+      reason=holiday
+        ? L('توقف إيداع بسبب عطلة تشغيلية','Setting stopped for an operating holiday')
+        : L('توقف إيداع الجمعة حسب قاعدة التشغيل','Friday setting stop per operating rule');
+    }
+    base.push({date:new Date(d),hens:ps.hens,factor,production,requiredSetting,plannedSetting,requiredHouses,plannedHouses,
+      operatingEggCapacity,designEggCapacity,capacityGap,usesReserve,reason,targetKill,placementDate,killDate,net:production-plannedSetting});
   }
   let bank=opening,totalSold=0,firstBelow=null,minBank=opening;
   const rows=base.map((r,i)=>{
-    const raw=bank+r.net;let projected=raw,minFuture=raw;
-    for(let j=i+1;j<Math.min(base.length,i+8);j++){projected+=base[j].net;if(projected<minFuture)minFuture=projected;}
+    const raw=bank+r.net;let projected=raw,minFuture=raw,futureCapacityGap=r.capacityGap;
+    for(let j=i+1;j<Math.min(base.length,i+8);j++){
+      projected+=base[j].net;if(projected<minFuture)minFuture=projected;futureCapacityGap+=base[j].capacityGap;
+    }
     let sold=0;
-    if(sourceOK&&raw>ceiling){sold=Math.max(0,Math.floor(Math.min(raw-target,minFuture-floor)));}
+    /* لا نقترح بيعاً إذا توجد فجوة طاقة حالية أو خلال الأيام السبعة التالية. */
+    if(sourceOK&&raw>ceiling&&futureCapacityGap<=0){sold=Math.max(0,Math.floor(Math.min(raw-target,minFuture-floor)));}
     bank=raw-sold;totalSold+=sold;if(bank<minBank)minBank=bank;if(!firstBelow&&bank<floor)firstBelow=new Date(r.date);
-    return {date:r.date,hens:r.hens,factor:r.factor,production:r.production,setting:r.setting,sold,bank,
-      status:bank<floor?'below':bank>ceiling?'above':'ok'};
+    let status='ok';
+    if(bank<floor)status='below';
+    else if(r.capacityGap>0)status='capacity';
+    else if(r.usesReserve)status='reserve';
+    else if(r.requiredSetting<=0)status='noSetting';
+    else if(r.production+1<r.plannedSetting)status='drawdown';
+    else if(bank>ceiling)status='above';
+    return Object.assign({},r,{sold,bank,status,dailyGap:r.production-r.plannedSetting});
   });
   return {rows,opening,floor,ceiling,target,totalSold,avgSoldPerDay:rows.length?totalSold/rows.length:0,
-    minBank,firstBelow,sourceOK,factor};
+    minBank,firstBelow,sourceOK,factor,designHouses,operatingHouses,houseChicks};
 }
 function qplanEggBankHTML(Q){
-  const E=qplanBuildPSEggBank(Q),tone=x=>x.status==='below'?'var(--bad)':x.status==='above'?'var(--warn)':'var(--good)';
+  const E=qplanBuildPSEggBank(Q),tone=x=>['below','capacity'].includes(x.status)?'var(--bad)':['above','reserve','drawdown','noSetting'].includes(x.status)?'var(--warn)':'var(--good)';
   let c={};
   try{c=computeBRHatchall()||{};}catch(e){c={};}
   const balance=Math.max(0,num(c.currentBalance));
@@ -13646,15 +13670,22 @@ function qplanEggBankHTML(Q){
   const ok=!!((c.rows||0)>0||balance>0);
   let h='<div class="card qp-card"><div class="qp-title"><div><h3>'+L('الرصيد الحالي لبيض الأمهات','Current PS hatch-egg balance')+'</h3><p>'+L('يعرض آخر رصيد إقفال متاح من قاعدة بيانات مفقسي التسمين، ثم يكمل منه جدول الرصيد اليومي المتوقع.','Shows the latest available closing balance from the two broiler-hatchery databases, then continues with the daily forecast balance table.')+'</p></div></div>';
   h+='<div class="grid" style="grid-template-columns:minmax(260px,520px);justify-content:center"><div class="card kpi" style="text-align:center;padding:24px"><div class="lbl">'+L('الرصيد الحالي للبيض','Current egg balance')+'</div><div class="val num" style="font-size:42px">'+(ok?fmt(balance,0):'—')+'</div><div class="sub">'+(ok?(latest?L('آخر إقفال بتاريخ ','Latest closing date ')+latest:L('من آخر استدعاء لقاعدة البيانات','From the latest database refresh')):L('تعذر قراءة الرصيد من قاعدة البيانات','Unable to read the balance from the database'))+'</div></div></div>';
-  h+='<div class="qp-title" style="margin-top:18px"><div><h3 style="font-size:18px">'+L('التوقع اليومي لرصيد بيض الأمهات','Daily PS hatch-egg balance forecast')+'</h3><p>'+L('الرصيد المتوقع = رصيد اليوم السابق + إنتاج بيض الأمهات المتوقع − إيداع مفقس التسمين − البيع المقترح. يبدأ الحساب من آخر رصيد إقفال ظاهر أعلاه.','Forecast balance = prior-day balance + forecast PS hatch-egg production − broiler-hatchery setting − proposed sale. The calculation starts from the latest closing balance shown above.')+'</p></div><span class="sim-tag">'+L('أساس الأداء ','Performance basis ')+fmt(E.factor*100,1)+'%</span></div>';
+  h+='<div class="qp-title" style="margin-top:18px"><div><h3 style="font-size:18px">'+L('التوقع اليومي لرصيد بيض الأمهات','Daily PS hatch-egg balance forecast')+'</h3><p>'+L('الرصيد = السابق + الإنتاج − الإيداع المخطط − البيع. الإيداع المخطط لا يتجاوز 24 حضيرة/يوم، ويظهر الفرق غير القابل للإيداع كفجوة طاقة. إذا كان الإيداع أعلى من الإنتاج لكن الرصيد بقي فوق الحد الأدنى، تظهر الحالة «استهلاك من الرصيد» بدلاً من «ضمن السياسة».','Balance = prior + production − planned setting − sale. Planned setting is capped at 24 houses/day, and any excess requirement is shown as a capacity gap. When setting exceeds production but the balance remains above the floor, the status says “drawdown from stock” rather than “within policy”.')+'</p></div><span class="sim-tag">'+L('تشغيلي 22 · تصميمي 24 حضيرة/يوم','22 operating · 24 design houses/day')+'</span></div>';
   if(!E.sourceOK){
     h+='<div class="note bad">'+L('تعذر تكوين جدول الرصيد اليومي لأن رصيد الإقفال الفعلي غير متاح.','The daily balance table cannot be built because the actual closing balance is unavailable.')+'</div></div>';
     return h;
   }
-  h+='<div class="tbl-scroll qp-tall" style="margin-top:10px"><table class="qp-table"><thead><tr><th>'+L('التاريخ','Date')+'</th><th class="num">'+L('إناث منتجة','Producing hens')+'</th><th class="num">'+L('عامل الأداء','Performance factor')+'</th><th class="num">'+L('إنتاج HE','HE production')+'</th><th class="num">'+L('إيداع مفقس التسمين','Broiler-hatchery setting')+'</th><th class="num">'+L('بيع مقترح','Proposed sale')+'</th><th class="num">'+L('رصيد الإغلاق','Closing balance')+'</th><th>'+L('الحالة','Status')+'</th></tr></thead><tbody>';
+  h+='<div class="tbl-scroll qp-tall" style="margin-top:10px"><table class="qp-table" style="min-width:1900px"><thead><tr><th>'+L('التاريخ','Date')+'</th><th class="num">'+L('إناث منتجة','Producing hens')+'</th><th class="num">'+L('عامل الأداء','Performance factor')+'</th><th class="num">'+L('إنتاج HE','HE production')+'</th><th class="num">'+L('إيداع مطلوب','Required setting')+'</th><th class="num">'+L('إيداع مخطط','Planned setting')+'</th><th class="num">'+L('حضائر مطلوبة','Required houses')+'</th><th class="num">'+L('فجوة طاقة المفقس','Hatchery capacity gap')+'</th><th class="num">'+L('صافي اليوم','Daily net')+'</th><th class="num">'+L('بيع مقترح','Proposed sale')+'</th><th class="num">'+L('رصيد الإغلاق','Closing balance')+'</th><th>'+L('الحالة والتفسير','Status and explanation')+'</th></tr></thead><tbody>';
   E.rows.forEach(x=>{
-    const st=x.status==='below'?L('تحت الحد الأدنى','Below floor'):x.status==='above'?L('فوق السقف — راجع البيع','Above ceiling — review sale'):L('ضمن السياسة','Within policy');
-    h+='<tr><td>'+gmDateISO(x.date)+'</td><td class="num">'+fmt(x.hens,0)+'</td><td class="num">'+fmt(x.factor*100,1)+'%</td><td class="num">'+fmt(x.production,0)+'</td><td class="num">'+fmt(x.setting,0)+'</td><td class="num" style="color:'+(x.sold>0?'var(--gold2)':'var(--mut)')+'">'+(x.sold>0?fmt(x.sold,0):'—')+'</td><td class="num" style="color:'+tone(x)+'"><b>'+fmt(x.bank,0)+'</b></td><td style="color:'+tone(x)+'">'+st+'</td></tr>';
+    let st='';
+    if(x.status==='below')st=L('تحت الحد الأدنى','Below floor');
+    else if(x.status==='capacity')st=L('عجز طاقة: ','Capacity gap: ')+fmt(x.capacityGap,0)+L(' بيضة غير مودعة',' eggs not set');
+    else if(x.status==='reserve')st=L('يستخدم احتياط الطوارئ','Uses emergency reserve');
+    else if(x.status==='noSetting')st=x.reason;
+    else if(x.status==='drawdown')st=L('الإيداع أعلى من الإنتاج بـ ','Setting exceeds production by ')+fmt(Math.abs(x.dailyGap),0)+L(' — مغطى من الرصيد',' — covered from stock');
+    else if(x.status==='above')st=L('فوق السقف — راجع البيع','Above ceiling — review sale');
+    else st=L('الإنتاج يغطي الإيداع والرصيد ضمن النطاق','Production covers setting and balance is within range');
+    h+='<tr><td>'+gmDateISO(x.date)+'</td><td class="num">'+fmt(x.hens,0)+'</td><td class="num">'+fmt(x.factor*100,1)+'%</td><td class="num">'+fmt(x.production,0)+'</td><td class="num">'+fmt(x.requiredSetting,0)+'</td><td class="num">'+fmt(x.plannedSetting,0)+'</td><td class="num">'+fmt(x.requiredHouses,1)+'</td><td class="num" style="color:'+(x.capacityGap>0?'var(--bad)':'var(--good)')+'">'+fmt(x.capacityGap,0)+'</td><td class="num" style="color:'+(x.dailyGap<0?'var(--warn)':'var(--good)')+'">'+fmt(x.dailyGap,0)+'</td><td class="num" style="color:'+(x.sold>0?'var(--gold2)':'var(--mut)')+'">'+(x.sold>0?fmt(x.sold,0):'—')+'</td><td class="num" style="color:'+tone(x)+'"><b>'+fmt(x.bank,0)+'</b></td><td style="color:'+tone(x)+'">'+st+'</td></tr>';
   });
   return h+'</tbody></table></div></div>';
 }
@@ -13662,7 +13693,7 @@ function qplanEggBankHTML(Q){
 function qplanHTML(o){
   let Q;try{Q=qplanCompute(o);}catch(e){return '<p class="sub" style="color:var(--bad)">'+e+'</p>';}
   let h='';
-  h+='<div class="card qp-card"><div class="qp-title"><div><h3>'+L('ملخص مراحل تطور هدف الذبح','Slaughter-target development phases')+'</h3><p>'+L('كل تاريخ هو موعد بدء الهدف الجديد. ما قبل أول تاريخ يبقى توقعاً من القطعان والطاقة الموجودة والخطة المعتمدة.','Each date is the effective start of the new target. Before the first date, the forecast follows current flocks, capacities and the approved plan.')+'</p></div><span class="sim-tag">'+Q.asOf+' → '+Q.horizon+'</span></div>';
+  h+='<div class="card qp-card"><div class="qp-title"><div><h3>'+L('ملخص مراحل تطور هدف الذبح','Slaughter-target development phases')+'</h3><p>'+L('كل خانة Q1–Q4 تبقى برقمها الأصلي حتى بعد ترتيب التواريخ. يعاد الحساب تلقائياً عند تغيير أي تاريخ أو هدف.','Each Q1–Q4 input keeps its original label after date sorting. The forecast recalculates automatically whenever a date or target changes.')+'</p></div><span class="sim-tag">'+Q.phases.length+'/4 · '+Q.asOf+' → '+Q.horizon+'</span></div>';
   if(!Q.phases.length)h+='<div class="note">'+L('لم تُدخل أهدافاً بعد؛ يعرض النظام فوركاست الاستمرار من الموجود فقط. أدخل هدفاً واحداً أو حتى أربعة أهداف ثم أعد الحساب.','No targets entered; the system is showing continuation from the current position only. Enter one to four targets and recalculate.')+'</div>';
   else{
     h+='<div class="tbl-scroll"><table class="qp-table"><thead><tr><th>'+L('المرحلة','Phase')+'</th><th>'+L('بدء الهدف','Effective date')+'</th><th class="num">'+L('هدف الذبح/يوم','Kill target/day')+'</th><th class="num">'+L('المتوقع من الخطة','Forecast from plan')+'</th><th class="num">'+L('الفجوة','Gap')+'</th><th class="num">'+L('بيض التسمين المطلوب/أسبوع','Broiler eggs required/week')+'</th><th class="num">'+L('كتاكيت مطلوبة/أسبوع','Required chicks/week')+'</th><th class="num">'+L('حضائر المفقس/يوم','Hatchery houses/day')+'</th><th>'+L('الحكم','Verdict')+'</th></tr></thead><tbody>';
@@ -13726,6 +13757,11 @@ function qplanHTML(o){
   h+='</tbody></table></div></div>';
   return h;
 }
+var _QPLAN_RENDER_TIMER=null;
+function qplanScheduleRender(){
+  try{clearTimeout(_QPLAN_RENDER_TIMER);}catch(e){}
+  _QPLAN_RENDER_TIMER=setTimeout(()=>{try{qplanRender();}catch(e){}},350);
+}
 function qplanRender(){
   const el=document.getElementById('qplanout');if(!el)return;
   const o=qplanRead();el.innerHTML='<p class="sub">'+L('يحسب الفوركاست الكامل…','Computing the complete forecast…')+'</p>';
@@ -13742,7 +13778,7 @@ function qplanShell(){
   const ds=qplanQuarterDates();let rows='';
   for(let i=0;i<4;i++)rows+='<div class="qp-target-row"><div class="qp-phase">Q'+(i+1)+'</div><label>'+L('تاريخ بدء الهدف','Target start date')+'<input id="qpDate'+(i+1)+'" type="date" value="'+ds[i]+'" class="inp"></label><label>'+L('هدف الذبح/يوم عمل','Kill target/workday')+'<input id="qpKill'+(i+1)+'" type="number" min="0" step="10000" placeholder="650000" class="inp"></label></div>';
   return '<div class="sim-section qp-shell"><div class="sim-section-head"><div><h2>'+L('موديول التخطيط — خطة التطور المرحلية من الموجود إلى أهداف الذبح','Planning Module — phased development from the current position to slaughter targets')+'</h2><p>'+L('أدخل هدفاً واحداً أو حتى أربعة أهداف زمنية مثل الأرباع السنوية. النظام يكمل من الجرد والقطعان والخطط المعتمدة، ثم يحسب أسبوعياً البيض والكتاكيت والتسكين والذبح والتوسعات.','Enter one to four dated targets like quarterly steps. The system continues from inventory, live flocks and approved plans, then forecasts weekly eggs, chicks, placements, slaughter and expansion.')+'</p></div><span class="sim-tag">STANDARD-LINKED FORECAST</span></div>'
-   +'<div class="card qp-input-card"><div class="qp-settings"><label>'+L('الوزن المستهدف (كغم)','Target weight (kg)')+'<input id="qpWeight" type="number" value="1.70" step="0.05" class="inp"></label><label>'+L('الأساس','Basis')+'<select id="qpBasis" class="inp"><option value="standard" selected>'+L('قياسي — الافتراضي','Standard — default')+'</option><option value="blended">'+L('معدل بين القياسي والفعلي','Blended')+'</option><option value="actual">'+L('الفعلي المقيس','Measured actual')+'</option></select></label><label>'+L('فاصل الجدود (يوم)','GP interval (days)')+'<input id="qpGpInt" type="number" value="90" class="inp"></label><label>'+L('فاصل الأمهات (يوم)','PS cadence (days)')+'<input id="qpPsCad" type="number" value="15" class="inp"></label><label>'+L('عرض بعد آخر هدف (شهر)','Months after final target')+'<input id="qpAfter" type="number" value="6" min="1" max="24" class="inp"></label></div><div class="qp-targets">'+rows+'</div><div class="qp-actions"><button class="btn" onclick="qplanRender()">◉ '+L('احسب خطة التخطيط','Compute planning forecast')+'</button><button class="btn ghost" onclick="qplanSheetsRender()">▦ '+L('أخرج الخطط الثلاث من نفس الإعدادات','Generate the three plan sheets')+'</button></div></div><div id="qplanout" style="margin-top:12px"></div><div id="qplansheetsout" style="margin-top:12px"></div></div>';
+   +'<div class="card qp-input-card" oninput="qplanScheduleRender()" onchange="qplanScheduleRender()"><div class="qp-settings"><label>'+L('الوزن المستهدف (كغم)','Target weight (kg)')+'<input id="qpWeight" type="number" value="1.70" step="0.05" class="inp"></label><label>'+L('الأساس','Basis')+'<select id="qpBasis" class="inp"><option value="standard" selected>'+L('قياسي — الافتراضي','Standard — default')+'</option><option value="blended">'+L('معدل بين القياسي والفعلي','Blended')+'</option><option value="actual">'+L('الفعلي المقيس','Measured actual')+'</option></select></label><label>'+L('فاصل الجدود (يوم)','GP interval (days)')+'<input id="qpGpInt" type="number" value="90" class="inp"></label><label>'+L('فاصل الأمهات (يوم)','PS cadence (days)')+'<input id="qpPsCad" type="number" value="15" class="inp"></label><label>'+L('عرض بعد آخر هدف (شهر)','Months after final target')+'<input id="qpAfter" type="number" value="6" min="1" max="24" class="inp"></label></div><div class="qp-targets">'+rows+'</div><div class="qp-actions"><button class="btn" onclick="qplanRender()">◉ '+L('احسب خطة التخطيط','Compute planning forecast')+'</button><button class="btn ghost" onclick="qplanSheetsRender()">▦ '+L('أخرج الخطط الثلاث من نفس الإعدادات','Generate the three plan sheets')+'</button></div></div><div id="qplanout" style="margin-top:12px"></div><div id="qplansheetsout" style="margin-top:12px"></div></div>';
 }
 function pushModuleHTML(){
   setTimeout(()=>{try{qplanRender();}catch(e){}},60);
@@ -13762,11 +13798,11 @@ function pushModuleHTML(){
    ========================================================================== */
 (function(){
   'use strict';
-  var APP_VERSION='V7.17';
+  var APP_VERSION='V7.18';
   /* V7.2 · الترحيل نُقل إلى أعلى الصفحة قبل أي قراءة من localStorage.
      انظر كتلة SK_MIGRATION في رأس المستند. */
-  var SUB_AR='V7.17 · موديول التخطيط · الرصيد الحالي وجدول التوقع اليومي لبيض الأمهات';
-  var SUB_EN='V7.17 · Planning module · current PS hatch-egg balance and daily forecast table';
+  var SUB_AR='V7.18 · موديول التخطيط · إيداع مستمر حسب الهدف وأهداف Q1–Q4';
+  var SUB_EN='V7.18 · Planning module · target-driven continuous setting and Q1–Q4 targets';
   function stamp(){
     try{
       document.title='Sama Karbala \u2014 '+APP_VERSION;
