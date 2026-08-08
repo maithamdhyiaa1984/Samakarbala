@@ -1997,5 +1997,135 @@ try{const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة �
  setTimeout(applyV118Brand,1200);
 })();
 </script>
+<script id="v120-broiler-v132-restored-date-axis-audit">
+/* V1.1.20 · Restore supported V13.2 broiler reports + truthful weekly date labels */
+(function(){
+'use strict';
+const V120='V1.1.20';
+try{CFG.version=V120}catch(e){}
+window.V120_SOLD_METRIC=window.V120_SOLD_METRIC||'EPEF';
+
+function v120PeriodLabel(bucket,lastActual){
+  bucket=String(bucket||'');
+  if(S.gran==='week'&&bucket){
+    const e=lastActual||iso(addDays(parseDate(bucket),6));
+    return e&&e!==bucket ? bucket+' → '+e : bucket;
+  }
+  return bucket;
+}
+function v120LastDateMap(rows){
+  const m=new Map();
+  (rows||[]).forEach(r=>{
+    if(!r||!r.date||!inRange(r.date))return;
+    const k=bucketDate(r.date),d=iso(r.date),old=m.get(k);
+    if(k&&d&&(!old||d>old))m.set(k,d);
+  });
+  return m;
+}
+function v120Relabel(id,map){
+  const el=document.getElementById(id);if(!el||!window.Chart)return;
+  const ch=Chart.getChart(el);if(!ch)return;
+  ch.data.labels=(ch.data.labels||[]).map(x=>v120PeriodLabel(x,map.get(String(x))));
+  ch.update('none');
+}
+function v120Latest(rows){return latestDate(rows||[],['date'])||'—'}
+function v120FarmCycleDone(houses){
+  return [...group(houses||[],x=>x.cycle+'|'+x.farm).entries()].map(([k,rs])=>{
+    const [cycle,farm]=k.split('|');
+    const done=rs.filter(x=>x.completed),elig=rs.filter(x=>x.eligible);
+    if(!done.length)return null;
+    // Sold-flock scorecard is limited to farm-cycles whose houses with output are fully settled.
+    const outH=rs.filter(x=>x.output>0),fullyDone=outH.length>0&&outH.every(x=>x.completed);
+    if(!fullyDone)return null;
+    const placed=sum(done,x=>x.placed),mort=sum(done,x=>x.mort),cull=sum(done,x=>x.cull),processed=sum(done,x=>x.processed),live=sum(done,x=>x.live),kg=sum(done,x=>x.netkg);
+    const dep=safeDiv(mort+cull,placed),liv=dep==null?null:1-dep;
+    const feed=sum(elig,x=>x.feed),ekg=sum(elig,x=>x.netkg),ehead=sum(elig,x=>x.processed),fcr=safeDiv(feed,ekg),wt=safeDiv(kg,processed),age=weighted(done.filter(x=>x.ageSold!=null),x=>x.ageSold,x=>Math.max(1,x.processed));
+    const eDep=safeDiv(sum(elig,x=>x.mort+x.cull),sum(elig,x=>x.placed));
+    const eWt=safeDiv(ekg,ehead),eAge=weighted(elig,x=>x.ageSold,x=>x.processed),epef=fcr&&eWt&&eAge&&eDep!=null?((1-eDep)*100*eWt*100)/(eAge*fcr):null;
+    const dates=done.flatMap(x=>[x.firstProc,x.lastProc]).filter(Boolean).sort((a,b)=>a-b);
+    return{cycle,farm,houses:done.length,eligible:elig.length,placed,mort,cull,dep,liv,processed,live,kg,wt,age,fcr,epef,first:dates[0]||null,last:dates.at(-1)||null};
+  }).filter(Boolean);
+}
+function v120MetricValue(r,m){return m==='FCR'?r.fcr:m==='Live'?r.liv:m==='Weight'?r.wt:r.epef}
+function v120MetricTitle(m){return m==='FCR'?'FCR':m==='Live'?T('الحيوية %','Livability %'):m==='Weight'?T('متوسط الوزن kg','Average weight kg'):'EPEF'}
+function v120SoldHTML(rows){
+  const met=window.V120_SOLD_METRIC||'EPEF';
+  const tableRows=rows.slice().sort((a,b)=>(b.epef||0)-(a.epef||0)).map(x=>[
+    x.cycle,x.farm,fmt(x.houses),x.epef!=null?fmt(x.epef,0):'—',x.fcr!=null?fmt(x.fcr,3):'—',x.wt!=null?fmt(x.wt,3):'—',x.liv!=null?pct(x.liv):'—',x.dep!=null?pct(x.dep):'—',fmt(x.processed),fmt(x.kg),x.age!=null?fmt(x.age,1):'—',iso(x.first),iso(x.last)
+  ]);
+  return section(T('🏁 الأفواج المباعة — الترتيب حسب المؤشر','🏁 Sold Flocks — ranked by metric'),T('مزرعة-دورة مكتملة؛ EPEF وFCR يستخدمان فقط الحظائر المؤهلة للحساب، بينما الوزن والحيوية من جميع الحضائر المكتملة في المزرعة-الدورة','Completed farm-cycle; EPEF/FCR use eligible houses only, while weight and livability use all completed houses in that farm-cycle'),`<div class="card"><div class="v120-metric-tabs"><button data-v120-met="EPEF" class="${met==='EPEF'?'on':''}">EPEF</button><button data-v120-met="FCR" class="${met==='FCR'?'on':''}">FCR</button><button data-v120-met="Live" class="${met==='Live'?'on':''}">%Live</button><button data-v120-met="Weight" class="${met==='Weight'?'on':''}">${T('الوزن','Weight')}</button></div><div class="chartbox lg"><canvas id="v120SoldRank"></canvas></div></div>${tableHTML('v120SoldTable',[T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضائر','Houses'),'EPEF','FCR',T('متوسط الوزن','Avg weight'),T('الحيوية','Livability'),T('الاستبعاد','Depletion'),T('المجزر','Processed'),T('وزن المجزر kg','Net kg'),T('عمر الذبح','Age sold'),T('بداية الإرسال','First dispatch'),T('نهاية الإرسال','Last dispatch')],tableRows)}`,'v120-sold-ranking');
+}
+function v120SplitStats(rows){
+  const placed=sum(rows,x=>x.placed),mort=sum(rows,x=>x.mort),cull=sum(rows,x=>x.cull),processed=sum(rows,x=>x.processed),live=sum(rows,x=>x.live),output=processed+live,available=Math.max(0,placed-mort-cull),balance=available-output;
+  return{houses:rows.length,placed,mort,cull,processed,live,output,available,balance,mortPct:safeDiv(mort,placed),cullPct:safeDiv(cull,placed),depPct:safeDiv(mort+cull,placed)};
+}
+function v120SplitHTML(completed,active){
+ const A=v120SplitStats(completed),B=v120SplitStats(active);
+ const r=[
+  [T('الحضائر المُجزورة/المباعة المكتملة','Completed processed/sold houses'),fmt(A.houses),fmt(A.placed),fmt(A.mort),A.mortPct!=null?pct(A.mortPct):'—',fmt(A.cull),A.cullPct!=null?pct(A.cullPct):'—',fmt(A.mort+A.cull),A.depPct!=null?pct(A.depPct):'—',fmt(A.processed),fmt(A.live),fmt(A.output),fmt(A.balance)],
+  [T('الحضائر المسكّنة الحالية','Currently placed active houses'),fmt(B.houses),fmt(B.placed),fmt(B.mort),B.mortPct!=null?pct(B.mortPct):'—',fmt(B.cull),B.cullPct!=null?pct(B.cullPct):'—',fmt(B.mort+B.cull),B.depPct!=null?pct(B.depPct):'—',fmt(B.processed),fmt(B.live),fmt(B.output),fmt(Math.max(0,B.balance))]
+ ];
+ return section(T('النافق والمعدم — الحضائر المُجزورة/المباعة مقابل المسكّنة الحالية','Mortality & culls — completed processed/sold vs currently placed'),T('المجموعة الأولى دورة مكتملة؛ المجموعة الثانية لقطة تراكمية للحضائر النشطة عند تاريخ نهاية الفلتر','First cohort is completed; second is a cumulative snapshot of active houses at filter end'),tableHTML('v120DepSplit',[T('المجموعة','Cohort'),T('حضائر','Houses'),T('المسكن','Placed'),T('نافق','Mort.'),T('نافق %','Mort. %'),T('معدم','Culls'),T('معدم %','Cull %'),T('الاستبعاد','Depletion'),T('استبعاد %','Dep. %'),T('المجزر','Processed'),T('بيع حي','Live sales'),T('الخارج','Output'),T('الرصيد/الفرق','Balance / variance')],r),'v120-dep-split');
+}
+function v120FarmCompleted(rows){
+ return [...group(rows,x=>x.farm).entries()].map(([farm,rs])=>{
+  const placed=sum(rs,x=>x.placed),mort=sum(rs,x=>x.mort),cull=sum(rs,x=>x.cull),head=sum(rs,x=>x.processed),kg=sum(rs,x=>x.netkg);
+  return{farm,houses:rs.length,placed,head,kg,wt:safeDiv(kg,head),dep:safeDiv(mort+cull,placed)};
+ }).filter(x=>x.head>0).sort((a,b)=>a.farm.localeCompare(b.farm,undefined,{numeric:true}));
+}
+function v120FarmHTML(rows){
+ const tb=rows.map(x=>[x.farm,fmt(x.houses),fmt(x.head),fmt(x.kg),x.wt!=null?fmt(x.wt,3):'—',x.dep!=null?pct(x.dep):'—']);
+ return section(T('متوسط وزن الذبح والاستبعاد حسب المزرعة — دورات مكتملة','Average processing weight & depletion by farm — completed flocks'),T('مستعاد من V13.2 باستخدام الحظائر المكتملة المدققة في النموذج الحالي','Restored from V13.2 using completed houses from the audited current model'),`<div class="grid2">${card(T('متوسط وزن الذبح حسب المزرعة','Average processing weight by farm'),'', '<div class="chartbox"><canvas id="v120FarmWt"></canvas></div>')}${card(T('نسبة الاستبعاد حسب المزرعة (نافق + معدم)','Depletion % by farm (mortality + culls)'),'', '<div class="chartbox"><canvas id="v120FarmDep"></canvas></div>')}</div>${tableHTML('v120FarmCompleted',[T('المزرعة','Farm'),T('الحضائر المكتملة','Completed houses'),T('المجزر','Processed'),T('الوزن الصافي kg','Net kg'),T('متوسط الوزن kg','Avg weight kg'),T('الاستبعاد','Depletion')],tb)}`,'v120-farm-completed');
+}
+function v120DrawSold(rows){
+ const met=window.V120_SOLD_METRIC||'EPEF',lower=met==='FCR';
+ const usable=rows.filter(x=>v120MetricValue(x,met)!=null&&Number.isFinite(v120MetricValue(x,met)));
+ usable.sort((a,b)=>lower?v120MetricValue(a,met)-v120MetricValue(b,met):v120MetricValue(b,met)-v120MetricValue(a,met));
+ const vals=usable.map(x=>met==='Live'?100*x.liv:v120MetricValue(x,met)),avgVal=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null,C=colors();
+ const good=vals.map(v=>lower?v<=avgVal:v>=avgVal);
+ chart('v120SoldRank',{type:'bar',data:{labels:usable.map(x=>x.farm+'-'+x.cycle),datasets:[{label:v120MetricTitle(met),data:vals,backgroundColor:good.map(x=>x?C.teal:C.coral),borderWidth:0,borderRadius:3},{type:'line',label:T('المتوسط','Average'),data:vals.map(()=>avgVal),borderColor:C.gold,borderDash:[6,5],pointRadius:0,borderWidth:2}]},options:{interaction:{mode:'nearest',intersect:false},scales:{x:{ticks:{autoSkip:true,maxRotation:65,minRotation:65}},y:{ticks:{callback:v=>met==='Live'?v+'%':v}}}}});
+}
+function v120PatchPeriodTable(id,map){
+ const table=document.getElementById(id);if(!table||S.gran!=='week')return;
+ table.querySelectorAll('tbody tr').forEach(tr=>{const td=tr.querySelector('td');if(!td)return;const k=td.textContent.trim();if(map.has(k))td.textContent=v120PeriodLabel(k,map.get(k))});
+}
+
+const _v120Broiler=RENDER.broiler;
+RENDER.broiler=async function(){
+ await _v120Broiler();if(S.page!=='broiler')return;
+ const base=await broilerModel(),m=S.broilerSnapshot||broilerSnapshot(base,asOfDate(base.latest)),hs=broFilterHouses(m);
+ const perf=hs.filter(x=>x.lastProc&&inRange(x.lastProc)),completed=perf.filter(x=>x.completed),active=hs.filter(x=>!x.completed&&x.balance>0&&(!S.cumActiveKeys||S.cumActiveKeys.has(x.key)));
+ const sold=v120FarmCycleDone(perf),farmDone=v120FarmCompleted(completed);
+ const anchor=document.getElementById('br114-sold')||document.getElementById('br114-recon');
+ if(anchor){anchor.insertAdjacentHTML('afterend',v120SoldHTML(sold)+v120FarmHTML(farmDone)+v120SplitHTML(completed,active));wireExports();}
+ v120DrawSold(sold);
+ const C=colors();
+ chart('v120FarmWt',{type:'bar',data:{labels:farmDone.map(x=>x.farm),datasets:[{label:T('متوسط الوزن kg','Average weight kg'),data:farmDone.map(x=>x.wt),backgroundColor:C.teal,borderRadius:3}]},options:{scales:{x:{ticks:{maxRotation:60,minRotation:45}}}}});
+ chart('v120FarmDep',{type:'bar',data:{labels:farmDone.map(x=>x.farm),datasets:[{label:T('الاستبعاد %','Depletion %'),data:farmDone.map(x=>x.dep!=null?100*x.dep:null),backgroundColor:C.coral,borderRadius:3}]},options:{scales:{x:{ticks:{maxRotation:60,minRotation:45}},y:{ticks:{callback:v=>v+'%'}}}}});
+ document.querySelectorAll('[data-v120-met]').forEach(b=>b.onclick=()=>{window.V120_SOLD_METRIC=b.dataset.v120Met;renderCurrent()});
+ // Weekly labels now show actual covered range, e.g. 2026-08-01 → 2026-08-05, not only week start.
+ const outputRows=[...m.proc.filter(r=>(!S.cycle||r.cycle===S.cycle)&&(!S.farm||r.farm===S.farm)&&inRange(r.date)),...m.live.filter(r=>(!S.cycle||r.cycle===S.cycle)&&(!S.farm||r.farm===S.farm)&&inRange(r.date))];
+ const farmRows=m.farms.filter(r=>(!S.cycle||r.cycle===S.cycle)&&(!S.farm||r.farm===S.farm)&&inRange(r.date)),placeRows=m.place.filter(r=>(!S.cycle||r.cycle===S.cycle)&&(!S.farm||r.farm===S.farm)&&inRange(r.date));
+ v120Relabel('br114Output',v120LastDateMap(outputRows));v120Relabel('br114DepCalendar',v120LastDateMap(farmRows));v120Relabel('br114FeedTime',v120LastDateMap(farmRows));v120Relabel('br114Placement',v120LastDateMap(placeRows));
+ const sec=document.getElementById('br114-trends');if(sec){const p=sec.querySelector('.section-head p');const lp=v120Latest(m.proc.filter(r=>inRange(r.date))),ll=v120Latest(m.live.filter(r=>inRange(r.date))),lf=v120Latest(farmRows);if(p)p.textContent=T(`آخر تسجيل: المجزر ${lp} · البيع الحي ${ll} · المزارع ${lf}. في العرض الأسبوعي يظهر المحور من بداية الأسبوع إلى آخر يوم فعلي داخل الأسبوع.`,`Latest records: processing ${lp} · live sales ${ll} · farms ${lf}. Weekly axes show week start through the latest actual day in each week.`)}
+};
+
+const _v120Plant=RENDER.plant;
+RENDER.plant=async function(){
+ await _v120Plant();if(S.page!=='plant')return;
+ const [prRaw,lvRaw]=await Promise.all([load('bProc'),load('bLive')]),proc=bProcNorm(prRaw).filter(x=>pl115Pass(x)&&inRange(x.date)),live=bLiveNorm(lvRaw).filter(x=>pl115Pass(x)&&inRange(x.date));
+ const all=[...proc,...live],map=v120LastDateMap(all);v120Relabel('pl115Head',map);v120Relabel('pl115Kg',map);v120PatchPeriodTable('pl115Period',map);
+ const sec=document.getElementById('pl115-trends');if(sec){const p=sec.querySelector('.section-head p'),lp=v120Latest(proc),ll=v120Latest(live);if(p)p.textContent=T(`عرض ${S.gran==='day'?'يومي':S.gran==='week'?'أسبوعي':'شهري'} · آخر بيانات المجزر ${lp} · آخر بيع حي ${ll}. في العرض الأسبوعي تُعرض الفترة الفعلية داخل الأسبوع وليس تاريخ البداية وحده.`,`Display: ${S.gran} · latest processing ${lp} · latest live sale ${ll}. Weekly labels show the actual covered range, not only the week-start date.`)}
+};
+
+const _v120SetLang=setLang;setLang=function(){_v120SetLang();try{const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V120,'Independent platform · Live Google Sheets · '+V120);document.title='Sama Karbala — Poultry Command Center '+V120}catch(e){}};
+function v120Brand(){try{const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V120,'Independent platform · Live Google Sheets · '+V120);document.title='Sama Karbala — Poultry Command Center '+V120}catch(e){}}
+v120Brand();
+})();
+</script>
+<style id="v120-style">
+.v120-metric-tabs{display:flex;gap:7px;justify-content:flex-end;margin-bottom:8px;flex-wrap:wrap}.v120-metric-tabs button{border:1px solid var(--line);background:var(--panel);color:var(--mut);padding:7px 14px;border-radius:9px;font-weight:800;cursor:pointer}.v120-metric-tabs button.on{background:var(--gold);border-color:var(--gold);color:#16100a}.v120-metric-tabs button:hover{border-color:var(--gold)}
+</style>
+
 </body>
 </html>
