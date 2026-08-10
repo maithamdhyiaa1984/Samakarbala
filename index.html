@@ -1,6 +1,6 @@
 <!-- V1.1.34 | Runtime/Data Fix: repaired Cumulative row-3 header, CX scope bridge, official broiler current inventory, and chain active-house reconciliation. -->
 <!doctype html>
-<!-- V1.1.45: Based on V1.1.43; original V1.1.41-style monthly/quarterly reports preserved. V1.1.42 integrated calculations retained only as additive GM analytics. -->
+<!-- V1.1.46: Monthly/Quarterly calculation audit. Original GM reports preserved; future engine corrected for stage-specific cutoffs, 32-day slaughter age, mortality-aware breeder forecasts, historical-plan actualization guard, and forward capacity logic. -->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"/>
@@ -2104,16 +2104,23 @@ function v117MonthActual(D,ym){
  };
 }
 function v117LatestPer(rows,keyFn,asISO){const m=new Map();rows.filter(x=>!asISO||iso(x.date)<=asISO).forEach(x=>{const k=keyFn(x),old=m.get(k);if(!old||x.date>old.date)m.set(k,x)});return [...m.values()]}
+function v146RecentFemaleLoss(rows,keyFn,key,asISO,days=28){
+ const end=parseDate(asISO),start=addDays(end,-days+1);let loss=0,exposure=0;
+ rows.forEach(x=>{if(keyFn(x)!==key||!x.date||x.date<start||x.date>end)return;const beg=Math.max(0,+((x.fBegin!=null?x.fBegin:x.fInv)||0));if(beg<=0)return;exposure+=beg;loss+=Math.max(0,(x.fMort||0)+(x.fCull||0))});
+ return Math.max(0,Math.min(.01,exposure>0?loss/exposure:0));
+}
 function v117GpForecast(D,ym,asISO){
- const fl=v117LatestPer(D.gp,x=>x.farm+'|'+x.flock+'|'+x.line,asISO).filter(x=>/active/i.test(x.status)&&x.fEnd>0);let te=0,he=0;
- for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))for(const x of fl){const age=x.ageW+(dayDiff(x.date,d)||0)/7,st=gpStdAt(age,x.line);if(st){te+=x.fEnd*st.te/100;he+=x.fEnd*st.he/100}}
+ const keyFn=x=>x.farm+'|'+x.flock+'|'+x.line,fl=v117LatestPer(D.gp,keyFn,asISO).filter(x=>/active/i.test(x.status)&&x.fEnd>0);let te=0,he=0;
+ for(const x of fl)x.__v146Loss=v146RecentFemaleLoss(D.gp,keyFn,keyFn(x),asISO,28);
+ for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))for(const x of fl){const dd=Math.max(0,dayDiff(x.date,d)||0),hens=Math.max(0,x.fEnd*Math.pow(1-x.__v146Loss,dd)),age=x.ageW+dd/7,st=gpStdAt(age,x.line);if(st){te+=hens*st.te/100;he+=hens*st.he/100}}
  return{te,he,flocks:fl.length};
 }
 function v117PsStd(w,i){w=Math.round(+w||0);if(w<25||w>70)return null;if(w<=64)return v11PSstd(w,i);const a=v11PSstd(60,i),b=v11PSstd(64,i);if(a==null||b==null)return null;const v=b+(b-a)/4*(w-64);return i===0?Math.max(0,Math.min(100,v)):Math.max(0,v)}
 function v117PsHE(w){w=Math.round(+w||0);if(w<25||w>70)return null;if(w<=64)return v11HEweek(w);const a=v11HEweek(60),b=v11HEweek(64);return a==null||b==null?null:Math.max(0,b+(b-a)/4*(w-64))}
 function v117PspForecast(D,ym,asISO){
- const fl=v117LatestPer(D.ps.p,x=>x.farm+'|'+x.flock,asISO);let te=0,he=0;
- for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))for(const x of fl){const st=endOfDayStock(x),wk=((x.age||0)+(dayDiff(x.date,d)||0))/7,teHD=v117PsStd(wk,0),heW=v117PsHE(wk);if(st.f>0&&teHD!=null)te+=st.f*teHD/100;if(st.f>0&&heW!=null)he+=st.f*(heW/7)}
+ const keyFn=x=>x.farm+'|'+x.flock,fl=v117LatestPer(D.ps.p,keyFn,asISO);let te=0,he=0;
+ for(const x of fl)x.__v146Loss=v146RecentFemaleLoss(D.ps.p,keyFn,keyFn(x),asISO,28);
+ for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))for(const x of fl){const st=endOfDayStock(x),dd=Math.max(0,dayDiff(x.date,d)||0),hens=Math.max(0,st.f*Math.pow(1-x.__v146Loss,dd)),wk=((x.age||0)+dd)/7,teHD=v117PsStd(wk,0),heW=v117PsHE(wk);if(hens>0&&teHD!=null)te+=hens*teHD/100;if(hens>0&&heW!=null)he+=hens*(heW/7)}
  return{te,he,flocks:fl.length};
 }
 function v117TrailingRate(rows,dateField,valFn,asISO,days=28){const end=parseDate(asISO),start=addDays(end,-days+1);let tot=0;rows.forEach(x=>{const d=x[dateField];if(d&&d>=start&&d<=end)tot+=valFn(x)||0});return tot/days}
@@ -2125,8 +2132,8 @@ function v117WeeklyMapFromDaily(map,ym){const out=[...group(Object.entries(map).
 function v117RecordedFutureSet(rows,ym,kind){const map={};rows.filter(x=>v117InYM(x.date,ym)).forEach(x=>{const v=kind==='gph'?x.setF+x.setM:x.set;map[iso(x.date)]=(map[iso(x.date)]||0)+v});return map}
 function v117ForecastWeeklySet(rows,ym,kind,rate){const rec=v117RecordedFutureSet(rows,ym,kind),has=sum(Object.values(rec))>0;if(has)return{weekly:v117WeeklyMapFromDaily(rec,ym),total:sum(Object.values(rec)),basis:'recorded'};const map={};for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))map[iso(d)]=rate;return{weekly:v117WeeklyMapFromDaily(map,ym),total:rate*v117Days(ym),basis:'forecast'} }
 function v117KillForecast(D,ym){
- const map={};let src=0,lastPlace='';D.place.forEach(x=>{const kd=addDays(x.date,31);if(!kd||v117YM(kd)!==ym)return;let k=kd;if(k.getDay()===5)k=addDays(k,1);const ds=iso(k);map[ds]=(map[ds]||0)+x.placed*.95;src+=x.placed;if(!lastPlace||iso(x.date)>lastPlace)lastPlace=iso(x.date)});
- const weekly=v117WeeklyMapFromDaily(map,ym),requiredEnd=iso(addDays(v117MonthEnd(ym),-31)),coverage=lastPlace&&requiredEnd?Math.max(0,Math.min(1,(dayDiff(addDays(v117MonthStart(ym),-31),parseDate(lastPlace))+1)/(dayDiff(addDays(v117MonthStart(ym),-31),parseDate(requiredEnd))+1))):0;let fridays=0;for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))if(d.getDay()===5)fridays++;
+ const map={};let src=0,lastPlace='';D.place.forEach(x=>{const kd=addDays(x.date,32);if(!kd||v117YM(kd)!==ym)return;let k=kd;if(k.getDay()===5)k=addDays(k,1);const ds=iso(k);map[ds]=(map[ds]||0)+x.placed*.95;src+=x.placed;if(!lastPlace||iso(x.date)>lastPlace)lastPlace=iso(x.date)});
+ const weekly=v117WeeklyMapFromDaily(map,ym),requiredEnd=iso(addDays(v117MonthEnd(ym),-32)),coverage=lastPlace&&requiredEnd?Math.max(0,Math.min(1,(dayDiff(addDays(v117MonthStart(ym),-32),parseDate(lastPlace))+1)/(dayDiff(addDays(v117MonthStart(ym),-32),parseDate(requiredEnd))+1))):0;let fridays=0;for(let d=v117MonthStart(ym),e=v117MonthEnd(ym);d<=e;d=addDays(d,1))if(d.getDay()===5)fridays++;
  return{weekly,total:sum(weekly,x=>x.value),sourcePlaced:src,lastPlace,requiredEnd,coverage,processingDays:v117Days(ym)-fridays,downtime:fridays};
 }
 function v117DepopEvents(D,ym,asISO){
@@ -2194,7 +2201,7 @@ function v117QuarterReviewMonths(latestYM){const [y,m]=latestYM.split('-').map(N
 function v117QuarterOpts(latestYM){const [y]=latestYM.split('-').map(Number),out=[];for(let yy=y-1;yy<=y+1;yy++)[3,6,9,12].forEach(m=>out.push(`${yy}-${String(m).padStart(2,'0')}`));return out}
 
 RENDER.monthly=async function(){
- const D=await v117Load(),asISO=v117DateMax(D),latestYM=v117YM(asISO),def=v117AddYM(latestYM,1);if(!V117_MONTH)V117_MONTH=def;const target=V117_MONTH,look=v117AddYM(target,-1),actual=v117MonthActual(D,look),fc=v117MonthForecast(D,target,asISO),issues=v117MgmtIssues(actual,fc),due=`${v117AddYM(target,-1)}-28`;
+ const D=await v117Load(),asISO=v117DateMax(D),latestYM=v117YM(asISO),def=latestYM;if(!V117_MONTH)V117_MONTH=def;const target=V117_MONTH,look=v117AddYM(target,-1),actual=v117MonthActual(D,look),fc=v117MonthForecast(D,target,asISO),issues=v117MgmtIssues(actual,fc),due=`${v117AddYM(target,-1)}-28`;
  const opts=Array.from({length:10},(_,i)=>v117AddYM(latestYM,i-2));
  setFilterOptions([],[],[]);
  let h=hero(T('التقرير الشهري','Monthly Report'),T('Month Ahead للشهر القادم مع Look Back للشهر السابق — تشغيل الدواجن فقط','Month-ahead operating report with previous-month look-back — poultry operations only'));
@@ -3911,7 +3918,7 @@ renderCurrent=async function(){
 <script id="v145-gm-original-reports-plus-forward-analytics">
 (function(){
 'use strict';
-const V145='V1.1.45';
+const V145='V1.1.46';
 const V145_PROJECTS={
  gp:{titleAr:'مزارع الجدود ومفقس الجدود',titleEn:'Grandparent Farms & Grandparent Hatchery',code:'1.1',keys:['gpHE','gphRecv','gphSet','gphHatch','gphRear','gphOffSex']},
  ps:{titleAr:'أمهات التسمين — التربية والإنتاج',titleEn:'Parent Stock Farming — Rearing & Production',code:'1.2',keys:['psrPlace','pspTransfer','psHE','brhIncoming']},
@@ -3932,7 +3939,7 @@ function v145Rows(M,ym,keys){return keys.map(k=>{const r=window.v142StageRow(M,k
 function v145PastFutureTable(id,M,pastYM,nextYM,keys){
  const past=v145Rows(M,pastYM,keys),future=v145Rows(M,nextYM,keys),all=[...new Set([...past.map(x=>x.key),...future.map(x=>x.key)])];
  const pm=new Map(past.map(x=>[x.key,x])),fm=new Map(future.map(x=>[x.key,x]));
- return tableHTML(id,[T('المؤشر','Metric'),T('Actual السابق','Previous actual'),T('Plan لنفس الفترة','Same-period plan'),T('تحقيق','Achievement'),T('Plan الفترة القادمة','Next-period plan'),T('Actual MTD','Actual MTD'),T('Expected','Expected'),T('تحقيق متوقع','Expected ach.'),T('فرق متوقع','Expected variance')],all.map(k=>{const p=pm.get(k)||{},f=fm.get(k)||{},lab=(p.label||f.label||k);return[lab,p.actual==null?'—':fmt(p.actual),p.planTD>0?fmt(p.planTD):'—',`<span class="${v145Cls(p.ach)}">${v145Pct(p.ach)}</span>`,f.plan>0?fmt(f.plan):'—',f.actual==null?'—':fmt(f.actual),f.expected==null?'—':fmt(f.expected),`<span class="${v145Cls(f.fcAch)}">${v145Pct(f.fcAch)}</span>`,f.expected!=null&&f.plan>0?v145Var(f.expected-f.plan):'—']}) )
+ return tableHTML(id,[T('المؤشر','Metric'),T('Actual السابق','Previous actual'),T('Plan لنفس الفترة','Same-period plan'),T('تحقيق','Achievement'),T('Plan الفترة القادمة','Next-period plan'),T('Actual MTD','Actual MTD'),T('Expected','Expected'),T('تحقيق متوقع','Expected ach.'),T('فرق متوقع','Expected variance')],all.map(k=>{const p=pm.get(k)||{},f=fm.get(k)||{},lab=(p.label||f.label||k);return[lab,p.actual==null?'—':fmt(p.actual),p.planComparable===false?`<span title="${T('المصدر التاريخي Actualized؛ لا يستخدم كخطة مستقلة','Historical source is actualized; not used as independent plan')}">${T('Actualized — مستبعد','Actualized — excluded')}</span>`:(p.planTD>0?fmt(p.planTD):'—'),`<span class="${v145Cls(p.ach)}">${v145Pct(p.ach)}</span>`,f.plan>0?fmt(f.plan):'—',f.actual==null?'—':fmt(f.actual),f.expected==null?'—':fmt(f.expected),`<span class="${v145Cls(f.fcAch)}">${v145Pct(f.fcAch)}</span>`,f.expected!=null&&f.plan>0?v145Var(f.expected-f.plan):'—']}) )
 }
 function v145ProjectSummary(M,project,pastYM,nextYM){
  const p=v145Rows(M,pastYM,project.keys),f=v145Rows(M,nextYM,project.keys),pBad=p.filter(x=>x.ach!=null&&x.ach<.95).sort((a,b)=>a.ach-b.ach),fBad=f.filter(x=>x.fcAch!=null&&x.fcAch<.95).sort((a,b)=>a.fcAch-b.fcAch),pGood=p.filter(x=>x.ach!=null&&x.ach>=.97).sort((a,b)=>b.ach-a.ach);
@@ -3944,10 +3951,15 @@ function v145ProjectSummary(M,project,pastYM,nextYM){
  return `<div class="v145-summary-list">${parts.join('')}</div>`
 }
 function v145Assessment(M,project,pastYM,nextYM){
- const p=v145Rows(M,pastYM,project.keys),f=v145Rows(M,nextYM,project.keys),pAvg=(()=>{const z=p.filter(x=>x.ach!=null);return z.length?sum(z,x=>x.ach)/z.length:null})(),fAvg=(()=>{const z=f.filter(x=>x.fcAch!=null);return z.length?sum(z,x=>x.fcAch)/z.length:null})();
- const pastText=pAvg==null?T('لا توجد مقارنة خطة قابلة للتدقيق','No auditable plan comparison'):pAvg>=.97?T('التنفيذ قريب/فوق الخطة','Execution at/above plan'):pAvg>=.9?T('انحراف متوسط عن الخطة','Moderate variance to plan'):T('فجوة تنفيذية تحتاج متابعة','Execution gap requires follow-up');
- const futText=fAvg==null?T('لا يوجد Expected/Plan قابل للمقارنة','No comparable Expected/Plan'):fAvg>=.97?T('التوقع يغطي الخطة القادمة','Expected covers forward plan'):fAvg>=.9?T('تغطية متوقعة قريبة من الخطة','Expected close to forward plan'):T('فجوة متوقعة قبل الفترة القادمة','Expected forward shortfall');
- return `<div class="v145-assess"><div><b>${T('Operational Assessment','Operational Assessment')}</b><span>${pastText}</span></div><div><b>${T('Forward Outlook','Forward Outlook')}</b><span>${futText}</span></div><div><b>${T('Management Action','Management Action')}</b><span>${fAvg!=null&&fAvg<.97?T('مراجعة جدول التنفيذ والتنسيق بين المشروع والمرحلة التالية قبل بداية الفترة','Review execution schedule and downstream coordination before period start'):T('الاستمرار بالمراجعة الأسبوعية Actual / Plan / Expected','Continue weekly Actual / Plan / Expected review')}</span></div></div>`
+ const p=v145Rows(M,pastYM,project.keys).filter(x=>x.ach!=null),f=v145Rows(M,nextYM,project.keys).filter(x=>x.fcAch!=null);
+ const worstP=p.slice().sort((a,b)=>a.ach-b.ach)[0],worstF=f.slice().sort((a,b)=>a.fcAch-b.fcAch)[0];
+ const pBad=p.filter(x=>x.ach<.90).length,pWarn=p.filter(x=>x.ach>=.90&&x.ach<.97).length,pGood=p.filter(x=>x.ach>=.97).length;
+ const fBad=f.filter(x=>x.fcAch<.90).length,fWarn=f.filter(x=>x.fcAch>=.90&&x.fcAch<.97).length,fGood=f.filter(x=>x.fcAch>=.97).length;
+ const pastText=!p.length?T('لا توجد مقارنة خطة قابلة للتدقيق','No auditable plan comparison'):pBad?T('توجد فجوة تنفيذية حرجة في مؤشر واحد أو أكثر','Critical execution gap in one or more metrics'):pWarn?T('التنفيذ قريب من الخطة مع مؤشرات تحتاج متابعة','Execution close to plan with metrics requiring follow-up'):T('جميع المقارنات المدعومة ضمن/فوق الخطة','All supported comparisons at/above plan');
+ const futText=!f.length?T('لا يوجد Expected/Plan قابل للمقارنة','No comparable Expected/Plan'):fBad?T('توجد فجوة مستقبلية حرجة مقابل الخطة','Critical forward shortfall versus plan'):fWarn?T('التوقع قريب من الخطة مع حاجة للمتابعة','Expected close to plan with follow-up needed'):T('التوقع يغطي الخطة القادمة للمؤشرات المدعومة','Expected covers forward plan for supported metrics');
+ const detailP=p.length?`${T('مقارن','compared')} ${p.length} · <span class="good">${pGood} ≥97%</span> · <span class="warn">${pWarn} 90–97%</span> · <span class="bad">${pBad} <90%</span>${worstP?` · ${T('الأدنى','lowest')} ${worstP.label} ${pct(worstP.ach)}`:''}`:T('لا توجد خطة تاريخية مستقلة قابلة للمقارنة','No independent historical plan available');
+ const detailF=f.length?`${T('مقارن','compared')} ${f.length} · <span class="good">${fGood} ≥97%</span> · <span class="warn">${fWarn} 90–97%</span> · <span class="bad">${fBad} <90%</span>${worstF?` · ${T('الأدنى','lowest')} ${worstF.label} ${pct(worstF.fcAch)}`:''}`:T('لا توجد مقارنة مستقبلية مدعومة','No supported forward comparison');
+ return `<div class="v145-assess"><div><b>${T('Operational Assessment','Operational Assessment')}</b><span>${pastText}<br><small>${detailP}</small></span></div><div><b>${T('Forward Outlook','Forward Outlook')}</b><span>${futText}<br><small>${detailF}</small></span></div><div><b>${T('Management Action','Management Action')}</b><span>${(pBad||fBad||pWarn||fWarn)?T('مراجعة المؤشرات المنحرفة حسب المشروع والمرحلة؛ لا يتم تكوين Score مركب من وحدات مختلفة.','Review deviating metrics by project/stage; no composite score is built across unlike units.'):T('الاستمرار بالمراجعة الأسبوعية Actual / Plan / Expected','Continue weekly Actual / Plan / Expected review')}</span></div></div>`
 }
 function v145ProjectSection(M,key,pastYM,nextYM,suffix='m'){
  const p=V145_PROJECTS[key],title=`${p.code} · ${T(p.titleAr,p.titleEn)} — ${T('ملحق الإدارة العامة','GM management extension')}`;
@@ -3980,7 +3992,7 @@ async function v145AppendQuarterly(){
  host.insertAdjacentHTML('beforeend',`<div id="v145-quarterly-ribbon" class="v145-ribbon"><b>${T('إضافة الإدارة العامة للربع — المحافظة على التقرير السابق + Forward View','GM Quarterly Add-on — original report preserved + Forward View')}</b><span>${T('كل جداول ومخططات التقرير الربع سنوي السابق بقيت أعلاه. هذا الملحق يضيف Actual/Plan للربع المنفذ وPlan/Expected للربع القادم حسب المشاريع.','All original quarterly tables and charts remain above. This add-on adds executed-quarter Actual/Plan and next-quarter Plan/Expected by project.')}</span></div>`);
  for(const key of ['gp','ps','br']){const p=V145_PROJECTS[key];host.insertAdjacentHTML('beforeend',section(`${p.code} · ${T(p.titleAr,p.titleEn)} — ${T('Quarter Management Extension','Quarter Management Extension')}`,T('نفس تقسيم تقرير المدير العام السابق مع إضافة الخطة والتوقع للربع القادم.','Same GM project grouping with forward plan and expected added.'),v145QuarterPair(M,past,next,p,`v145_q_${key}`),`v145-q-${key}`))}
  const bridge=[...past,...next];host.insertAdjacentHTML('beforeend',section('1.4 · '+T('Monthly Bridge — من الربع المنفذ إلى الربع القادم','Monthly Bridge — executed to forward quarter'),T('يبقي الأشهر المنفذة Actual والأشهر القادمة Expected منفصلة بوضوح.','Keeps executed months as Actual and future months as Expected.'),tableHTML('v145QBridge',[T('الشهر','Month'),T('GP HE','GP HE'),T('PS HE','PS HE'),T('Saleable chicks','Saleable chicks'),T('Broiler placement','Broiler placement'),T('Processing','Processing'),T('نوع القراءة','Reading type')],bridge.map(m=>{const future=next.includes(m),vals=['gpHE','psHE','brhSaleable','broPlace','process'].map(k=>window.v142StageRow(M,k,m));return[monthLabel(m),...vals.map(r=>future?(r.expected==null?'—':fmt(r.expected)):(r.actual==null?'—':fmt(r.actual))),future?T('Expected / Forecast','Expected / Forecast'):'Actual']})),'v145-q-bridge'));
- const pl=next.map(m=>({m,...window.v142PlantOps(M,m)}));host.insertAdjacentHTML('beforeend',section('1.5 · '+T('Processing Capacity & Stoppage Outlook','Processing Capacity & Stoppage Outlook'),T('التوقفات التاريخية من أيام صفر إنتاج غير الجمعة؛ لا يتم افتراض سبب التوقف.','Historical stoppage signal uses non-Friday zero-output days; the cause is not inferred.'),tableHTML('v145QPlant',[T('الشهر','Month'),T('Processed','Processed'),T('أيام تشغيل','Operating days'),T('أيام صفر غير الجمعة','Zero-output non-Friday'),T('استغلال الطاقة','Capacity util.'),T('طاقة غير مستخدمة','Unused capacity')],pl.map(x=>[monthLabel(x.m),fmt(x.head),fmt(x.operating),fmt(x.zero),x.util==null?'—':pct(x.util),x.unused==null?'—':fmt(x.unused)])),'v145-q-plant'));
+ const pl=next.map(m=>({m,...window.v146PlantForward(M,m)}));host.insertAdjacentHTML('beforeend',section('1.5 · '+T('Processing Capacity & Stoppage Outlook','Processing Capacity & Stoppage Outlook'),T('للفترة القادمة تعرض الطاقة القياسية وPlan/Expected فقط. لا يتم اختراع أيام توقف مستقبلية بدون خطة توقف صريحة.','For the forward period this shows standard capacity and Plan/Expected only. Future stoppage days are never invented without an explicit stoppage plan.'),tableHTML('v145QPlant',[T('الشهر','Month'),T('أيام تشغيل قياسية','Standard operating days'),T('الطاقة القياسية','Standard capacity'),T('Plan','Plan'),T('Plan utilization','Plan utilization'),T('Expected','Expected'),T('Expected utilization','Expected utilization'),T('فجوة الطاقة المتوقعة','Expected capacity gap')],pl.map(x=>[monthLabel(x.m),fmt(x.operating),fmt(x.capacity),x.plan>0?fmt(x.plan):'—',x.planUtil==null?'—':pct(x.planUtil),x.expected==null?'—':fmt(x.expected),x.expectedUtil==null?'—':pct(x.expectedUtil),x.gap==null?'—':fmt(x.gap)])),'v145-q-plant'));
  wireExports();
 }
 const _v145Monthly=RENDER.monthly,_v145Quarterly=RENDER.quarterly;
@@ -3990,6 +4002,72 @@ const _v145RenderCurrent=renderCurrent;renderCurrent=async function(){const r=aw
 const _v145SetLang=setLang;setLang=function(){_v145SetLang();v145Brand()};
 window.v145AppendMonthly=v145AppendMonthly;window.v145AppendQuarterly=v145AppendQuarterly;
 setTimeout(()=>{v145Brand();if(['monthly','quarterly'].includes(S.page))renderCurrent()},450);
+})();
+</script>
+
+<script>
+/* V1.1.46 MONTHLY / QUARTERLY CALCULATION AUDIT PATCH */
+(()=>{
+const V146='V1.1.46';
+const api=()=>window.__CX_API||{};
+const num=v=>Number.isFinite(+v)?+v:0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o||{},k);
+const add=(m,d,v)=>{if(d)m[d]=(m[d]||0)+num(v)};
+const day=(d,n)=>iso(addDays(d,n));
+function dates(a,b){const z=[];if(!a||!b||a>b)return z;for(let d=parseDate(a),e=parseDate(b);d&&e&&d<=e;d=addDays(d,1))z.push(iso(d));return z}
+function latestRows(rows,keyFn,cut){return window.v117LatestPer(rows,keyFn,cut)}
+function recentLoss(rows,keyFn,key,cut,daysN=28){if(!cut)return 0;const en=parseDate(cut),st=addDays(en,-daysN+1);let loss=0,exp=0;for(const x of rows||[]){if(keyFn(x)!==key||!x.date||x.date<st||x.date>en)continue;const beg=Math.max(0,num(x.fBegin!=null?x.fBegin:x.fInv));if(!beg)continue;exp+=beg;loss+=Math.max(0,num(x.fMort)+num(x.fCull))}return clamp(exp?loss/exp:0,0,.01)}
+function gpRossPair(D,ds,cut){if(!cut)return{base:0,adj:0};const keyFn=x=>x.farm+'|'+x.flock+'|'+x.line,fl=latestRows(D.gp||[],keyFn,cut).filter(x=>/active/i.test(x.status)&&x.fEnd>0);let base=0,adj=0;for(const x of fl){const dd=Math.max(0,dayDiff(x.date,parseDate(ds))||0),age=x.ageW+dd/7,st=gpStdAt(age,x.line);if(!st)continue;const b=Math.max(0,x.fEnd),rate=recentLoss(D.gp||[],keyFn,keyFn(x),cut),a=b*Math.pow(1-rate,dd);base+=b*st.he/100;adj+=a*st.he/100}return{base,adj}}
+function psRossPair(D,ds,cut){if(!cut)return{base:0,adj:0};const keyFn=x=>x.farm+'|'+x.flock,fl=latestRows(D.ps?.p||[],keyFn,cut);let base=0,adj=0;for(const x of fl){const st0=endOfDayStock(x),dd=Math.max(0,dayDiff(x.date,parseDate(ds))||0),wk=((x.age||0)+dd)/7,heW=window.v117PsHE(wk);if(!(st0.f>0&&heW!=null))continue;const b=st0.f,rate=recentLoss(D.ps?.p||[],keyFn,keyFn(x),cut),a=b*Math.pow(1-rate,dd);base+=b*(heW/7);adj+=a*(heW/7)}return{base,adj}}
+function perfGp(D,cut,daysN=7){if(!cut)return 1;const st=parseDate(day(cut,-daysN+1)),en=parseDate(cut);let a=0,p=0;for(const x of D.gp||[]){if(!x.date||x.date<st||x.date>en)continue;const z=gpStdAt(x.ageW,x.line);a+=num(x.he);if(z&&x.fEnd>0)p+=x.fEnd*z.he/100}return clamp(p?a/p:1,.75,1.2)}
+function perfPs(D,cut,daysN=7){if(!cut)return 1;const st=parseDate(day(cut,-daysN+1)),en=parseDate(cut);let a=0,p=0;for(const x of D.ps?.p||[]){if(!x.date||x.date<st||x.date>en)continue;const s=endOfDayStock(x).f,w=(x.age||0)/7,z=window.v117PsHE(w);a+=num(x.he);if(z!=null&&s>0)p+=s*(z/7)}return clamp(p?a/p:1,.75,1.2)}
+function gphRates(D,cut){const z=(D.gph?.rows||[]).filter(x=>x.hatchDate&&iso(x.hatchDate)<=cut&&x.linkedSet>0).sort((a,b)=>b.hatchDate-a.hatchDate).slice(0,36),set=z.reduce((s,x)=>s+num(x.linkedSet),0),hat=z.reduce((s,x)=>s+num(x.hatchedF+x.hatchedM),0),cull=z.reduce((s,x)=>s+Math.max(0,num(x.hatchedF+x.hatchedM-x.placedF-x.placedM-x.offsex)),0),C=api().CX;return{hatch:clamp(set?hat/set:C.standards.gphHatchTarget,.65,.95),chickCull:clamp(hat?cull/hat:0,0,.08)}}
+function brhRates(D,cut){const z=(D.brh||[]).filter(x=>iso(x.date)<=cut&&x.linkedSet>0).sort((a,b)=>b.date-a.date).slice(0,60),set=z.reduce((s,x)=>s+num(x.linkedSet),0),hat=z.reduce((s,x)=>s+num(x.hatched),0),sal=z.reduce((s,x)=>s+num(x.saleable),0),C=api().CX;return{hatch:clamp(set?hat/set:C.standards.brhGrossUpHatchTarget,.65,.95),saleable:clamp(set?sal/set:C.standards.brhGrossUpHatchTarget,.65,.94)}}
+function broSurvival(m){const C=api().CX,z=(m.houses||[]).filter(x=>x.completed&&x.placed>0&&x.lastProc).sort((a,b)=>(b.lastProc||0)-(a.lastProc||0)).slice(0,120),p=z.reduce((s,x)=>s+num(x.placed),0),dep=z.reduce((s,x)=>s+num(x.mort+x.cull),0),actual=p?1-dep/p:C.standards.broilerSurvivalToSlaughter;return clamp((actual+C.standards.broilerSurvivalToSlaughter)/2,.90,.98)}
+function gphBankAtSafe(D,cut){try{const b=gphBankAt(D.gph,cut);return num(b.f)+num(b.m)}catch(e){const C=api().CX;return num(C.openingBalances?.gphFemale)+num(C.openingBalances?.gphMale)}}
+function brhBankAtSafe(D,cut){try{return brhClosingAt(D.brh,cut).reduce((s,x)=>s+num(x.closing),0)}catch(e){return num(api().CX.openingBalances?.brh)}}
+function buildExpected(D,m,A,P,latest,start,end,cuts){
+ const C=api().CX,E={gpHE:{},gphRecv:{},gphEggCull:{},gphEggSales:{},gphSet:{},gphBank:{},gphHatch:{},gphRear:{},gphOffSex:{},psrPlace:{},pspTransfer:{},psHE:{},brhIncoming:{},brhCull:{},brhSales:{},brhSet:{},brhBank:{},brhHatch:{},brhSaleable:{},broPlace:{},process:{}};
+ const fg=perfGp(D,cuts.gpHE),fp=perfPs(D,cuts.psHE),gr=gphRates(D,cuts.gphHatch),br=brhRates(D,cuts.brhHatch),survival=broSurvival(m),all=dates(start,end),future=(k,d)=>!cuts[k]||d>cuts[k];
+ const rearTot=Object.values(C.plans.gphRear||{}).reduce((s,v)=>s+num(v),0),hatchTot=Object.values(C.plans.gphHatch||{}).reduce((s,v)=>s+num(v),0),rearShare=clamp(hatchTot?rearTot/hatchTot:.48,.35,.65);
+ // Breeder HE: preserve complete plan (including future flocks), replacing only the current-live-stock contribution with mortality-adjusted Ross x recent performance.
+ for(const d of all){if(future('gpHE',d)){const r=gpRossPair(D,d,cuts.gpHE),dd=Math.max(0,dayDiff(parseDate(cuts.gpHE),parseDate(d))||0),f=1+(fg-1)*Math.exp(-dd/120);E.gpHE[d]=Math.max(0,num(P.gpHE[d])-r.base+r.adj*f)}if(future('psHE',d)){const r=psRossPair(D,d,cuts.psHE),dd=Math.max(0,dayDiff(parseDate(cuts.psHE),parseDate(d))||0),f=1+(fp-1)*Math.exp(-dd/120);E.psHE[d]=Math.max(0,num(P.psHE[d])-r.base+r.adj*f)}}
+ // Upstream receipts use actual production when that production source is still current, otherwise expected production.
+ for(const d of all){if(future('gphRecv',d)){const supply=(cuts.gpHE&&d<=cuts.gpHE)?num(A.gpHE[d]):num(E.gpHE[d]);E.gphRecv[d]=Math.max(0,num(P.gphRecv[d])+(supply-num(P.gpHE[d])))}if(future('brhIncoming',d)){const supply=(cuts.psHE&&d<=cuts.psHE)?num(A.psHE[d]):num(E.psHE[d]);E.brhIncoming[d]=Math.max(0,num(P.brhIncoming[d])+(supply-num(P.psHE[d])))}}
+ // GP hatchery bank and setting from the day after its own source cutoff (not the global latest date).
+ let gb=gphBankAtSafe(D,cuts.gphSet);for(const d of all){if(!future('gphSet',d))continue;E.gphEggCull[d]=num(P.gphEggCull[d]);E.gphEggSales[d]=num(P.gphEggSales[d]);const recv=(cuts.gphRecv&&d<=cuts.gphRecv)?num(A.gphRecv[d]):num(E.gphRecv[d]),avail=Math.max(0,gb+recv-E.gphEggCull[d]-E.gphEggSales[d]);E.gphSet[d]=Math.min(num(P.gphSet[d]),avail);gb=Math.max(0,avail-E.gphSet[d]);E.gphBank[d]=gb}
+ for(const d of all){if(future('gphHatch',d)){const src=day(d,-C.standards.setToHatchDays),set=cuts.gphSet&&src<=cuts.gphSet?num(A.gphSet[src]):num(E.gphSet[src]);E.gphHatch[d]=set*gr.hatch}if(future('gphRear',d)||future('gphOffSex',d)){const hatch=(cuts.gphHatch&&d<=cuts.gphHatch)?num(A.gphHatch[d]):num(E.gphHatch[d]),planH=num(P.gphHatch[d]),share=planH>0?clamp(num(P.gphRear[d])/planH,.25,.75):rearShare;if(future('gphRear',d))E.gphRear[d]=hatch*share;if(future('gphOffSex',d))E.gphOffSex[d]=Math.max(0,hatch*(1-share-gr.chickCull))}}
+ for(const d of all)if(future('psrPlace',d))E.psrPlace[d]=num(P.psrPlace[d]);
+ for(const d of all)if(future('pspTransfer',d)){const src=day(d,-175),q=cuts.psrPlace&&src<=cuts.psrPlace?num(A.psrPlace[src]):num(E.psrPlace[src]);E.pspTransfer[d]=q*C.standards.psrLiveability}
+ // Broiler hatchery bank and setting.
+ let bb=brhBankAtSafe(D,cuts.brhSet);for(const d of all){if(!future('brhSet',d))continue;const incoming=cuts.brhIncoming&&d<=cuts.brhIncoming?num(A.brhIncoming[d]):num(E.brhIncoming[d]),planIn=num(P.brhIncoming[d]),cullRate=planIn>0?clamp(num(P.brhCull[d])/planIn,0,.08):.015,cull=incoming*cullRate,sales=num(P.brhSales[d]),avail=Math.max(0,bb+incoming-cull-sales);E.brhCull[d]=cull;E.brhSales[d]=sales;E.brhSet[d]=Math.min(num(P.brhSet[d]),avail);bb=Math.max(0,avail-E.brhSet[d]);E.brhBank[d]=bb}
+ for(const d of all){if(future('brhHatch',d)||future('brhSaleable',d)){const src=day(d,-C.standards.setToHatchDays),set=cuts.brhSet&&src<=cuts.brhSet?num(A.brhSet[src]):num(E.brhSet[src]);if(future('brhHatch',d))E.brhHatch[d]=set*br.hatch;if(future('brhSaleable',d))E.brhSaleable[d]=set*br.saleable}if(future('broPlace',d)){const src=day(d,-C.standards.setToPlacementDays),set=cuts.brhSet&&src<=cuts.brhSet?num(A.brhSet[src]):num(E.brhSet[src]),off=cuts.gphOffSex&&d<=cuts.gphOffSex?num(A.gphOffSex[d]):num(E.gphOffSex[d]),supply=set*br.saleable+off,pp=num(P.broPlace[d]);E.broPlace[d]=pp>0?Math.min(pp,supply):supply}}
+ // Current active houses and future placements to slaughter. 32 days; Friday shifted to Saturday.
+ const pcuts=cuts.process||latest;for(const x of (m.houses||[]).filter(x=>!x.completed&&x.placed>0&&x.balance>0)){let kd=addDays(x.placeDate,C.standards.broilerHarvestAgeDays);if(kd.getDay()===5)kd=addDays(kd,1);if(iso(kd)<=pcuts){kd=addDays(parseDate(pcuts),1);if(kd.getDay()===5)kd=addDays(kd,1)}const target=Math.min(x.placed*C.standards.broilerSurvivalToSlaughter,x.available),rem=Math.max(0,target-x.processed-x.live);if(rem>0&&iso(kd)<=end)add(E.process,iso(kd),rem)}
+ for(const d of all){if(!future('broPlace',d))continue;const q=num(E.broPlace[d]);if(!q)continue;let kd=addDays(parseDate(d),C.standards.broilerHarvestAgeDays);if(kd.getDay()===5)kd=addDays(kd,1);const k=iso(kd);if(k>pcuts&&k<=end)add(E.process,k,q*survival)}
+ E._rates={gpFactor:fg,psFactor:fp,gphHatch:gr.hatch,gphCull:gr.chickCull,brhHatch:br.hatch,brhSaleable:br.saleable,broSurvival:survival};return E
+}
+if(api().CX){
+ const C=api().CX,oldPlan=api().cxBuildPlan,saleableTarget=num(window.CHAIN24?.standards?.brhHatchability)||.83;C.standards.brhSaleableTarget=saleableTarget;
+ api().cxBuildPlan=function(start,end){const P=oldPlan(start,end),cov=C.coverage?.brhChicks;for(const d of dates(start,end)){if(!(cov&&d>=cov.min&&d<=cov.max)){const src=day(d,-C.standards.setToHatchDays);P.brhSaleable[d]=num(P.brhSet[src])*saleableTarget}const ep=C.coverage?.broPlaceExplicit;if(!(ep&&d>=ep.min&&d<=ep.max)){const src=day(d,-C.standards.setToPlacementDays);P.broPlace[d]=num(P.brhSet[src])*saleableTarget+num(P.gphOffSex[d])}}P.process={};for(const d of dates(start,end)){const q=num(P.broPlace[d]);if(!q)continue;let kd=addDays(parseDate(d),C.standards.broilerHarvestAgeDays);if(kd.getDay()===5)kd=addDays(kd,1);const k=iso(kd);if(k>=start&&k<=end)add(P.process,k,q*C.standards.broilerSurvivalToSlaughter)}return P};
+ api().cxBuildExpected=buildExpected;
+}
+
+// Detect rolling-plan history that was overwritten with Actual. Only apply to known moving/actualized stages, never event placements.
+const actualizedStages=new Set(['gpHE','gphRecv','gphSet','gphHatch','psHE','brhIncoming','brhSet']);
+function planAudit(M,k,a,b){if(!actualizedStages.has(k))return{comparable:true,reason:'event_or_independent'};const A=M.A?.[k]||{},P=M.P?.[k]||{},z=[];for(const d of dates(a,b)){if(num(P[d])<=0||!own(A,d))continue;z.push([num(A[d]),num(P[d])])}if(z.length<7)return{comparable:true,reason:'insufficient_overlap',days:z.length};let exact=0,abs=0,base=0;for(const [x,p] of z){if(Math.abs(x-p)<=Math.max(1,Math.abs(p)*.001))exact++;abs+=Math.abs(x-p);base+=Math.abs(p)}const exactShare=exact/z.length,nmae=base?abs/base:1,actualized=exactShare>=.85||nmae<=.003;return{comparable:!actualized,reason:actualized?'actualized_source':'independent',days:z.length,exactShare,nmae}}
+function mRange(ym){const [y,m]=ym.split('-').map(Number);return{a:`${ym}-01`,b:iso(new Date(y,m,0))}}
+function sumMap(mp,a,b){let s=0;for(const d of dates(a,b))s+=num(mp?.[d]);return s}
+function stageRow(M,k,ym){const {a,b}=mRange(ym),cut=M.cuts[k]||'',covered=!!cut&&cut>=a,actualEnd=covered?(cut<b?cut:b):'',actual=covered?sumMap(M.A[k],a,actualEnd):null,rawPlanTD=covered?sumMap(M.P[k],a,actualEnd):null,audit=covered?planAudit(M,k,a,actualEnd):{comparable:true,reason:'future'},planComparable=!covered||audit.comparable,planTD=covered&&planComparable?rawPlanTD:null,plan=sumMap(M.P[k],a,b);let expected=null;if(!cut||b>cut){const f=(!cut||cut<a)?a:day(cut,1);expected=(covered?(actual||0):0)+(f<=b?sumMap(M.E[k],f,b):0)}const ach=planTD>0&&actual!=null?actual/planTD:null,fcAch=plan>0&&expected!=null?expected/plan:null;return{key:k,actual,planTD,rawPlanTD,plan,expected,ach,fcAch,cut,covered,planComparable,planAudit:audit,has:(actual||0)>0||plan>0||(expected||0)>0}}
+function quarterAgg(M,months){const defs=[['gpHE','GP','بيض تفقيس الجدود','GP hatching eggs'],['gphRecv','GPH','استلام بيض مفقس الجدود','GP hatchery receipts'],['gphSet','GPH','إيداع مفقس الجدود','GP hatchery setting'],['gphHatch','GPH','فقس مفقس الجدود','GP hatch'],['gphRear','PSR','كتاكيت PS من مفقس الجدود','PS chicks from GP hatchery'],['gphOffSex','BR','Off-Sex إلى التسمين','Off-Sex to broilers'],['psrPlace','PSR','تسكين أمهات التربية','PS rearing placement'],['pspTransfer','PSP','نقل التربية إلى الإنتاج','PSR to PSP transfer'],['psHE','PSP','بيض تفقيس الأمهات','PS hatching eggs'],['brhIncoming','BRH','استلام بيض مفاقس التسمين','Broiler hatchery receipts'],['brhSet','BRH','إيداع مفاقس التسمين','Broiler hatchery setting'],['brhSaleable','BRH','كتاكيت تسمين صالحة','Saleable broiler chicks'],['broPlace','BR','تسكين مزارع التسمين','Broiler placement'],['process','PL','المرسل للمجزر','Processed / kill']];return defs.map(s=>{const rr=months.map(m=>stageRow(M,s[0],m)),act=rr.filter(x=>x.actual!=null),comp=act.filter(x=>x.planComparable&&x.planTD!=null),actual=act.length?act.reduce((q,x)=>q+num(x.actual),0):null,plan=sum(rr.map(x=>x.plan)),ex=rr.filter(x=>x.expected!=null),expected=ex.length?ex.reduce((q,x)=>q+num(x.expected),0):null,coverage=act.length?comp.length/act.length:null,actualComparable=comp.reduce((q,x)=>q+num(x.actual),0),planTDComparable=comp.reduce((q,x)=>q+num(x.planTD),0),full=act.length>0&&comp.length===act.length,planTD=full?planTDComparable:null;return{key:s[0],project:s[1],ar:s[2],en:s[3],actual,planTD,plan,expected,comparisonCoverage:coverage,ach:full&&planTDComparable>0?actualComparable/planTDComparable:null,fcAch:plan>0&&expected!=null?expected/plan:null,has:(actual||0)>0||plan>0||(expected||0)>0}}).filter(x=>x.has)}
+window.v142StageRow=stageRow;window.v142QuarterAgg=quarterAgg;
+
+// Forward plant capacity: standard calendar only; no invented future stoppage days.
+window.v146PlantForward=function(M,ym){const C=api().CX,{a,b}=mRange(ym);let operating=0;for(const d of dates(a,b))if(parseDate(d).getDay()!==5)operating++;const capacity=operating*num(C?.standards?.plantDailyCapacity),r=stageRow(M,'process',ym),plan=num(r.plan),expected=r.expected==null?null:num(r.expected),planUtil=capacity&&plan?plan/capacity:null,expectedUtil=capacity&&expected!=null?expected/capacity:null,gap=capacity&&expected!=null?capacity-expected:null;return{operating,capacity,plan,expected,planUtil,expectedUtil,gap}}
+
+function brand(){try{CFG.version=V146;document.title='Sama Karbala — Poultry Command Center '+V146;const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V146,'Independent platform · Live Google Sheets · '+V146);document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · '+V146)}catch(e){}}
+brand();setTimeout(()=>{brand();if(['monthly','quarterly'].includes(S.page))try{renderCurrent()}catch(e){console.warn('V146 audited report rerender',e)}},650);
 })();
 </script>
 
