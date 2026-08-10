@@ -1,5 +1,6 @@
 <!-- V1.1.34 | Runtime/Data Fix: repaired Cumulative row-3 header, CX scope bridge, official broiler current inventory, and chain active-house reconciliation. -->
 <!doctype html>
+<!-- V1.1.45: Based on V1.1.43; original V1.1.41-style monthly/quarterly reports preserved. V1.1.42 integrated calculations retained only as additive GM analytics. -->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"/>
@@ -3377,6 +3378,7 @@ function v135MountExecutiveHub(){
  hub.querySelectorAll('[data-v135-report]').forEach(b=>b.onclick=()=>activate(b.dataset.v135Report));
  const preferred=available.some(x=>x[0]===window.__v135ActiveReport)?window.__v135ActiveReport:available[0][0];activate(preferred);
 }
+window.v135MountExecutiveHub=v135MountExecutiveHub;
 RENDER.home=async function(){
  await _v135Home();
  if(S.page!=='home')return;
@@ -3409,7 +3411,9 @@ try{CFG.version='V1.1.37';document.title='Sama Karbala — Poultry Command Cente
     if(seq!==bootSeq||S.page!=='home')return;
     // The home wrapper must now have created and mounted all eight reference reports.
     if(!document.getElementById('v135ReportHub')){
-      try{v135MountExecutiveHub()}catch(e){console.error('V1.1.37 forced report-hub mount',e)}
+      try{
+        if(typeof window.v135MountExecutiveHub==='function') window.v135MountExecutiveHub();
+      }catch(e){console.error('Executive report-hub fallback mount',e)}
     }
     document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · V1.1.37');
    }
@@ -3422,5 +3426,572 @@ try{CFG.version='V1.1.37';document.title='Sama Karbala — Poultry Command Cente
  setTimeout(()=>{if(S.page==='home'&&!document.getElementById('v135ReportHub'))v136FinalExecutiveBoot()},900);
 })();
 </script>
+
+<style id="v138-eager-load-status-style">
+.v138-source-status{margin:8px 0 12px;border:1px solid rgba(69,124,165,.34);border-radius:13px;background:linear-gradient(180deg,rgba(11,31,52,.96),rgba(6,21,36,.96));box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden}
+.v138-status-main{display:grid;grid-template-columns:auto minmax(180px,1fr) auto auto;gap:10px;align-items:center;padding:9px 12px}
+.v138-status-title{display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:10px;font-weight:900;color:var(--text)}
+.v138-status-title i{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--gold);box-shadow:0 0 12px rgba(238,184,67,.45)}
+.v138-source-status.ready .v138-status-title i{background:var(--good);box-shadow:0 0 13px rgba(53,208,178,.55)}
+.v138-source-status.error .v138-status-title i{background:var(--bad);box-shadow:0 0 13px rgba(255,91,117,.5)}
+.v138-status-progress{height:8px;border-radius:999px;background:rgba(89,121,154,.18);overflow:hidden;position:relative}.v138-status-progress>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#33d2b5,#55aaff);border-radius:inherit;transition:width .2s ease}.v138-source-status.error .v138-status-progress>span{background:linear-gradient(90deg,#e8b64b,#ef6b7f)}
+.v138-status-count{font-size:10px;font-weight:900;color:var(--cyan);white-space:nowrap}.v138-status-current{font-size:9px;color:var(--mut);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v138-status-detail{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px 9px}.v138-status-detail small{font-size:9px;color:var(--mut)}.v138-status-toggle{border:0;background:transparent;color:var(--cyan);font-size:9px;font-weight:850;cursor:pointer;padding:2px 0}
+.v138-source-grid{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:9px 12px 11px;border-top:1px solid rgba(77,118,154,.2);background:rgba(5,18,31,.45)}.v138-source-status.open .v138-source-grid{display:grid}
+.v138-source-chip{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:6px;border:1px solid rgba(74,113,148,.24);border-radius:8px;padding:6px 7px;background:rgba(10,28,47,.72);font-size:8px;color:var(--mut)}.v138-source-chip i{width:7px;height:7px;border-radius:50%;background:#60768d}.v138-source-chip.loading i{background:var(--gold);box-shadow:0 0 8px rgba(238,184,67,.5)}.v138-source-chip.ok i{background:var(--good);box-shadow:0 0 8px rgba(53,208,178,.45)}.v138-source-chip.error i{background:var(--bad);box-shadow:0 0 8px rgba(255,91,117,.45)}.v138-source-chip b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:8px}.v138-source-chip em{font-style:normal;font-size:7px;font-weight:800}.v138-source-chip.ok em{color:var(--good)}.v138-source-chip.error em{color:var(--bad)}.v138-source-chip.loading em{color:var(--gold)}
+@media(max-width:1050px){.v138-status-main{grid-template-columns:auto 1fr auto}.v138-status-current{grid-column:1/-1;max-width:none}.v138-source-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.v138-status-main{grid-template-columns:1fr auto}.v138-status-progress{grid-column:1/-1}.v138-status-current{grid-column:1/-1}.v138-source-grid{grid-template-columns:1fr}.v138-status-detail{align-items:flex-start;flex-direction:column}}
+</style>
+<script id="v138-eager-load-status">
+(function(){
+'use strict';
+const V138={running:false,started:0,finished:0,current:'',results:new Map(),errors:new Map(),warm:'pending',generation:0};
+function v138Keys(){return Object.keys(CFG.sheets||{}).filter(k=>CFG.sheets[k]&&CFG.sheets[k].id&&CFG.sheets[k].sheet)}
+function v138Mount(){
+ let el=document.getElementById('v138SourceStatus');if(el)return el;
+ const bar=document.createElement('div');bar.id='v138SourceStatus';bar.className='v138-source-status';
+ bar.innerHTML=`<div class="v138-status-main"><div class="v138-status-title"><i></i><span id="v138StatusTitle"></span></div><div class="v138-status-progress"><span id="v138Progress"></span></div><div class="v138-status-count" id="v138Count">0/0</div><div class="v138-status-current" id="v138Current"></div></div><div class="v138-status-detail"><small id="v138Detail"></small><button class="v138-status-toggle" id="v138Toggle" type="button"></button></div><div class="v138-source-grid" id="v138Grid"></div>`;
+ const fb=document.getElementById('filterbar');if(fb)fb.insertAdjacentElement('afterend',bar);else document.querySelector('.main')?.prepend(bar);
+ bar.querySelector('#v138Toggle').onclick=()=>{bar.classList.toggle('open');v138Paint()};
+ return bar;
+}
+function v138Label(k){const d=CFG.sheets[k]||{};return d.name||k}
+function v138State(k){return V138.results.get(k)||S.sourceState.get(k)||'pending'}
+function v138Paint(){
+ const el=v138Mount(),keys=v138Keys(),states=keys.map(v138State),ok=states.filter(x=>x==='ok').length,err=states.filter(x=>x==='error').length,loading=states.filter(x=>x==='loading').length,done=ok+err,total=keys.length,p=total?Math.round(done/total*100):0;
+ el.classList.toggle('ready',!V138.running&&done===total&&err===0&&V138.warm==='ok');el.classList.toggle('error',err>0);
+ const title=el.querySelector('#v138StatusTitle'),cur=el.querySelector('#v138Current'),detail=el.querySelector('#v138Detail'),toggle=el.querySelector('#v138Toggle');
+ if(title)title.textContent=V138.running?T('تحميل جميع قواعد البيانات','Loading all databases'):err?T('اكتمل التحميل مع أخطاء','Load completed with errors'):T('جميع قواعد البيانات جاهزة','All databases ready');
+ const pr=el.querySelector('#v138Progress');if(pr)pr.style.width=p+'%';const ct=el.querySelector('#v138Count');if(ct)ct.textContent=`${done}/${total} · ${p}%`;
+ if(cur)cur.textContent=V138.running&&V138.current?T('يتم الآن: ','Now: ')+v138Label(V138.current):(V138.finished?T('آخر تحميل: ','Last load: ')+new Date(V138.finished).toLocaleTimeString(S.lang==='ar'?'ar-IQ':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'');
+ if(detail){const warm=V138.warm==='loading'?T('تهيئة المحركات…','Warming calculation engines…'):V138.warm==='ok'?T('المحركات الحسابية جاهزة','Calculation engines ready'):'';detail.textContent=`${T('ناجح','OK')}: ${ok} · ${T('فشل','Failed')}: ${err} · ${T('قيد التحميل','Loading')}: ${loading}${warm?' · '+warm:''}`}
+ if(toggle)toggle.textContent=el.classList.contains('open')?T('إخفاء تفاصيل المصادر','Hide source details'):T('عرض تفاصيل المصادر','Show source details');
+ const grid=el.querySelector('#v138Grid');if(grid)grid.innerHTML=keys.map(k=>{const st=v138State(k),d=CFG.sheets[k]||{},raw=S.raw.get(k),rows=Array.isArray(raw)?raw.length:null,errMsg=V138.errors.get(k);const status=st==='ok'?T('جاهز','Ready'):st==='error'?T('خطأ','Error'):st==='loading'?T('تحميل','Loading'):T('انتظار','Pending');return `<div class="v138-source-chip ${st}" title="${esc(errMsg||d.sheet||'')}"><i></i><b>${esc(v138Label(k))}</b><em>${status}${rows!=null?' · '+fmt(rows):''}</em></div>`}).join('');
+ try{const dot=document.querySelector('.sync i');if(dot){dot.style.background=V138.running?'var(--gold)':err?'var(--bad)':'var(--good)'}}catch(e){}
+}
+const _v138UpdateSync=updateSync;updateSync=function(){try{_v138UpdateSync()}catch(e){}try{v138Paint()}catch(e){}};
+async function v138WarmEngines(){
+ V138.warm='loading';v138Paint();
+ const jobs=[];
+ try{if(typeof broilerModel==='function')jobs.push(broilerModel())}catch(e){}
+ try{if(typeof brhData==='function')jobs.push(brhData())}catch(e){}
+ try{if(typeof gpData==='function')jobs.push(gpData())}catch(e){}
+ try{if(typeof psAll==='function')jobs.push(psAll())}catch(e){}
+ try{if(typeof v117Load==='function')jobs.push(v117Load())}catch(e){}
+ await Promise.allSettled(jobs);
+ try{
+  if(typeof br116Norm==='function'&&CFG.sheets.bCum){
+   const rr=br116Norm(await load('bCum'));
+   if(rr&&rr.length){S.cumActiveMap=new Map(rr.filter(x=>x.status==='Active').map(x=>[keyH(x.cycle,x.farm,x.house),x]));S.cumActiveKeys=new Set(S.cumActiveMap.keys());S.cumSourceHealth={rows:rr.length,active:S.cumActiveMap.size,ok:true}}
+  }
+ }catch(e){console.warn('V1.1.38 cumulative warm-up',e)}
+ V138.warm='ok';v138Paint();
+}
+async function v138PreloadAll(force=false){
+ if(V138.running)return;
+ const gen=++V138.generation;V138.running=true;V138.started=Date.now();V138.finished=0;V138.current='';V138.errors.clear();V138.warm='pending';
+ if(force){S.cache.clear();S.raw.clear();S.sourceState.clear();S.broilerModel=null;S.broilerSnapshot=null;try{S.cumActiveMap=null;S.cumActiveKeys=null}catch(e){}}
+ const keys=v138Keys();keys.forEach(k=>V138.results.set(k,'pending'));v138Paint();
+ let idx=0;
+ const worker=async()=>{while(true){const i=idx++;if(i>=keys.length)return;const k=keys[i];if(gen!==V138.generation)return;V138.current=k;V138.results.set(k,'loading');v138Paint();try{await load(k,force);V138.results.set(k,'ok')}catch(e){V138.results.set(k,'error');V138.errors.set(k,String(e?.message||e));console.warn('V1.1.38 preload source',k,e)}v138Paint()}};
+ await Promise.all(Array.from({length:Math.min(4,keys.length)},()=>worker()));
+ if(gen!==V138.generation)return;
+ await v138WarmEngines();
+ V138.running=false;V138.current='';V138.finished=Date.now();v138Paint();
+ // Recalculate the visible page only after every source/derived engine is warm.
+ try{await renderCurrent()}catch(e){console.error('V1.1.38 post-preload render',e)}
+}
+window.v138PreloadAll=v138PreloadAll;window.v138DataLoadStatus=V138;
+function v138Brand(){try{CFG.version='V1.1.38';document.title='Sama Karbala — Poultry Command Center V1.1.38';const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · V1.1.38','Independent platform · Live Google Sheets · V1.1.38');document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · V1.1.38')}catch(e){}}
+const _v138RenderCurrent=renderCurrent;renderCurrent=async function(){const r=await _v138RenderCurrent();v138Brand();try{v138Paint()}catch(e){}return r};
+const _v138SetLang=setLang;setLang=function(){_v138SetLang();v138Brand();try{v138Paint()}catch(e){}};
+function v138Boot(){
+ v138Brand();
+ v138Mount();v138Paint();setTimeout(()=>v138PreloadAll(false),120);
+ const rb=document.getElementById('reloadBtn');if(rb)rb.onclick=()=>v138PreloadAll(true);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',v138Boot,{once:true});else v138Boot();
+})();
+</script>
+
+<style id="v139-pdf-fidelity-style">
+/* V1.1.39 — PDF metric fidelity: reference structure preserved, unsupported plant KPIs never substituted. */
+.v139-fidelity-note{border:1px solid rgba(76,180,255,.30);background:linear-gradient(90deg,rgba(20,70,105,.18),rgba(8,28,46,.36));border-radius:11px;padding:10px 12px;margin:10px 0;color:var(--mut);font-size:10px;line-height:1.65}.v139-fidelity-note b{color:var(--cyan)}
+.v139-support{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.v139-support span{font-size:8px;font-weight:800;padding:4px 7px;border-radius:999px;border:1px solid rgba(80,120,156,.28);background:rgba(10,28,47,.62)}.v139-support .yes{color:var(--good);border-color:rgba(53,208,178,.32)}.v139-support .partial{color:var(--gold);border-color:rgba(238,184,67,.34)}.v139-support .no{color:#9fb0c2}
+.v139-pdf-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.v139-pdf-kpis.four{grid-template-columns:repeat(4,minmax(0,1fr))}.v139-pdf-kpi{position:relative;border:1px solid rgba(69,111,149,.28);border-radius:11px;background:linear-gradient(180deg,rgba(19,43,71,.86),rgba(12,31,52,.88));padding:12px 11px;min-height:91px;overflow:hidden}.v139-pdf-kpi::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:var(--accent,var(--cyan));opacity:.95}.v139-pdf-kpi.unsupported::before{background:#61758a}.v139-pdf-kpi .lab{font-size:8px;color:var(--mut);font-weight:850;text-transform:uppercase;letter-spacing:.035em}.v139-pdf-kpi .val{font-size:24px;font-weight:950;color:var(--text);margin-top:10px;line-height:1}.v139-pdf-kpi.unsupported .val{color:#91a4b8;font-size:21px}.v139-pdf-kpi .sub{font-size:8px;color:var(--mut);margin-top:8px;line-height:1.35}.v139-pdf-kpi .sub strong{color:var(--gold)}
+.v139-ref-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}.v139-ref-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.v139-ref-panel{border:1px solid rgba(72,111,149,.27);border-radius:11px;background:rgba(10,29,49,.68);padding:11px;min-height:132px}.v139-ref-panel h3{font-size:11px;margin:0 0 8px;color:var(--text)}.v139-ref-panel p{font-size:9px;color:var(--mut);margin:0;line-height:1.55}.v139-placeholder{min-height:145px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px dashed rgba(112,137,162,.32);border-radius:9px;background:rgba(17,31,47,.32);padding:14px;color:#8799ab}.v139-placeholder b{font-size:13px;color:#a8b6c4;margin-bottom:7px}.v139-placeholder small{font-size:9px;line-height:1.55;max-width:360px}.v139-placeholder .na{font-size:24px;font-weight:950;color:#73869a;margin-bottom:5px}
+.v139-score{width:100%;border-collapse:collapse;font-size:9px}.v139-score th,.v139-score td{padding:7px 8px;border-bottom:1px solid rgba(76,111,145,.20);text-align:start}.v139-score th{color:var(--gold);font-weight:900}.v139-score td.good{color:var(--good);font-weight:900}.v139-score td.bad{color:var(--bad);font-weight:900}.v139-score td.na{color:#8294a6}.v139-alerts{display:grid;gap:7px}.v139-alert{display:grid;grid-template-columns:10px 1fr;gap:8px;align-items:start;padding:8px;border:1px solid rgba(73,111,148,.24);border-radius:9px;background:rgba(9,25,42,.54)}.v139-alert i{width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:3px}.v139-alert.warn i{background:var(--gold)}.v139-alert.bad i{background:var(--bad)}.v139-alert b{font-size:9px}.v139-alert p{font-size:8px;color:var(--mut);margin:3px 0 0;line-height:1.45}
+.v139-quick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.v139-quick>div{text-align:center;padding:12px 8px;border:1px solid rgba(72,111,149,.24);border-radius:10px;background:rgba(10,29,49,.58)}.v139-quick b{display:block;font-size:19px;color:var(--text)}.v139-quick span{display:block;margin-top:5px;font-size:8px;color:var(--mut)}
+.v139-capbar{height:46px;border-radius:8px;background:rgba(120,138,157,.25);overflow:hidden;position:relative;margin:18px 8px 8px}.v139-capbar>span{height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#356e9e,#3da887);color:#fff;font-size:10px;font-weight:900;min-width:0}.v139-capbar em{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-style:normal;font-size:9px;color:#c3ccd5}.v139-context{margin-top:10px;border-top:1px dashed rgba(81,120,156,.28);padding-top:10px}.v139-context-title{font-size:9px;color:var(--cyan);font-weight:900;margin-bottom:7px}.v139-week-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.v139-week{border:1px solid rgba(72,111,149,.24);border-radius:9px;padding:8px;background:rgba(10,29,49,.54);text-align:center}.v139-week b{display:block;font-size:9px;color:var(--cyan)}.v139-week strong{display:block;font-size:14px;margin-top:5px}.v139-week small{display:block;font-size:7px;color:var(--mut);margin-top:4px}.v139-report-page .tablewrap{max-height:440px}.v139-report-page .chartbox{min-height:265px}#v139ReportInfo{padding:0 12px}#v139ReportPages{padding:0 12px 12px}#v139ReportPages>.section{display:none;margin:10px 0 0;border-radius:12px;background:rgba(8,26,44,.74)}#v139ReportPages>.section.v135-active{display:block;animation:v135fade .16s ease-out}
+@media(max-width:1250px){.v139-pdf-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.v139-week-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:850px){.v139-ref-grid3,.v139-ref-grid2{grid-template-columns:1fr}.v139-pdf-kpis,.v139-pdf-kpis.four{grid-template-columns:repeat(2,minmax(0,1fr))}.v139-quick{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.v139-pdf-kpis,.v139-pdf-kpis.four{grid-template-columns:1fr}.v139-week-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<style id="v140-data-supported-style">
+/* V1.1.41 — strict data-supported rendering. Unsupported KPIs/reports are omitted entirely. */
+.v139-pdf-kpis,.v139-pdf-kpis.four{grid-template-columns:repeat(auto-fit,minmax(175px,1fr))!important}
+.v140-supported-note{border:1px solid rgba(53,208,178,.28);background:linear-gradient(90deg,rgba(15,79,74,.18),rgba(7,30,45,.34));border-radius:11px;padding:10px 12px;margin:10px 0;color:var(--mut);font-size:10px;line-height:1.65}.v140-supported-note b{color:var(--good)}
+.v140-supported-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.v140-supported-tags span{font-size:8px;font-weight:850;padding:4px 7px;border-radius:999px;border:1px solid rgba(53,208,178,.28);color:var(--good);background:rgba(10,39,50,.65)}
+.v140-cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:9px}.v140-cap-grid>div{padding:10px;border:1px solid rgba(72,111,149,.26);border-radius:9px;background:rgba(10,29,49,.62)}.v140-cap-grid b{display:block;font-size:18px}.v140-cap-grid span{font-size:8px;color:var(--mut)}
+</style>
+<script id="v140-data-supported-reports">
+(function(){
+'use strict';
+const V140_TARGET={eff:.95};
+const v140Filt=x=>(!S.cycle||x.cycle===S.cycle)&&(!S.farm||x.farm===S.farm)&&inRange(x.date);
+function v140Days(a,b){a=parseDate(a);b=parseDate(b);if(!a||!b||a>b)return 0;let n=0,d=new Date(a);while(d<=b){if(d.getDay()!==5)n++;d=addDays(d,1)}return n}
+function v140MonthBounds(ym){const [y,m]=ym.split('-').map(Number),first=new Date(y,m-1,1),last=new Date(y,m,0),sf=parseDate(S.from),st=parseDate(S.to);const a=sf&&sf>first?sf:first,b=st&&st<last?st:last;return[a,b]}
+function v140SatStart(d){d=new Date(d);d.setHours(0,0,0,0);const delta=(d.getDay()-6+7)%7;d.setDate(d.getDate()-delta);return d}
+function v140DeltaPP(x,t){if(x==null||t==null)return'';const d=(x-t)*100;return `${d>=0?'+':''}${fmt(d,2)}pp`}
+function v140Kpi(label,val,sub='',accent='var(--cyan)'){if(val==null||val==='')return'';return `<div class="v139-pdf-kpi" style="--accent:${accent}"><div class="lab">${label}</div><div class="val num">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`}
+function v140Panel(title,body){if(!body||!String(body).trim())return'';return `<div class="v139-ref-panel"><h3>${title}</h3>${body}</div>`}
+function v140Brand(){try{CFG.version='V1.1.41';document.title='Sama Karbala — Poultry Command Center V1.1.41';const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · V1.1.41','Independent platform · Live Google Sheets · V1.1.41');document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · V1.1.41')}catch(e){}}
+function v140MonthlyTable(monthly,hasCap){const heads=[T('الشهر','Month'),T('المذبوح / المعالج','Slaughtered / Processed'),T('Net Live Input kg','Net Live Input kg'),T('متوسط الوزن الحي','Avg live kg'),T('أيام الإنتاج','Production days')];if(hasCap)heads.push(T('كفاءة الطاقة %','Capacity efficiency %'));const rows=monthly.map(x=>{const r=[monthLabel(x.ym),fmt(x.head),fmt(x.kg),x.avg!=null?fmt(x.avg,3):'',fmt(x.prodDays)];if(hasCap)r.push(x.eff!=null?pct(x.eff):'');return r});return tableHTML('v140MonthTable',heads,rows)}
+function v140Score(eff,doa,doaBudget){const rows=[];if(eff!=null)rows.push([T('كفاءة الطاقة %','Capacity efficiency %'),pct(eff),pct(V140_TARGET.eff),v140DeltaPP(eff,V140_TARGET.eff),eff>=V140_TARGET.eff?'good':'bad']);if(doa!=null&&doaBudget!=null)rows.push(['DOA %',pct(doa),pct(doaBudget),v140DeltaPP(doa,doaBudget),doa<=doaBudget?'good':'bad']);if(!rows.length)return'';return `<table class="v139-score"><thead><tr><th>KPI</th><th>${T('الحالي','Current')}</th><th>${T('المرجع / الخطة','Reference / Plan')}</th><th>${T('الفرق','Delta')}</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="${r[4]}">${r[1]}</td><td>${r[2]}</td><td class="${r[4]}">${r[3]}</td></tr>`).join('')}</tbody></table>`}
+function v140Flags(eff,doa,doaBudget){const a=[];if(eff!=null)a.push(`<div class="v139-alert ${eff>=V140_TARGET.eff?'':'warn'}"><i></i><div><b>${T('كفاءة الطاقة','Capacity efficiency')} ${pct(eff)}</b><p>${T('مقابل مرجع','vs reference')} ${pct(V140_TARGET.eff)} · ${v140DeltaPP(eff,V140_TARGET.eff)}</p></div></div>`);if(doa!=null&&doaBudget!=null)a.push(`<div class="v139-alert ${doa<=doaBudget?'':'warn'}"><i></i><div><b>DOA ${pct(doa)}</b><p>${T('مقابل Budget','vs Budget')} ${pct(doaBudget)} · ${v140DeltaPP(doa,doaBudget)}</p></div></div>`);return a.length?`<div class="v139-alerts">${a.join('')}</div>`:''}
+async function v140Build(){
+ const hub=document.getElementById('v135ReportHub');if(!hub||S.page!=='home')return;
+ const [base,budRaw]=await Promise.all([broilerModel(),load('budget').catch(()=>[])]);
+ const proc=(base.proc||[]).filter(v140Filt);
+ const bm=budgetMonthly(budgetNorm(budRaw)).filter(x=>(!S.from||x.ym>=S.from.slice(0,7))&&(!S.to||x.ym<=S.to.slice(0,7)));
+ const bmap=new Map(bm.map(x=>[x.ym,x]));
+ const hasProc=proc.length>0;
+ const head=sum(proc,x=>x.head),kg=sum(proc,x=>x.kg),avg=head?safeDiv(kg,head):null,prodDates=unique(proc.map(x=>iso(x.date))).filter(Boolean).sort(),prodDays=prodDates.length;
+ const cap=window.__CX_API?.CX?.standards?.plantDailyCapacity||null,stdDays=S.from&&S.to?v140Days(S.from,S.to):prodDays,availableCap=cap&&stdDays?stdDays*cap:null,eff=availableCap&&head?safeDiv(head,availableCap):null,unused=availableCap!=null?Math.max(0,availableCap-head):null;
+ const daily=[...group(proc,x=>iso(x.date)).entries()].map(([date,rs])=>{const h=sum(rs,x=>x.head),k=sum(rs,x=>x.kg);return{date,head:h,kg:k,avg:h?safeDiv(k,h):null,dispatches:rs.length,farms:unique(rs.map(x=>x.farm)).length,eff:cap&&h?safeDiv(h,cap):null}}).sort((a,b)=>a.date.localeCompare(b.date));
+ const latest=daily.at(-1)||null;
+ const monthly=[...group(proc,x=>monthKey(x.date)).entries()].map(([ym,rs])=>{const h=sum(rs,x=>x.head),k=sum(rs,x=>x.kg),[a,b]=v140MonthBounds(ym),days=v140Days(a,b),be=bmap.get(ym)||null;return{ym,head:h,kg:k,avg:h?safeDiv(k,h):null,prodDays:unique(rs.map(x=>iso(x.date))).length,stdDays:days,eff:cap&&days&&h?safeDiv(h,cap*days):null,b:be}}).sort((a,b)=>a.ym.localeCompare(b.ym));
+ const currentM=monthly.at(-1)||null,prevM=monthly.at(-2)||null;
+ const weeks=[...group(proc,x=>iso(v140SatStart(x.date))).entries()].map(([start,rs])=>{const h=sum(rs,x=>x.head),k=sum(rs,x=>x.kg),d=parseDate(start),end=addDays(d,6),days=v140Days(d,end);return{start,end:iso(end),head:h,kg:k,avg:h?safeDiv(k,h):null,eff:cap&&days&&h?safeDiv(h,cap*days):null}}).sort((a,b)=>a.start.localeCompare(b.start)).slice(-6);
+ const byFarmLatest=latest?[...group(proc.filter(x=>iso(x.date)===latest.date),x=>x.farm).entries()].map(([farm,rs])=>({farm,head:sum(rs,x=>x.head),kg:sum(rs,x=>x.kg),dispatches:rs.length})).sort((a,b)=>b.head-a.head):[];
+ const doaRows=monthly.filter(x=>x.b?.doa!=null||x.b?.budgetDoa!=null),hasDoa=doaRows.some(x=>x.b?.doa!=null),hasDoaBudget=doaRows.some(x=>x.b?.budgetDoa!=null),doaMonth=currentM?.b?.doa??null,doaBudget=currentM?.b?.budgetDoa??null;
+ const catchRows=monthly.filter(x=>x.b?.actualHead!=null||x.b?.budgetHead!=null),hasCatchBudget=catchRows.some(x=>x.b?.actualHead!=null&&x.b?.budgetHead!=null);
+ const hasCap=!!(cap&&availableCap!=null);
+ const reports=[];
+ if(hasProc)reports.push(['v140-exec','الملخص التنفيذي','Executive Summary','01']);
+ if(monthly.length)reports.push(['v140-trends','الاتجاهات والمقارنة','Trends & Comparison','02']);
+ if(latest)reports.push(['v140-day','لقطة اليوم','Day Snapshot','03']);
+ if(hasProc)reports.push(['v140-throughput','الإنتاج والتدفق','Production & Throughput','04']);
+ if(hasDoa)reports.push(['v140-loss','الخسائر — DOA','Loss — DOA','05']);
+ if(hasCap&&hasProc)reports.push(['v140-capacity','الكفاءة والطاقة','Efficiency & Capacity','07']);
+ if(daily.length)reports.push(['v140-grid','شبكة البيانات','Data Grid','08']);
+ const tags=[];if(hasProc)tags.push(T('Processing Actual','Processing Actual'),T('Net Live Input','Net Live Input'));if(avg!=null)tags.push(T('Avg Live Weight','Avg Live Weight'));if(hasCap)tags.push(T('Standard Capacity','Standard Capacity'));if(hasDoa)tags.push('DOA %');if(hasCatchBudget)tags.push(T('Actual vs Budget','Actual vs Budget'));
+ hub.innerHTML=`<div class="v135-hub-head"><div class="v135-hub-title"><small>POWER BI REFERENCE REPORTS · V1.1.43 · DATA-SUPPORTED ONLY</small><h2>${T('التقارير التنفيذية','Executive Reports')}</h2><p>${T('تظهر فقط التقارير والمؤشرات التي لها بيانات فعلية أو يمكن حسابها مباشرة وبشكل موثوق من المصادر الحالية. أي عنصر غير مدعوم لا يتم إنشاؤه ولا يظهر في الواجهة.','Only reports and metrics backed by actual data or directly and reliably calculable from current sources are rendered. Unsupported elements are not created and do not appear in the interface.')}</p></div><span class="v135-hub-badge">${reports.length} ${T('تقارير فعالة','active reports')}</span></div><div class="v135-report-tabs">${reports.map(x=>`<button type="button" data-v140-report="${x[0]}"><b>${x[3]}</b> · ${T(x[1],x[2])}</button>`).join('')}</div><div class="v140-supported-note"><b>${T('قاعدة العرض:','Display rule:')}</b> ${T('لا توجد بطاقات فارغة، ولا قيم بديلة، ولا جارتات بدون مصدر. التقارير تتكيف تلقائياً مع البيانات المتوفرة ضمن الفلاتر الحالية.','No empty cards, no placeholder values, and no charts without a source. Reports adapt automatically to data available under the current filters.')}<div class="v140-supported-tags">${tags.map(x=>`<span>✓ ${x}</span>`).join('')}</div></div><div id="v140ReportPages"></div>`;
+ const pages=hub.querySelector('#v140ReportPages');let html='';
+ if(hasProc){
+   const kpis=[v140Kpi(T('المذبوح / المعالج','Slaughtered / Processed'),fmt(head),`${fmt(kg)} kg ${T('Net Live Input','Net Live Input')}`,'var(--cyan)'),v140Kpi(T('Net Live Input','Net Live Input'),fmt(kg)+' kg',T('Farm Net Weight KG','Farm Net Weight KG'),'var(--teal)'),v140Kpi(T('متوسط الوزن الحي','Avg Live Weight'),avg!=null?fmt(avg,3)+' kg':'',T('Net kg ÷ processed head','Net kg ÷ processed head'),'var(--cyan)')];if(eff!=null)kpis.push(v140Kpi(T('كفاءة الطاقة %','Capacity Efficiency %'),pct(eff),`${T('مقابل مرجع','vs reference')} ${pct(V140_TARGET.eff)}`,'var(--gold)'));
+   const flags=v140Flags(eff,doaMonth,doaBudget),score=v140Score(eff,doaMonth,doaBudget);
+   html+=section(T('الملخص التنفيذي','Executive Summary'),`${T('الفترة','Date')}: ${S.from||''} → ${S.to||''} | ${T('المصدر الحي','live source')}: Data Broiler & Sales / Processing Plan`,
+   `<div class="v139-pdf-kpis">${kpis.join('')}</div><div class="v139-ref-grid2">${v140Panel(T('الحالة والتنبيهات','Status & Alerts'),flags)}${v140Panel(T('Scorecard مقابل المرجع','Scorecard vs Reference'),score)}</div>${v140MonthlyTable(monthly,hasCap)}<div class="v139-context"><div class="v139-context-title">${T('Quick Stats','Quick Stats')}</div><div class="v139-quick"><div><b>${fmt(prodDays)}</b><span>${T('أيام الإنتاج','Production Days')}</span></div><div><b>${prodDays?fmt(head/prodDays):''}</b><span>${T('متوسط المعالجة اليومي','Avg Daily Processed')}</span></div><div><b>${fmt(kg)}</b><span>${T('Net Live Input kg','Net Live Input kg')}</span></div><div><b>${avg!=null?fmt(avg,3)+' kg':''}</b><span>${T('متوسط الوزن الحي/طير','Avg Live Wt/Bird')}</span></div>${hasCap?`<div><b>${fmt(availableCap)}</b><span>${T('الطاقة المتاحة للفترة','Available Capacity')}</span></div>`:''}</div></div>`,'v140-exec');
+ }
+ if(monthly.length){
+   const trendPanels=[];trendPanels.push(v140Panel(T('المعالجة الشهرية','MONTHLY PROCESSED'),'<div class="chartbox"><canvas id="v140ProcessedMonth"></canvas></div>'));if(hasCap)trendPanels.push(v140Panel(T('الكفاءة الشهرية','EFF % BY MONTH'),'<div class="chartbox"><canvas id="v140EffMonth"></canvas></div>'));if(hasCatchBudget)trendPanels.push(v140Panel(T('Actual Catch vs Budget','ACTUAL CATCH vs BUDGET'),'<div class="chartbox"><canvas id="v140CatchBudget"></canvas></div>'));if(hasDoa)trendPanels.push(v140Panel('DOA %','<div class="chartbox"><canvas id="v140DoaMonthTrend"></canvas></div>'));
+   html+=section(T('الاتجاهات والمقارنة','Trends & Comparison'),T('يتم عرض الاتجاهات التي تمتلك بيانات فعلية فقط.','Only trends with actual supported data are displayed.'),`<div class="v139-ref-grid2">${trendPanels.join('')}</div>${v140MonthlyTable(monthly,hasCap)}<div class="v139-ref-panel"><h3>${T('آخر 6 أسابيع','Trailing 6 weeks')}</h3><div class="v139-week-grid">${weeks.map((w,i)=>`<div class="v139-week"><b>WK ${i+1}</b><strong>${fmt(w.head)}</strong><small>${w.start}<br>${fmt(w.kg)} kg${w.eff!=null?` · ${T('Eff','Eff')} ${pct(w.eff)}`:''}</small></div>`).join('')}</div></div>`,'v140-trends');
+ }
+ if(latest){
+   const dayKpis=[v140Kpi(T('المذبوح / المعالج','Slaughtered / Processed'),fmt(latest.head),latest.date,'var(--cyan)'),v140Kpi(T('Net Live Input','Net Live Input'),fmt(latest.kg)+' kg',latest.date,'var(--teal)'),v140Kpi(T('متوسط الوزن الحي','Avg Live Weight'),latest.avg!=null?fmt(latest.avg,3)+' kg':'',latest.date,'var(--gold)')];if(latest.eff!=null)dayKpis.push(v140Kpi(T('كفاءة الطاقة %','Capacity Efficiency %'),pct(latest.eff),`${T('مرجع','reference')} ${pct(V140_TARGET.eff)}`,'var(--coral)'));
+   const dayScore=v140Score(latest.eff,doaMonth,doaBudget),dayFlags=v140Flags(latest.eff,doaMonth,doaBudget);
+   html+=section(T('لقطة اليوم','Day Snapshot'),`${T('آخر يوم Processing ضمن الفلتر','Latest Processing day in filter')}: ${latest.date}`,`<div class="v139-pdf-kpis">${dayKpis.join('')}</div><div class="v139-ref-grid2">${v140Panel(T('DAY vs MTD','DAY vs MTD'),latest.eff!=null&&currentM?.eff!=null?`<table class="v139-score"><thead><tr><th>KPI</th><th>Day</th><th>MTD</th></tr></thead><tbody><tr><td>${T('كفاءة الطاقة %','Capacity Efficiency %')}</td><td>${pct(latest.eff)}</td><td>${pct(currentM.eff)}</td></tr><tr><td>${T('متوسط الوزن الحي','Avg Live Weight')}</td><td>${latest.avg!=null?fmt(latest.avg,3):''}</td><td>${currentM?.avg!=null?fmt(currentM.avg,3):''}</td></tr></tbody></table>`:'')}${v140Panel(T('DAY FLAGS','DAY FLAGS'),dayFlags||dayScore)}</div>${byFarmLatest.length?`<div class="v139-context"><div class="v139-context-title">${T('تفصيل الإرسال حسب المزرعة','Dispatch by source farm')}</div>${tableHTML('v140DayFarm',[T('المزرعة','Farm'),T('Head','Head'),T('Net kg','Net kg'),T('Avg kg','Avg kg'),T('Dispatches','Dispatches')],byFarmLatest.map(x=>[x.farm,fmt(x.head),fmt(x.kg),x.head?fmt(x.kg/x.head,3):'',fmt(x.dispatches)]))}</div>`:''}`,'v140-day');
+ }
+ if(hasProc){
+   const peak=daily.filter(x=>x.head>0).slice().sort((a,b)=>b.head-a.head)[0]||null,low=daily.filter(x=>x.head>0).slice().sort((a,b)=>a.head-b.head)[0]||null;
+   html+=section(T('الإنتاج والتدفق','Production & Throughput'),T('كل الجارتات مبنية مباشرة على دفتر Processing الفعلي.','All charts are built directly from the actual Processing ledger.'),`<div class="v139-pdf-kpis">${v140Kpi(T('المذبوح / المعالج','Slaughtered / Processed'),fmt(head),prodDays?`${fmt(head/prodDays)} ${T('متوسط/يوم','avg/day')}`:'','var(--cyan)')}${v140Kpi(T('Net Live Input','Net Live Input'),fmt(kg)+' kg',prodDays?`${fmt(kg/prodDays)} kg ${T('متوسط/يوم','avg/day')}`:'','var(--teal)')}${v140Kpi(T('متوسط الوزن الحي','Avg Live Weight'),avg!=null?fmt(avg,3)+' kg':'','','var(--gold)')}</div><div class="v139-ref-grid2">${v140Panel(T('DAILY PROCESSED HEAD','DAILY PROCESSED HEAD'),'<div class="chartbox"><canvas id="v140DailyHead"></canvas></div>')}${v140Panel(T('NET KG & AVG LIVE WEIGHT','NET KG & AVG LIVE WEIGHT'),'<div class="chartbox"><canvas id="v140DailyWeight"></canvas></div>')}</div><div class="v140-cap-grid">${peak?`<div><b>${fmt(peak.head)}</b><span>${T('Peak day','Peak day')} · ${peak.date}</span></div>`:''}${low?`<div><b>${fmt(low.head)}</b><span>${T('Lowest production day','Lowest production day')} · ${low.date}</span></div>`:''}<div><b>${fmt(prodDays)}</b><span>${T('Production days','Production days')}</span></div><div><b>${fmt(daily.length)}</b><span>${T('Days with processing records','Days with processing records')}</span></div></div>`,'v140-throughput');
+ }
+ if(hasDoa){
+   const doaKpis=[];if(doaMonth!=null)doaKpis.push(v140Kpi('DOA %',pct(doaMonth),currentM?monthLabel(currentM.ym):'','var(--coral)'));if(doaBudget!=null)doaKpis.push(v140Kpi(T('DOA Budget','DOA Budget'),pct(doaBudget),currentM?monthLabel(currentM.ym):'','var(--gold)'));if(doaMonth!=null&&doaBudget!=null)doaKpis.push(v140Kpi(T('الفرق','Variance'),v140DeltaPP(doaMonth,doaBudget),T('Actual - Budget','Actual - Budget'),doaMonth<=doaBudget?'var(--teal)':'var(--coral)'));
+   html+=section(T('الخسائر — DOA','Loss — DOA'),T('يعرض فقط DOA% لأنه مؤشر الخسارة الوحيد المتوفر حالياً بنفس المعنى في المصدر.','Only DOA% is shown because it is the only currently available loss metric with the required meaning.'),`<div class="v139-pdf-kpis">${doaKpis.join('')}</div><div class="v139-ref-grid2">${v140Panel(T('DOA % BY MONTH','DOA % BY MONTH'),'<div class="chartbox"><canvas id="v140DoaMonth"></canvas></div>')}${v140Panel(T('DOA Actual vs Budget','DOA Actual vs Budget'),tableHTML('v140DoaTable',[T('الشهر','Month'),'DOA %',T('Budget DOA','Budget DOA'),T('Variance','Variance')],doaRows.filter(x=>x.b?.doa!=null).map(x=>[monthLabel(x.ym),pct(x.b.doa),x.b?.budgetDoa!=null?pct(x.b.budgetDoa):'',x.b?.budgetDoa!=null?v140DeltaPP(x.b.doa,x.b.budgetDoa):''])) )}</div>`,'v140-loss');
+ }
+ if(hasCap&&hasProc){
+   html+=section(T('الكفاءة والطاقة','Efficiency & Capacity'),T('الكفاءة = Processed Head ÷ الطاقة المعيارية للفترة، مع الجمعة يوم توقف حسب المحرك الحالي.','Efficiency = Processed Head ÷ standard capacity for the selected period, with Friday treated as off by the current engine.'),`<div class="v139-pdf-kpis">${v140Kpi(T('كفاءة الطاقة %','Capacity Efficiency %'),pct(eff),`${v140DeltaPP(eff,V140_TARGET.eff)} ${T('مقابل مرجع','vs reference')}`,'var(--gold)')}${v140Kpi(T('الطاقة غير المستخدمة','Unused Capacity'),fmt(unused),`${fmt(Math.max(0,1-eff)*100,1)}% ${T('من الطاقة','of capacity')}`,'var(--gold)')}${v140Kpi(T('الطاقة المتاحة','Available Capacity'),fmt(availableCap),`${fmt(cap)} / ${T('يوم معياري','standard day')}`,'var(--cyan)')}${v140Kpi(T('الطاقة اليومية المعيارية','Standard Daily Capacity'),fmt(cap),T('birds/day','birds/day'),'var(--teal)')}</div><div class="v139-ref-grid2">${v140Panel(T('DAILY CAPACITY EFFICIENCY','DAILY CAPACITY EFFICIENCY'),'<div class="chartbox"><canvas id="v140EffDaily"></canvas></div>')}${v140Panel(T('CAPACITY UTILIZATION','CAPACITY UTILIZATION'),`<p>${T('من','Of')} ${fmt(availableCap)} ${T('طير طاقة متاحة للفترة','capacity-birds available in period')}:</p><div class="v139-capbar"><span style="width:${Math.min(100,Math.max(0,eff*100))}%">${T('Processed','Processed')} ${pct(eff)}</span><em>${eff<1?`${T('Unused','Unused')} ${pct(1-eff)}`:T('Above standard','Above standard')}</em></div><p style="color:var(--gold)">${T('Unused','Unused')} ≈ ${fmt(unused)} ${T('birds','birds')}</p>`)}</div>`,'v140-capacity');
+ }
+ if(daily.length){
+   const headers=[T('التاريخ','Date'),T('المذبوح / المعالج','Slaughtered / Processed'),T('Net Live Input kg','Net Live Input kg'),T('Avg live kg','Avg live kg'),T('Dispatches','Dispatches'),T('Source farms','Source farms')];if(hasCap)headers.push(T('Capacity Eff %','Capacity Eff %'));const rows=daily.slice().reverse().map(x=>{const r=[x.date,fmt(x.head),fmt(x.kg),x.avg!=null?fmt(x.avg,3):'',fmt(x.dispatches),fmt(x.farms)];if(hasCap)r.push(x.eff!=null?pct(x.eff):'');return r});
+   html+=section(T('شبكة البيانات','Data Grid'),T('تحتوي فقط الأعمدة المدعومة فعلياً من المصدر الحالي.','Contains only columns actually supported by the current source.'),tableHTML('v140DataGrid',headers,rows),'v140-grid');
+ }
+ pages.innerHTML=html;
+ pages.querySelectorAll('.section').forEach(x=>x.classList.add('v139-report-page'));
+ const activate=id=>{window.__v140ActiveReport=id;reports.forEach(x=>document.getElementById(x[0])?.classList.toggle('v135-active',x[0]===id));hub.querySelectorAll('[data-v140-report]').forEach(b=>b.classList.toggle('active',b.dataset.v140Report===id));try{requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')))}catch(e){}};
+ hub.querySelectorAll('[data-v140-report]').forEach(b=>b.onclick=()=>activate(b.dataset.v140Report));if(reports.length)activate(reports.some(x=>x[0]===window.__v140ActiveReport)?window.__v140ActiveReport:reports[0][0]);
+ wireExports();try{wireSortableTables(document)}catch(e){}
+ const C=colors();
+ if(document.getElementById('v140ProcessedMonth'))chart('v140ProcessedMonth',{type:'line',data:{labels:monthly.map(x=>monthLabel(x.ym)),datasets:[lineDS(T('Processed','Processed'),monthly.map(x=>x.head),C.cyan,'y',true)]}});
+ if(document.getElementById('v140EffMonth'))chart('v140EffMonth',{type:'line',data:{labels:monthly.map(x=>monthLabel(x.ym)),datasets:[lineDS(T('Efficiency %','Efficiency %'),monthly.map(x=>x.eff==null?null:x.eff*100),C.teal,'y',true),{...lineDS(T('Reference 95%','Reference 95%'),monthly.map(()=>95),C.gold,'y'),borderDash:[6,5],pointRadius:0}]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ if(document.getElementById('v140CatchBudget'))chart('v140CatchBudget',{type:'line',data:{labels:catchRows.map(x=>monthLabel(x.ym)),datasets:[lineDS(T('Actual Catch','Actual Catch'),catchRows.map(x=>x.b?.actualHead??null),C.cyan,'y',true),{...lineDS(T('Budget Catch','Budget Catch'),catchRows.map(x=>x.b?.budgetHead??null),C.gold,'y'),borderDash:[6,5]}]}});
+ if(document.getElementById('v140DoaMonthTrend'))chart('v140DoaMonthTrend',{type:'line',data:{labels:doaRows.map(x=>monthLabel(x.ym)),datasets:[lineDS('DOA %',doaRows.map(x=>x.b?.doa==null?null:x.b.doa*100),C.coral,'y',true),{...lineDS(T('Budget DOA','Budget DOA'),doaRows.map(x=>x.b?.budgetDoa==null?null:x.b.budgetDoa*100),C.gold,'y'),borderDash:[6,5],pointRadius:0}]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ if(document.getElementById('v140DailyHead'))chart('v140DailyHead',{type:'bar',data:{labels:daily.map(x=>x.date),datasets:[{label:T('Processed','Processed'),data:daily.map(x=>x.head),backgroundColor:C.cyan,borderWidth:0}]}});
+ if(document.getElementById('v140DailyWeight'))chart('v140DailyWeight',{type:'line',data:{labels:daily.map(x=>x.date),datasets:[lineDS(T('Net kg','Net kg'),daily.map(x=>x.kg),C.teal,'y',true),lineDS(T('Avg kg','Avg kg'),daily.map(x=>x.avg),C.gold,'y2',false)]},options:{scales:{y:{position:'left'},y2:{position:'right',grid:{drawOnChartArea:false}}}}});
+ if(document.getElementById('v140DoaMonth'))chart('v140DoaMonth',{type:'line',data:{labels:doaRows.map(x=>monthLabel(x.ym)),datasets:[lineDS('DOA %',doaRows.map(x=>x.b?.doa==null?null:x.b.doa*100),C.coral,'y',true),{...lineDS(T('Budget DOA','Budget DOA'),doaRows.map(x=>x.b?.budgetDoa==null?null:x.b.budgetDoa*100),C.gold,'y'),borderDash:[6,5],pointRadius:0}]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ if(document.getElementById('v140EffDaily'))chart('v140EffDaily',{type:'line',data:{labels:daily.map(x=>x.date),datasets:[lineDS(T('Efficiency %','Efficiency %'),daily.map(x=>x.eff==null?null:x.eff*100),C.gold,'y',true),{...lineDS(T('Reference 95%','Reference 95%'),daily.map(()=>95),C.coral,'y'),borderDash:[6,5],pointRadius:0}]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ v140Brand();
+}
+const _v140Home=RENDER.home;RENDER.home=async function(){await _v140Home();if(S.page!=='home')return;try{await v140Build()}catch(e){console.error('V1.1.41 data-supported reports',e)}v140Brand()};
+const _v140RenderCurrent=renderCurrent;renderCurrent=async function(){const r=await _v140RenderCurrent();v140Brand();return r};
+const _v140SetLang=setLang;setLang=function(){_v140SetLang();v140Brand()};
+window.v140Build=v140Build;
+function v140Boot(){v140Brand();setTimeout(()=>{if(S.page==='home')renderCurrent().catch(e=>console.error('V1.1.41 boot',e))},260)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',v140Boot,{once:true});else v140Boot();
+})();
+</script>
+
+
+<script id="v141-runtime-fix-marker">
+(function(){
+ 'use strict';
+ function v141Brand(){
+  try{
+   CFG.version='V1.1.41';
+   document.title='Sama Karbala — Poultry Command Center V1.1.41';
+   const s=document.getElementById('brandSub');
+   if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · V1.1.41','Independent platform · Live Google Sheets · V1.1.41');
+   document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · V1.1.41');
+  }catch(e){}
+ }
+ const _rc=renderCurrent;
+ renderCurrent=async function(){const r=await _rc();v141Brand();return r};
+ const _sl=setLang;
+ setLang=function(){_sl();v141Brand()};
+ v141Brand();
+})();
+</script>
+
+
+
+<style id="v142-management-review-style">
+/* V1.1.42 — Monthly & Quarterly Integrated Operations Review */
+.v142-head{display:grid;grid-template-columns:1.4fr .8fr;gap:12px;align-items:stretch;margin:10px 0 14px}
+.v142-title{border:1px solid rgba(77,126,168,.28);border-radius:15px;padding:15px 17px;background:linear-gradient(135deg,rgba(15,48,78,.92),rgba(8,29,49,.82));box-shadow:var(--shadow)}
+.v142-title .eyebrow{font-size:9px;font-weight:900;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}.v142-title h1{margin:5px 0 4px;font-size:23px}.v142-title p{margin:0;color:var(--mut);font-size:11px;line-height:1.8}
+.v142-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px}.v142-meta>div{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(9,30,50,.72)}.v142-meta span,.v142-meta small{display:block;color:var(--mut);font-size:9px}.v142-meta b{display:block;margin-top:4px;font-size:13px}.v142-select{width:100%;margin-top:4px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}
+.v142-kpis{display:grid;grid-template-columns:repeat(6,minmax(160px,1fr));gap:8px}.v142-kpi{border:1px solid var(--line);border-top:3px solid var(--a,var(--cyan));border-radius:12px;padding:11px;background:linear-gradient(155deg,rgba(15,42,69,.94),rgba(8,27,45,.88));min-height:92px}.v142-kpi span{display:block;color:var(--mut);font-size:9px}.v142-kpi b{display:block;font-size:20px;margin:7px 0 3px}.v142-kpi small{display:block;color:var(--mut);font-size:9px;line-height:1.5}.v142-kpi.good{border-color:rgba(42,210,190,.34)}.v142-kpi.warn{border-color:rgba(242,184,75,.38)}.v142-kpi.bad{border-color:rgba(238,89,112,.38)}
+.v142-toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.v142-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:rgba(10,31,51,.72);font-size:9px;color:var(--mut)}.v142-chip.ok{color:var(--teal);border-color:rgba(42,210,190,.3)}.v142-chip.plan{color:var(--gold);border-color:rgba(242,184,75,.3)}.v142-chip.fc{color:var(--cyan);border-color:rgba(74,183,237,.3)}
+.v142-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v142-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.v142-project-grid{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:9px}.v142-project{border:1px solid var(--line);border-radius:13px;background:rgba(9,31,51,.76);padding:11px}.v142-project h3{font-size:12px;margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}.v142-project h3 small{color:var(--cyan);font-size:9px}.v142-project dl{display:grid;grid-template-columns:1.3fr .7fr;gap:5px 8px;margin:0}.v142-project dt{color:var(--mut);font-size:9px;border-bottom:1px dashed rgba(90,125,155,.16);padding:3px 0}.v142-project dd{margin:0;text-align:end;font-size:10px;font-weight:800;border-bottom:1px dashed rgba(90,125,155,.16);padding:3px 0}
+.v142-status{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:900}.v142-status.good{background:rgba(42,210,190,.12);color:var(--teal)}.v142-status.warn{background:rgba(242,184,75,.12);color:var(--gold)}.v142-status.bad{background:rgba(238,89,112,.12);color:var(--coral)}.v142-status.neutral{background:rgba(130,150,170,.1);color:var(--mut)}
+.v142-risk-grid{display:grid;grid-template-columns:repeat(2,minmax(270px,1fr));gap:8px}.v142-risk{border:1px solid var(--line);border-radius:11px;padding:10px;background:rgba(8,29,48,.74)}.v142-risk b,.v142-risk span{display:block}.v142-risk span{color:var(--mut);font-size:10px;margin-top:4px}.v142-risk.bad{border-color:rgba(238,89,112,.35)}.v142-risk.warn{border-color:rgba(242,184,75,.35)}.v142-risk.good{border-color:rgba(42,210,190,.3)}
+.v142-heat{min-width:940px}.v142-heat td{text-align:center}.v142-heat .g{background:rgba(42,210,190,.09);color:var(--teal)}.v142-heat .w{background:rgba(242,184,75,.08);color:var(--gold)}.v142-heat .b{background:rgba(238,89,112,.08);color:var(--coral)}
+.v142-note{padding:9px 11px;border-inline-start:3px solid var(--cyan);background:rgba(74,183,237,.055);border-radius:8px;color:var(--mut);font-size:9px;line-height:1.7;margin-top:8px}
+.v142-chart{height:300px}.v142-chart.lg{height:350px}
+body.light .v142-title,body.light .v142-kpi,body.light .v142-project,body.light .v142-risk{background:#fff}
+@media(max-width:1350px){.v142-kpis{grid-template-columns:repeat(3,1fr)}.v142-project-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.v142-head,.v142-grid2,.v142-grid3{grid-template-columns:1fr}.v142-kpis,.v142-project-grid{grid-template-columns:1fr 1fr}.v142-meta{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.v142-kpis,.v142-project-grid,.v142-meta,.v142-risk-grid{grid-template-columns:1fr}.v142-title h1{font-size:19px}}
+</style>
+
+<script id="v142-monthly-quarterly-integrated-review">
+(function(){
+'use strict';
+const V142='V1.1.42';
+const API=()=>window.__CX_API||{};
+const CX=()=>window.CHAIN_XLSX_V130||{};
+window.V142_MONTH=window.V142_MONTH||'';
+window.V142_QEND=window.V142_QEND||'';
+
+function v142YM(d){const x=parseDate(d);return x?`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`:''}
+function v142AddYM(ym,n){const [y,m]=String(ym).split('-').map(Number),d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function v142MS(ym){const [y,m]=ym.split('-').map(Number);return new Date(y,m-1,1)}
+function v142ME(ym){const [y,m]=ym.split('-').map(Number);return new Date(y,m,0)}
+function v142MonthRange(ym){return{a:iso(v142MS(ym)),b:iso(v142ME(ym))}}
+function v142Days(ym){return v142ME(ym).getDate()}
+function v142Max(...a){return a.filter(Boolean).sort().at(-1)||''}
+function v142Min(...a){return a.filter(Boolean).sort()[0]||''}
+function v142Between(d,a,b){const s=iso(d);return !!s&&s>=a&&s<=b}
+function v142SumMap(m,a,b){const api=API();return api.cxSum?api.cxSum(m||{},a,b):0}
+function v142Class(r,lowerBetter=false){if(r==null||!Number.isFinite(+r))return'neutral';if(lowerBetter)return r<=1.03?'good':r<=1.10?'warn':'bad';return r>=.97?'good':r>=.90?'warn':'bad'}
+function v142Status(r,lowerBetter=false){const c=v142Class(r,lowerBetter);return `<span class="v142-status ${c}">${r==null?'—':pct(r)}</span>`}
+function v142Kpi(label,val,sub='',accent='var(--cyan)',cls=''){return `<div class="v142-kpi ${cls}" style="--a:${accent}"><span>${label}</span><b class="num">${val}</b><small>${sub}</small></div>`}
+function v142Project(title,code,rows){const z=rows.filter(x=>x&&x[1]!=null&&x[1]!==''&&x[1]!=='—');if(!z.length)return'';return `<div class="v142-project"><h3><span>${title}</span><small>${code}</small></h3><dl>${z.map(x=>`<dt>${x[0]}</dt><dd>${x[1]}</dd>`).join('')}</dl></div>`}
+function v142Select(id,label,value,opts){return `<label><span>${label}</span><select id="${id}" class="v142-select">${opts.map(x=>`<option value="${x}"${x===value?' selected':''}>${monthLabel(x)}</option>`).join('')}</select></label>`}
+function v142CumNorm(rows){return rows.map(r=>({cycle:normCycle(r['Cycle']),farm:cv(r['Farm']),house:normHouse(r['House']),status:cv(r['Farm Status']),age:numOrNull(r['Age']),placed:n(r['Placement']),mort:n(r['Mortality']),cull:n(r['Culled']),weight:numOrNull(r['AvgMaxWeights']),inventory:n(r['Sum of New Calculated Inventory']),headSold:n(r['Head Sold']),weightSold:n(r['Weight Sold (Kg)']),doa:n(r['DOA']),doaPct:numOrNull(r['DOA%'])})).filter(r=>r.cycle&&r.farm&&r.house)}
+
+async function v142LoadAll(){
+ // Monthly/quarterly review is a cross-project management view: warm every configured live database first.
+ const allKeys=Object.keys(CFG.sheets||{}).filter(k=>CFG.sheets[k]&&CFG.sheets[k].id&&CFG.sheets[k].sheet);
+ await Promise.allSettled(allKeys.map(k=>load(k)));
+ const [D,m,bfRaw,cumRaw,ctlRaw]=await Promise.all([window.v117Load(),broilerModel(),load('bFarms').catch(()=>[]),load('bCum').catch(()=>[]),load('bPlaceCtl').catch(()=>[])]);
+ const api=API(),A=api.cxActualMaps(D),cuts=api.cxCutoffs(D,A),latest=api.cxLatest(...Object.values(cuts)),buildStart=api.cxDay(latest,-420),end=v142AddYM(v142YM(latest),15)+'-01',buildEnd=iso(v142ME(v142YM(parseDate(end))));
+ const P=api.cxBuildPlan(buildStart,buildEnd),E=api.cxBuildExpected(D,m,A,P,latest,buildStart,buildEnd,cuts);
+ return{D,m,A,P,E,cuts,latest,bFarms:bFarmNorm(bfRaw),cum:v142CumNorm(cumRaw),ctl:bPlanNorm(ctlRaw)}
+}
+
+const V142_STAGES=[
+ ['gpHE','GP', 'بيض تفقيس الجدود','GP hatching eggs'],['gphRecv','GPH','استلام بيض مفقس الجدود','GP hatchery receipts'],['gphSet','GPH','إيداع مفقس الجدود','GP hatchery setting'],['gphHatch','GPH','فقس مفقس الجدود','GP hatch'],['gphRear','PSR','كتاكيت PS من مفقس الجدود','PS chicks from GP hatchery'],['gphOffSex','BR','Off-Sex إلى التسمين','Off-Sex to broilers'],['psrPlace','PSR','تسكين أمهات التربية','PS rearing placement'],['pspTransfer','PSP','نقل التربية إلى الإنتاج','PSR to PSP transfer'],['psHE','PSP','بيض تفقيس الأمهات','PS hatching eggs'],['brhIncoming','BRH','استلام بيض مفاقس التسمين','Broiler hatchery receipts'],['brhSet','BRH','إيداع مفاقس التسمين','Broiler hatchery setting'],['brhSaleable','BRH','كتاكيت تسمين صالحة','Saleable broiler chicks'],['broPlace','BR','تسكين مزارع التسمين','Broiler placement'],['process','PL','المرسل للمجزر','Processed / kill']
+];
+function v142StageRow(M,k,ym){
+ const {a,b}=v142MonthRange(ym),cut=M.cuts[k]||'',covered=!!cut&&cut>=a,actualEnd=covered?v142Min(cut,b):'',actual=covered?v142SumMap(M.A[k],a,actualEnd):null,planTD=covered?v142SumMap(M.P[k],a,actualEnd):null,plan=v142SumMap(M.P[k],a,b);
+ let expected=null; if(!cut||b>cut){const f=(!cut||cut<a)?a:iso(addDays(cut,1));expected=(covered?(actual||0):0)+(f<=b?v142SumMap(M.E[k],f,b):0)}
+ const ach=planTD>0&&actual!=null?actual/planTD:null,fcAch=plan>0&&expected!=null?expected/plan:null;
+ return{key:k,actual,planTD,plan,expected,ach,fcAch,cut,covered,has:(actual||0)>0||plan>0||(expected||0)>0}
+}
+function v142StageRows(M,ym){return V142_STAGES.map(s=>({...v142StageRow(M,s[0],ym),project:s[1],ar:s[2],en:s[3]})).filter(x=>x.has)}
+function v142StageTable(rows,id='v142Stage'){return tableHTML(id,[T('المشروع','Project'),T('المؤشر','Metric'),T('Actual حتى آخر تحديث','Actual to latest'),T('Plan لنفس الفترة','Plan same period'),T('تحقيق فعلي','Actual ach.'),T('Plan كامل الشهر','Full-month plan'),T('Expected نهاية الشهر','Month-end expected'),T('تحقيق متوقع','Forecast ach.'),T('آخر Actual','Actual cutoff')],rows.map(x=>[x.project,T(x.ar,x.en),x.actual==null?'—':fmt(x.actual),x.planTD==null?'—':fmt(x.planTD),v142Status(x.ach),x.plan>0?fmt(x.plan):'—',x.expected!=null?fmt(x.expected):'—',v142Status(x.fcAch),x.covered?x.cut:'—']))}
+function v142FutureStageTable(rows,id='v142Future'){const z=rows.filter(x=>x.plan>0||x.expected!=null);return tableHTML(id,[T('المشروع','Project'),T('المؤشر','Metric'),T('الخطة','Plan'),T('المتوقع','Expected'),T('تحقيق متوقع','Forecast attainment'),T('الفرق المتوقع','Expected variance')],z.map(x=>[x.project,T(x.ar,x.en),x.plan>0?fmt(x.plan):'—',x.expected!=null?fmt(x.expected):'—',v142Status(x.fcAch),x.expected!=null&&x.plan>0?fmt(x.expected-x.plan):'—']))}
+function v142SourceStatus(){const rows=Object.entries(CFG.sheets||{}).filter(([,d])=>d&&d.id&&d.sheet).map(([k,d])=>{const st=S.sourceState.get(k)||'pending',raw=S.raw.get(k),cnt=Array.isArray(raw)?raw.length:null;return[k,d.name||k,d.sheet,st,cnt==null?'—':fmt(cnt)]});return tableHTML('v142Sources',[T('المفتاح','Key'),T('قاعدة البيانات','Database'),T('الورقة','Sheet'),T('الحالة','Status'),T('السجلات','Rows')],rows)}
+
+function v142StdGp(D,ym){const {a,b}=v142MonthRange(ym),r=D.gp.filter(x=>v142Between(x.date,a,b));let std=0;for(const x of r){const z=gpStdAt(x.ageW,x.line);if(z&&x.fEnd>0)std+=x.fEnd*z.he/100}const he=sum(r,x=>x.he),loss=sum(r,x=>x.fMort+x.fCull+x.mMort+x.mCull);return{he,std,ach:std?he/std:null,te:sum(r,x=>x.te),loss,placement:sum(r.filter(x=>x.ageD===0),x=>x.fPlaced+x.mPlaced),feed:sum(r,x=>x.fFeed+x.mFeed)}}
+function v142StdPs(D,ym){const {a,b}=v142MonthRange(ym),r=D.ps.p.filter(x=>v142Between(x.date,a,b));let std=0;for(const x of r){const st=endOfDayStock(x).f,w=(x.age||0)/7,z=window.v117PsHE?window.v117PsHE(w):null;if(st>0&&z!=null)std+=st*(z/7)}const he=sum(r,x=>x.he),loss=sum(r,x=>x.fMort+x.fCull+x.mMort+x.mCull);return{he,std,ach:std?he/std:null,te:sum(r,x=>x.te),loss,sold:sum(r,x=>x.fSold+x.mSold),feed:sum(r,x=>x.fFeed+x.mFeed)}}
+function v142PlantOps(M,ym){
+ const {a,b}=v142MonthRange(ym),all=M.D.proc.filter(x=>v142Between(x.date,a,b)),latestSrc=latestDate(M.D.proc,['date']),cut=v142Min(b,latestSrc),firstGlobal=latestDate(M.D.proc.slice().sort((x,y)=>x.date-y.date).slice(0,1),['date'])||a,start=v142Max(a,firstGlobal);let scheduled=[],fridays=[];
+ if(cut&&cut>=start)for(let d=parseDate(start),e=parseDate(cut);d<=e;d=addDays(d,1)){if(d.getDay()===5)fridays.push(iso(d));else scheduled.push(iso(d))}
+ const dayMap=new Map();all.filter(x=>!cut||iso(x.date)<=cut).forEach(x=>dayMap.set(iso(x.date),(dayMap.get(iso(x.date))||0)+x.head));const operating=[...dayMap].filter(x=>x[1]>0).map(x=>x[0]),zeroDays=scheduled.filter(d=>!dayMap.get(d));const cap=CX().standards?.plantDailyCapacity||0,head=sum(all.filter(x=>!cut||iso(x.date)<=cut),x=>x.head),kg=sum(all.filter(x=>!cut||iso(x.date)<=cut),x=>x.kg),avail=cap?scheduled.length*cap:0,util=avail?head/avail:null,peak=[...dayMap.entries()].sort((x,y)=>y[1]-x[1])[0]||['',0];return{head,kg,avg:safeDiv(kg,head),scheduled:scheduled.length,operating:operating.length,fridays:fridays.length,zero:zeroDays.length,zeroDays,avail,util,unused:avail?Math.max(0,avail-head):null,peakDate:peak[0],peakHead:peak[1]}}
+function v142BroKpi(M,ym){const {a,b}=v142MonthRange(ym),h=M.m.houses.filter(x=>x.lastProc&&iso(x.lastProc)>=a&&iso(x.lastProc)<=b&&x.completed),e=h.filter(x=>x.eligible),placed=sum(h,x=>x.placed),dep=safeDiv(sum(h,x=>x.mort+x.cull),placed),fcr=safeDiv(sum(e,x=>x.feed),sum(e,x=>x.netkg)),wt=safeDiv(sum(e,x=>x.netkg),sum(e,x=>x.processed)),age=weighted(e,x=>x.ageSold,x=>x.processed),epef=fcr&&wt&&age&&dep!=null?((1-dep)*100*wt*100)/(age*fcr):null,rossWt=age!=null?r308w(age):null,rossFcr=age!=null?r308fcr(age):null;return{houses:h.length,eligible:e.length,dep,live:dep==null?null:1-dep,fcr,wt,age,epef,rossWt,rossFcr,wtAch:wt&&rossWt?wt/rossWt:null,fcrAch:fcr&&rossFcr?rossFcr/fcr:null}}
+function v142CurrentInventory(M,ym){if(ym!==v142YM(M.latest))return null;const z=M.cum.filter(x=>String(x.status).toLowerCase()==='active');return{head:sum(z,x=>x.inventory),houses:z.length,avgAge:weighted(z.filter(x=>x.age!=null),x=>x.age,x=>Math.max(1,x.inventory)),wt:weighted(z.filter(x=>x.weight!=null),x=>x.weight,x=>Math.max(1,x.inventory))}}
+function v142HatchKpi(M,ym){const {a,b}=v142MonthRange(ym),g=M.D.gph.rows.filter(x=>x.hatchDate&&v142Between(x.hatchDate,a,b)),bh=M.D.brh.filter(x=>v142Between(x.date,a,b)),gs=sum(g,x=>x.linkedSet),gh=sum(g,x=>x.hatchedF+x.hatchedM),bs=sum(bh,x=>x.linkedSet),bc=sum(bh,x=>x.hatched),sale=sum(bh,x=>x.saleable);return{gphHatch:gs?gh/gs:null,gphHatched:gh,gphPS:sum(g,x=>x.placedF+x.placedM),gphOff:sum(g,x=>x.offsex),brhHatch:bs?bc/bs:null,brhSale:bs?sale/bs:null,brhHatched:bc,brhSaleable:sale}}
+function v142PsR(M,ym){const {a,b}=v142MonthRange(ym),r=M.D.ps.r.filter(x=>v142Between(x.date,a,b)),pl=M.D.ps.pl.filter(x=>v142Between(x.date,a,b)),tr=M.D.ps.tr.filter(x=>v142Between(x.date,a,b));return{placed:sum(pl,x=>x.female+x.male),transfer:sum(tr,x=>x.female+x.male),loss:sum(r,x=>x.fMort+x.fCull+x.mMort+x.mCull),feed:sum(r,x=>x.fFeed+x.mFeed)}}
+function v142ProjectCards(M,ym){
+ const gp=v142StdGp(M.D,ym),ps=v142StdPs(M.D,ym),psr=v142PsR(M,ym),h=v142HatchKpi(M,ym),bro=v142BroKpi(M,ym),pl=v142PlantOps(M,ym),inv=v142CurrentInventory(M,ym),{a,b}=v142MonthRange(ym),gTx=M.D.gph.rows.filter(x=>x.date&&v142Between(x.date,a,b)),bh=M.D.brh.filter(x=>v142Between(x.date,a,b)),bp=M.D.place.filter(x=>v142Between(x.date,a,b)),live=M.D.live.filter(x=>v142Between(x.date,a,b)),bud=M.D.budget.find(x=>x.ym===ym)||{};
+ const gpBank=(ym===v142YM(M.latest))?gphBankAt(M.D.gph,M.cuts.gphSet):null,brBank=brhClosingAt(M.D.brh,b),brBankHead=sum(brBank,x=>x.closing);
+ return [
+  v142Project(T('مزارع الجدود','GP Farms'),'GP',[[T('تسكين','Placement'),gp.placement?fmt(gp.placement):''],[T('HE فعلي','Actual HE'),gp.he?fmt(gp.he):''],[T('تحقيق HE القياسي','HE standard ach.'),gp.ach!=null?pct(gp.ach):''],[T('نافق + إعدام','Mortality + culls'),gp.loss?fmt(gp.loss):''],[T('علف kg','Feed kg'),gp.feed?fmt(gp.feed):'']]),
+  v142Project(T('مفقس الجدود','GP Hatchery'),'GPH',[[T('استلام','Received'),fmt(sum(gTx,x=>x.recvF+x.recvM))],[T('إيداع','Set'),fmt(sum(gTx,x=>x.setF+x.setM))],[T('Hatch %','Hatch %'),h.gphHatch!=null?pct(h.gphHatch):''],[T('PS Chicks','PS chicks'),h.gphPS?fmt(h.gphPS):''],['Off-Sex',h.gphOff?fmt(h.gphOff):''],[T('الرصيد الحالي','Current bank'),gpBank?fmt(gpBank.f+gpBank.m):'']]),
+  v142Project(T('أمهات التربية','PS Rearing'),'PSR',[[T('تسكين','Placement'),psr.placed?fmt(psr.placed):''],[T('نقل للإنتاج','Transfer'),psr.transfer?fmt(psr.transfer):''],[T('نافق + إعدام','Mortality + culls'),psr.loss?fmt(psr.loss):''],[T('علف kg','Feed kg'),psr.feed?fmt(psr.feed):'']]),
+  v142Project(T('أمهات الإنتاج','PS Production'),'PSP',[[T('HE فعلي','Actual HE'),ps.he?fmt(ps.he):''],[T('تحقيق HE القياسي','HE standard ach.'),ps.ach!=null?pct(ps.ach):''],[T('نافق + إعدام','Mortality + culls'),ps.loss?fmt(ps.loss):''],[T('مباع/منهى','Sold / depop'),ps.sold?fmt(ps.sold):''],[T('علف kg','Feed kg'),ps.feed?fmt(ps.feed):'']]),
+  v142Project(T('مفاقس التسمين','Broiler Hatcheries'),'BRH',[[T('استلام HE','HE received'),fmt(sum(bh,x=>x.recv))],[T('إيداع','Set'),fmt(sum(bh,x=>x.set))],[T('Hatch %','Hatch %'),h.brhHatch!=null?pct(h.brhHatch):''],[T('Saleable/Set','Saleable/Set'),h.brhSale!=null?pct(h.brhSale):''],[T('كتاكيت صالحة','Saleable chicks'),h.brhSaleable?fmt(h.brhSaleable):''],[T('رصيد نهاية الشهر','Month-end bank'),brBankHead?fmt(brBankHead):'']]),
+  v142Project(T('مزارع التسمين','Broiler Farms'),'BR',[[T('تسكين','Placement'),fmt(sum(bp,x=>x.placed))],[T('الحيوية','Livability'),bro.live!=null?pct(bro.live):''],['FCR',bro.fcr?fmt(bro.fcr,3):''],['EPEF',bro.epef?fmt(bro.epef,0):''],[T('وزن المجزر kg','Processing wt kg'),bro.wt?fmt(bro.wt,3):''],[T('تحقيق وزن Ross','Ross wt ach.'),bro.wtAch!=null?pct(bro.wtAch):''],[T('الرصيد الحالي','Current inventory'),inv?fmt(inv.head):'']]),
+  v142Project(T('المجزر والبيع الحي','Processing & Live Sales'),'PL',[[T('المجزر','Processed'),fmt(pl.head)],[T('البيع الحي','Live sales'),fmt(sum(live,x=>x.head))],[T('متوسط الوزن kg','Avg live kg'),pl.avg?fmt(pl.avg,3):''],[T('استغلال الطاقة','Capacity util.'),pl.util!=null?pct(pl.util):''],[T('أيام تشغيل','Operating days'),fmt(pl.operating)],[T('أيام صفر إنتاج غير الجمعة','Zero-output non-Friday'),fmt(pl.zero)],[T('DOA','DOA'),bud.doa!=null?pct(bud.doa):'']])
+ ].filter(Boolean).join('')
+}
+function v142Risks(stageRows,M,ym){const out=[];stageRows.forEach(r=>{if(r.fcAch!=null&&r.fcAch<.95)out.push({c:r.fcAch<.9?'bad':'warn',t:T(r.ar,r.en),s:T('تحقيق متوقع ','Expected attainment ')+pct(r.fcAch)+' · '+T('فجوة ','gap ')+fmt((r.expected||0)-r.plan)});if(r.ach!=null&&r.ach<.9)out.push({c:'bad',t:T(r.ar,r.en),s:T('تحقيق فعلي ','Actual attainment ')+pct(r.ach)})});const pl=v142PlantOps(M,ym);if(pl.zero>0)out.push({c:'warn',t:T('المجزر — أيام بدون إنتاج','Plant — zero-output days'),s:pl.zero+' · '+pl.zeroDays.join(', ')});if(pl.util!=null&&pl.util<.9)out.push({c:'warn',t:T('استغلال طاقة المجزر','Plant capacity utilization'),s:pct(pl.util)});const b=v142BroKpi(M,ym);if(b.dep!=null&&b.dep>.06)out.push({c:'bad',t:T('استبعاد التسمين','Broiler depletion'),s:pct(b.dep)});if(b.fcr&&b.rossFcr&&b.fcr>b.rossFcr*1.08)out.push({c:'warn',t:'FCR',s:`${fmt(b.fcr,3)} vs Ross ${fmt(b.rossFcr,3)}`});return out.slice(0,12)}
+function v142RiskHtml(r){return r.length?`<div class="v142-risk-grid">${r.map(x=>`<div class="v142-risk ${x.c}"><b>${x.t}</b><span>${x.s}</span></div>`).join('')}</div>`:`<div class="v142-risk good"><b>${T('لا توجد إشارة كمية حرجة','No critical quantitative signal')}</b><span>${T('ضمن المؤشرات المدعومة في الشهر المحدد','within supported KPIs for the selected month')}</span></div>`}
+function v142MonthHeader(M,ym,type='monthly'){const opts=Array.from({length:18},(_,i)=>v142AddYM(v142YM(M.latest),i-8)),isQ=type==='quarterly';return `<div class="v142-head"><div class="v142-title"><div class="eyebrow">INTEGRATED POULTRY OPERATIONS REVIEW · ${V142}</div><h1>${isQ?T('المراجعة الربع سنوية المتكاملة','Integrated Quarterly Review'):T('المراجعة الشهرية المتكاملة','Integrated Monthly Review')}</h1><p>${T('Actual من Google Sheets الحية · Plan من ملف السلسلة والخطط المعتمدة · Expected من الحالة الفعلية + قياسي السلالة + انتقالات السلسلة. لا يتم إنشاء KPI بلا مصدر.','Live Google Sheets Actual · approved chain Plan · Expected from live state + breed standards + chain lags. No KPI is invented without a source.')}</p></div><div class="v142-meta">${isQ?'':v142Select('v142MonthSel',T('شهر التقرير','Report month'),ym,opts)}<div><span>${T('البيانات حتى','Data through')}</span><b>${M.latest}</b><small>${T('آخر Actual على السلسلة','latest chain actual')}</small></div><div><span>${T('مصدر الخطة','Plan source')}</span><b>Poultry Variance Analysis</b><small>${CX().meta?.sourceModified||CX().meta?.extractedAt||''}</small></div><div><span>${T('المعيار','Standard')}</span><b>Ross / live performance</b><small>${T('حسب المرحلة والعمر','stage / age matched')}</small></div></div></div>`}
+
+function v142MonthChartData(rows){return rows.filter(x=>x.plan>0||(x.expected||0)>0).slice(0,14)}
+function v142RenderMonthCharts(rows){const C=colors(),z=v142MonthChartData(rows);chart('v142Ach',{type:'bar',data:{labels:z.map(x=>T(x.ar,x.en)),datasets:[{label:T('تحقيق Actual','Actual achievement'),data:z.map(x=>x.ach==null?null:x.ach*100),backgroundColor:C.teal},{label:T('تحقيق Expected','Forecast attainment'),data:z.map(x=>x.fcAch==null?null:x.fcAch*100),backgroundColor:C.cyan}]},options:{scales:{y:{ticks:{callback:v=>v+'%'},suggestedMin:70,suggestedMax:115}}}});chart('v142Vol',{type:'bar',data:{labels:z.map(x=>T(x.ar,x.en)),datasets:[{label:'Actual',data:z.map(x=>x.actual),backgroundColor:C.teal},{label:'Plan',data:z.map(x=>x.plan),backgroundColor:C.gold},{label:'Expected',data:z.map(x=>x.expected),backgroundColor:C.cyan}]},options:{interaction:{mode:'index',intersect:false}}})}
+
+window.v142IntegratedMonthly=async function(){
+ const M=await v142LoadAll(),latestYM=v142YM(M.latest);if(!window.V142_MONTH)window.V142_MONTH=latestYM;const ym=window.V142_MONTH,rows=v142StageRows(M,ym),pl=v142PlantOps(M,ym),bro=v142BroKpi(M,ym),inv=v142CurrentInventory(M,ym),bud=M.D.budget.find(x=>x.ym===ym)||{},risks=v142Risks(rows,M,ym),next=v142AddYM(ym,1),nextRows=v142StageRows(M,next);setFilterOptions([],[],[]);
+ const proc=rows.find(x=>x.key==='process'),ch=rows.find(x=>x.key==='brhSaleable'),ps=rows.find(x=>x.key==='psHE'),gp=rows.find(x=>x.key==='gpHE');
+ let h=hero(T('التقرير الشهري','Monthly Report'),T('Actual / Plan / Expected / Standard — مراجعة تشغيلية متكاملة لكل سلسلة الدواجن','Actual / Plan / Expected / Standard — integrated poultry operations review'))+v142MonthHeader(M,ym);
+ h+=section(T('الملخص التنفيذي الشهري','Monthly executive scorecard'),T('النتائج الأساسية التي تؤثر مباشرة على الإمداد إلى المجزر','Core outcomes that directly affect supply to processing'),`<div class="v142-kpis">${proc?v142Kpi(T('المجزر — Actual','Processing — Actual'),fmt(proc.actual),proc.ach!=null?T('تحقيق Plan ','Plan ach. ')+pct(proc.ach):'', 'var(--cyan)',v142Class(proc.ach)):''}${proc&&proc.expected!=null?v142Kpi(T('المجزر — Expected','Processing — Expected'),fmt(proc.expected),proc.fcAch!=null?T('تحقيق متوقع ','Forecast ach. ')+pct(proc.fcAch):'', 'var(--teal)',v142Class(proc.fcAch)):''}${ch?v142Kpi(T('كتاكيت التسمين','Saleable broiler chicks'),fmt(ch.actual),ch.fcAch!=null?T('Expected/Plan ')+pct(ch.fcAch):'', 'var(--vio)',v142Class(ch.fcAch)):''}${ps?v142Kpi(T('PS HE','PS HE'),fmt(ps.actual),ps.fcAch!=null?T('Expected/Plan ')+pct(ps.fcAch):'', 'var(--gold)',v142Class(ps.fcAch)):''}${gp?v142Kpi(T('GP HE','GP HE'),fmt(gp.actual),gp.fcAch!=null?T('Expected/Plan ')+pct(gp.fcAch):'', 'var(--gold)',v142Class(gp.fcAch)):''}${v142Kpi(T('استغلال طاقة المجزر','Plant capacity utilization'),pl.util!=null?pct(pl.util):'—',`${fmt(pl.operating)} ${T('يوم تشغيل','operating days')} · ${fmt(pl.zero)} ${T('يوم توقف/صفر','zero-output days')}`,'var(--teal)',pl.util==null?'':v142Class(pl.util))}${inv?v142Kpi(T('رصيد التسمين الحالي','Current broiler inventory'),fmt(inv.head),`${fmt(inv.houses)} ${T('حضيرة نشطة','active houses')}`,'var(--cyan)'):''}${bro.fcr?v142Kpi('FCR',fmt(bro.fcr,3),bro.rossFcr?`Ross ${fmt(bro.rossFcr,3)}`:'','var(--vio)',bro.fcrAch!=null?v142Class(bro.fcrAch):''):''}${bro.epef?v142Kpi('EPEF',fmt(bro.epef,0),`${fmt(bro.eligible)} ${T('حضيرة مؤهلة','eligible houses')}`,'var(--teal)'):''}${bud.doa!=null?v142Kpi('DOA',pct(bud.doa),bud.budgetDoa!=null?`Budget ${pct(bud.budgetDoa)}`:'','var(--coral)',bud.budgetDoa!=null?v142Class(bud.doa/bud.budgetDoa,true):''):''}</div>`,'v142-m-exec');
+ h+=section(T('السلسلة — Actual مقابل Plan وExpected','Chain — Actual vs Plan & Expected'),T('Actual وPlan-to-date على نفس الفترة لكل مرحلة؛ Expected يكمل بقية الشهر من آخر Actual للمرحلة.','Actual and plan-to-date use the same stage-specific period; Expected completes the rest of the month from each stage cutoff.'),`${v142StageTable(rows,'v142MStage')}<div class="v142-grid2" style="margin-top:10px"><div class="card"><h3>${T('نسب التحقيق عبر السلسلة','Chain attainment')}</h3><div class="chartbox v142-chart"><canvas id="v142Ach"></canvas></div></div><div class="card"><h3>${T('الحجم: Actual / Plan / Expected','Volume: Actual / Plan / Expected')}</h3><div class="chartbox v142-chart"><canvas id="v142Vol"></canvas></div></div></div>`,'v142-m-chain');
+ h+=section(T('لوحات المشاريع الشهرية','Monthly project scorecards'),T('كل بطاقة تعرض فقط KPIs الموجودة فعلياً أو القابلة للحساب من المصدر الحالي.','Each card shows only KPIs backed by current data or auditable calculations.'),`<div class="v142-project-grid">${v142ProjectCards(M,ym)}</div>`,'v142-m-projects');
+ h+=section(T('المجزر — التشغيل، التوقف والطاقة','Processing — operation, stoppage & capacity'),T('أيام التوقف هنا = أيام غير الجمعة ضمن تغطية المصدر ولم يسجل فيها إنتاج؛ لا يتم تخمين سبب التوقف.','Stop days = non-Friday days inside source coverage with zero recorded production; the cause is not inferred.'),`<div class="v142-kpis">${v142Kpi(T('أيام التشغيل','Operating days'),fmt(pl.operating),T('إنتاج > 0','output > 0'),'var(--cyan)')}${v142Kpi(T('أيام الجمعة','Friday downtime'),fmt(pl.fridays),T('توقف تشغيلي قياسي','standard operating rule'),'var(--gold)')}${v142Kpi(T('أيام صفر إنتاج غير الجمعة','Zero-output non-Friday'),fmt(pl.zero),pl.zeroDays.slice(0,6).join(' · '),'var(--coral)',pl.zero?'warn':'good')}${pl.avail?v142Kpi(T('الطاقة المتاحة','Available capacity'),fmt(pl.avail),`${fmt(CX().standards?.plantDailyCapacity||0)} / ${T('يوم','day')}`,'var(--cyan)'):''}${pl.unused!=null?v142Kpi(T('طاقة غير مستخدمة','Unused capacity'),fmt(pl.unused),T('الطاقة المتاحة − الفعلي','available − actual'),'var(--gold)'):''}${v142Kpi(T('أعلى يوم إنتاج','Peak processing day'),fmt(pl.peakHead),pl.peakDate,'var(--teal)')}</div>`,'v142-m-plant');
+ h+=section(T('إشارات الإدارة والقرار','Management signals & actions'),T('الإشارات كمية فقط؛ السبب الجذري يحتاج تأكيد المشروع.','Quantitative signals only; root cause requires project confirmation.'),v142RiskHtml(risks),'v142-m-risks');
+ h+=section(T('نظرة الشهر القادم','Next-month look-ahead'),monthLabel(next),v142FutureStageTable(nextRows,'v142NextStage'),'v142-m-next');
+ h+=section(T('سلامة وربط قواعد البيانات','Database linkage & source health'),T('جميع قواعد Google Sheets المستخدمة في المنصة؛ لا يتم إخفاء فشل مصدر خلف رقم صفري.','All Google Sheets databases used by the platform; a failed source is never silently converted to zero.'),v142SourceStatus(),'v142-m-sources');
+ $('#view').innerHTML=h;wireExports();const sel=$('#v142MonthSel');if(sel)sel.onchange=()=>{window.V142_MONTH=sel.value;renderCurrent()};v142RenderMonthCharts(rows);
+};
+
+function v142QuarterMonths(qEnd){return[v142AddYM(qEnd,-2),v142AddYM(qEnd,-1),qEnd]}
+function v142QuarterEnd(ym){const[y,m]=ym.split('-').map(Number),qe=Math.ceil(m/3)*3;return `${y}-${String(qe).padStart(2,'0')}`}
+function v142QuarterOpts(latestYM){const base=v142QuarterEnd(latestYM),out=[];for(let i=-4;i<=4;i++)out.push(v142AddYM(base,i*3));return out}
+function v142QuarterAgg(M,months){return V142_STAGES.map(s=>{const rr=months.map(m=>v142StageRow(M,s[0],m));const ar=rr.filter(x=>x.actual!=null),pr=rr.filter(x=>x.planTD!=null),actual=ar.length?sum(ar,x=>x.actual):null,planTD=pr.length?sum(pr,x=>x.planTD):null,plan=sum(rr,x=>x.plan),expVals=rr.filter(x=>x.expected!=null),expected=expVals.length?sum(expVals,x=>x.expected):null;return{key:s[0],project:s[1],ar:s[2],en:s[3],actual,planTD,plan,expected,ach:planTD&&actual!=null?actual/planTD:null,fcAch:plan&&expected!=null?expected/plan:null,has:actual||plan||(expected||0)}}).filter(x=>x.has)}
+function v142QHeat(M,months){const stages=['gpHE','gphSet','gphHatch','psrPlace','psHE','brhSet','brhSaleable','broPlace','process'];const defs=new Map(V142_STAGES.map(x=>[x[0],x]));const rows=stages.map(k=>{const d=defs.get(k),vals=months.map(m=>{const r=v142StageRow(M,k,m),x=r.expected!=null?r.fcAch:r.ach;const c=x==null?'':x>=.97?'g':x>=.9?'w':'b';return `<td class="${c}">${x==null?'—':pct(x)}</td>`});return `<tr><td>${d?T(d[2],d[3]):k}</td>${vals.join('')}</tr>`}).join('');return `<div class="tablewrap"><table class="v142-heat"><thead><tr><th>${T('المؤشر','Metric')}</th>${months.map(m=>`<th>${monthLabel(m)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`}
+function v142QuarterPlant(M,months){return months.map(ym=>{const p=v142PlantOps(M,ym),b=M.D.budget.find(x=>x.ym===ym)||{};return[monthLabel(ym),fmt(p.head),p.avg?fmt(p.avg,3):'—',fmt(p.operating),fmt(p.zero),p.util!=null?pct(p.util):'—',p.unused!=null?fmt(p.unused):'—',b.doa!=null?pct(b.doa):'—',b.actualFcr?fmt(b.actualFcr,3):'—',b.actualEpef?fmt(b.actualEpef,0):'—']})}
+
+window.v142IntegratedQuarterly=async function(){
+ const M=await v142LoadAll(),latestYM=v142YM(M.latest);if(!window.V142_QEND)window.V142_QEND=v142QuarterEnd(latestYM);const qEnd=window.V142_QEND,past=v142QuarterMonths(qEnd),next=[v142AddYM(qEnd,1),v142AddYM(qEnd,2),v142AddYM(qEnd,3)],qRows=v142QuarterAgg(M,past),nRows=v142QuarterAgg(M,next),opts=v142QuarterOpts(latestYM),risks=next.flatMap(ym=>v142Risks(v142StageRows(M,ym),M,ym).map(x=>({...x,ym}))).slice(0,16),out12=Array.from({length:12},(_,i)=>v142AddYM(qEnd,i+1)),outProcess=out12.map(m=>v142StageRow(M,'process',m)),outChicks=out12.map(m=>v142StageRow(M,'brhSaleable',m)),outPs=out12.map(m=>v142StageRow(M,'psHE',m));setFilterOptions([],[],[]);
+ let h=hero(T('التقرير الربع سنوي','Quarterly Report'),T('Integrated Quarterly Operations Review — Actual / Plan / Expected / Standard','Integrated Quarterly Operations Review — Actual / Plan / Expected / Standard'));
+ h+=`<div class="v142-head"><div class="v142-title"><div class="eyebrow">QUARTERLY INTEGRATED OPERATIONS REVIEW · ${V142}</div><h1>${T('المراجعة الربع سنوية لسلسلة الدواجن','Quarterly Poultry Chain Review')}</h1><p>${T('ربع منفذ + ربع قادم + أفق 12 شهراً، مع تركيز على التنفيذ، التوقفات، الطاقة، وفجوات الإمداد بين المشاريع.','Executed quarter + next quarter + 12-month outlook, focused on execution, stoppages, capacity and inter-project supply gaps.')}</p></div><div class="v142-meta">${v142Select('v142QSel',T('نهاية الربع','Quarter end'),qEnd,opts)}<div><span>${T('الربع المنفذ','Reviewed quarter')}</span><b>${past.map(monthLabel).join(' · ')}</b></div><div><span>${T('الربع القادم','Next quarter')}</span><b>${next.map(monthLabel).join(' · ')}</b></div><div><span>${T('البيانات حتى','Data through')}</span><b>${M.latest}</b></div></div></div>`;
+ h+=section(T('بطاقة الربع المنفذ — Actual مقابل Plan','Executed-quarter scorecard — Actual vs Plan'),T('Plan-to-date يستخدم نفس تغطية Actual لكل مرحلة لتجنب تحقيقات مضللة.','Plan-to-date follows each stage actual coverage to avoid misleading attainment.'),`${v142StageTable(qRows,'v142QActual')}<div style="margin-top:10px">${v142QHeat(M,past)}</div>`,'v142-q-actual');
+ h+=section(T('الربع القادم — Plan مقابل Expected','Next quarter — Plan vs Expected'),T('Expected مبني على آخر Actual والقياسي والحلقات الزمنية للسلسلة، وليس نسخة من الخطة.','Expected is rebuilt from latest actual state, breed standards and chain lead times; it is not a copy of plan.'),`${v142FutureStageTable(nRows,'v142QNext')}<div style="margin-top:10px">${v142QHeat(M,next)}</div>`,'v142-q-next');
+ h+=section(T('المجزر — تشغيل الربع المنفذ والطاقة','Processing — executed-quarter operation & capacity'),T('أيام الصفر غير الجمعة تظهر كتوقف/عدم إنتاج دون افتراض السبب.','Non-Friday zero-output days are reported without inferring the cause.'),tableHTML('v142QPlant',[T('الشهر','Month'),T('المجزر','Processed'),T('متوسط kg','Avg kg'),T('أيام تشغيل','Operating days'),T('أيام صفر','Zero-output days'),T('استغلال الطاقة','Capacity util.'),T('طاقة غير مستخدمة','Unused capacity'),'DOA','FCR','EPEF'],v142QuarterPlant(M,past)),'v142-q-plant');
+ h+=section(T('أفق 12 شهراً — التدفق المتوقع مقابل الخطة','12-month outlook — Expected flow vs Plan'),T('يظهر فقط المراحل التي يملك محرك السلسلة لها خطة أو Expected قابل للتدقيق.','Only stages with auditable plan or Expected are shown.'),`<div class="grid2"><div class="card"><h3>${T('المجزر — Plan مقابل Expected','Processing — Plan vs Expected')}</h3><div class="chartbox lg"><canvas id="v142QProc"></canvas></div></div><div class="card"><h3>${T('PS HE وكتاكيت التسمين','PS HE & saleable chicks')}</h3><div class="chartbox lg"><canvas id="v142QSupply"></canvas></div></div></div>${tableHTML('v142Q12',[T('الشهر','Month'),T('Process Plan','Process Plan'),T('Process Expected','Process Expected'),T('تحقيق متوقع','Forecast ach.'),T('PS HE Plan','PS HE Plan'),T('PS HE Expected','PS HE Expected'),T('Chicks Plan','Chicks Plan'),T('Chicks Expected','Chicks Expected')],out12.map((m,i)=>[monthLabel(m),outProcess[i].plan?fmt(outProcess[i].plan):'—',outProcess[i].expected!=null?fmt(outProcess[i].expected):'—',outProcess[i].fcAch!=null?pct(outProcess[i].fcAch):'—',outPs[i].plan?fmt(outPs[i].plan):'—',outPs[i].expected!=null?fmt(outPs[i].expected):'—',outChicks[i].plan?fmt(outChicks[i].plan):'—',outChicks[i].expected!=null?fmt(outChicks[i].expected):'—']))}`,'v142-q-12');
+ h+=section(T('المخاطر التشغيلية للربع القادم','Next-quarter operating risks'),T('أولوية للمراحل التي يقل Expected فيها عن الخطة أو يوجد فيها توقف/انخفاض كفاءة.','Priority to stages where Expected trails plan or where stoppage/efficiency signals exist.'),risks.length?`<div class="v142-risk-grid">${risks.map(x=>`<div class="v142-risk ${x.c}"><b>${monthLabel(x.ym)} · ${x.t}</b><span>${x.s}</span></div>`).join('')}</div>`:`<div class="v142-risk good"><b>${T('لا توجد إشارة كمية حرجة','No critical quantitative signal')}</b></div>`,'v142-q-risk');
+ h+=section(T('تصميم الإدارة — ماذا نراقب كل ربع؟','Management design — what to review each quarter?'),T('هذا القسم يستخدم مؤشرات مدعومة فقط ويحولها إلى أسئلة قرار.','Supported indicators translated into management decision questions.'),`<div class="v142-project-grid">${v142Project(T('توازن الإمداد','Supply balance'),'CHAIN',[[T('GP HE → GPH Set','GP HE → GPH Set'),T('هل الإيداع مقيد بالبيض المتاح؟','Is setting supply-constrained?')],[T('PS HE → BRH Set','PS HE → BRH Set'),T('هل رصيد البيض يغطي برنامج الإيداع؟','Does egg bank cover setting plan?')],[T('Chicks → Placement','Chicks → Placement'),T('هل الكتاكيت تغطي خطة التسكين؟','Do chicks cover placement plan?')]])}${v142Project(T('الكفاءة البيولوجية','Biological efficiency'),'LIVE',[[T('Breeder HE','Breeder HE'),T('Actual vs Ross + Plan','Actual vs Ross + Plan')],[T('Hatchability','Hatchability'),T('Actual vs standard','Actual vs standard')],[T('Broiler','Broiler'),T('FCR / EPEF / Liveability / Weight','FCR / EPEF / Liveability / Weight')]])}${v142Project(T('المجزر','Processing'),'PL',[[T('الحجم','Volume'),T('Actual / Plan / Expected','Actual / Plan / Expected')],[T('التوقف','Stoppage'),T('Zero-output non-Friday days','Zero-output non-Friday days')],[T('الطاقة','Capacity'),T('Utilization / unused capacity','Utilization / unused capacity')]])}${v142Project(T('التحكم بالمخاطر','Risk control'),'RISK',[[T('تغطية الخطة','Plan coverage'),T('Next 3 + 12 months','Next 3 + 12 months')],[T('فجوة Expected','Expected gap'),T('Stage-by-stage','Stage-by-stage')],[T('حداثة البيانات','Data freshness'),T('All live sources','All live sources')]])}</div>`,'v142-q-design');
+ h+=section(T('سلامة وربط قواعد البيانات','Database linkage & source health'),T('حالة جميع قواعد Google Sheets التي تغذي التقارير الشهرية والربع سنوية.','Status of all Google Sheets databases feeding monthly and quarterly reviews.'),v142SourceStatus(),'v142-q-sources');
+ $('#view').innerHTML=h;wireExports();const sel=$('#v142QSel');if(sel)sel.onchange=()=>{window.V142_QEND=sel.value;renderCurrent()};const C=colors();chart('v142QProc',{type:'line',data:{labels:out12.map(monthLabel),datasets:[{...lineDS('Plan',outProcess.map(x=>x.plan||null),C.gold),borderDash:[7,5],pointRadius:0},lineDS('Expected',outProcess.map(x=>x.expected),C.teal,'y',true)]}});chart('v142QSupply',{type:'line',data:{labels:out12.map(monthLabel),datasets:[lineDS('PS HE Expected',outPs.map(x=>x.expected),C.gold),lineDS('Saleable chicks Expected',outChicks.map(x=>x.expected),C.cyan)]}})
+};
+
+// Keep brand/version coherent after older boot wrappers and ensure report pages rerender after final extension load.
+function v142Brand(){try{CFG.version=V142;document.title='Sama Karbala — Poultry Command Center '+V142;const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V142,'Independent platform · Live Google Sheets · '+V142);document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · '+V142)}catch(e){}}
+const _v142RenderCurrent=renderCurrent;renderCurrent=async function(){const r=await _v142RenderCurrent();v142Brand();return r};
+const _v142SetLang=setLang;setLang=function(){_v142SetLang();v142Brand()};
+Object.assign(window,{v142LoadAll,v142StageRow,v142StageRows,v142PlantOps,v142BroKpi,v142HatchKpi,v142PsR,v142StdGp,v142StdPs,v142Risks,v142QuarterAgg,v142QuarterMonths,v142QuarterEnd,v142QuarterOpts,v142SourceStatus});
+window.v142ReloadReports=()=>{if(['monthly','quarterly'].includes(S.page))renderCurrent()};
+setTimeout(()=>{v142Brand();if(['monthly','quarterly'].includes(S.page))renderCurrent()},320);
+})();
+</script>
+
+
+<style id="v143-executive-report-tab-switch-style">
+/* V1.1.43 — executive report tab switch fix for the current v140 report container. */
+#v140ReportPages > .section{display:none!important}
+#v140ReportPages > .section.v135-active{display:block!important;animation:v135fade .16s ease-out}
+</style>
+<script id="v143-executive-report-tab-switch-fix">
+(function(){
+'use strict';
+const V143='V1.1.43';
+function v143Brand(){
+ try{
+  CFG.version=V143;
+  document.title='Sama Karbala — Poultry Command Center '+V143;
+  const s=document.getElementById('brandSub');
+  if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V143,'Independent platform · Live Google Sheets · '+V143);
+  document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · '+V143);
+ }catch(e){}
+}
+function v143ActivateExecutiveReport(id){
+ const hub=document.getElementById('v135ReportHub');
+ const pages=hub?.querySelector('#v140ReportPages');
+ if(!hub||!pages||!id)return false;
+ let found=false;
+ pages.querySelectorAll(':scope > .section').forEach(p=>{
+  const on=p.id===id;
+  if(on)found=true;
+  p.classList.toggle('v135-active',on);
+  p.hidden=!on;
+  p.style.display=on?'block':'none';
+  p.setAttribute('aria-hidden',on?'false':'true');
+ });
+ hub.querySelectorAll('[data-v140-report]').forEach(b=>{
+  const on=b.dataset.v140Report===id;
+  b.classList.toggle('active',on);
+  b.setAttribute('aria-selected',on?'true':'false');
+ });
+ if(found){
+  window.__v140ActiveReport=id;
+  try{requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')))}catch(e){}
+ }
+ return found;
+}
+function v143BindExecutiveTabs(){
+ const hub=document.getElementById('v135ReportHub');
+ const pages=hub?.querySelector('#v140ReportPages');
+ if(!hub||!pages)return false;
+ const buttons=[...hub.querySelectorAll('[data-v140-report]')];
+ if(!buttons.length)return false;
+ if(hub.dataset.v143TabBound!=='1'){
+  hub.addEventListener('click',e=>{
+   const b=e.target.closest('[data-v140-report]');
+   if(!b||!hub.contains(b))return;
+   e.preventDefault();
+   e.stopPropagation();
+   v143ActivateExecutiveReport(b.dataset.v140Report);
+  },true);
+  hub.dataset.v143TabBound='1';
+ }
+ const wanted=buttons.find(b=>b.dataset.v140Report===window.__v140ActiveReport)
+   ||buttons.find(b=>b.classList.contains('active'))||buttons[0];
+ v143ActivateExecutiveReport(wanted.dataset.v140Report);
+ return true;
+}
+window.v143ActivateExecutiveReport=v143ActivateExecutiveReport;
+window.v143BindExecutiveTabs=v143BindExecutiveTabs;
+
+// v140Build replaces the hub innerHTML, so watch for every rebuild and re-apply the switch state.
+const observer=new MutationObserver(()=>{
+ if(S.page==='home'){
+  clearTimeout(window.__v143TabBindTimer);
+  window.__v143TabBindTimer=setTimeout(()=>{v143BindExecutiveTabs();v143Brand()},0);
+ }
+});
+function v143Start(){
+ v143Brand();
+ v143BindExecutiveTabs();
+ const root=document.getElementById('view')||document.body;
+ try{observer.observe(root,{childList:true,subtree:true})}catch(e){}
+ setTimeout(v143BindExecutiveTabs,120);
+ setTimeout(v143BindExecutiveTabs,500);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',v143Start,{once:true});else v143Start();
+
+// Keep binding after navigation/filter redraws without changing existing calculation logic.
+const _v143RenderCurrent=renderCurrent;
+renderCurrent=async function(){
+ const r=await _v143RenderCurrent();
+ v143Brand();
+ if(S.page==='home')setTimeout(v143BindExecutiveTabs,0);
+ return r;
+};
+})();
+</script>
+
+
+<style id="v145-gm-original-plus-forward-style">
+.v145-ribbon{margin:18px 0 10px;padding:13px 16px;border:1px solid rgba(57,198,184,.28);border-radius:14px;background:linear-gradient(90deg,rgba(7,44,55,.78),rgba(12,35,57,.76));box-shadow:0 12px 32px rgba(0,0,0,.15)}
+.v145-ribbon b{display:block;font-size:16px;color:var(--text)}.v145-ribbon span{display:block;margin-top:4px;color:var(--mut);font-size:11px;line-height:1.7}
+.v145-period-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v145-period{padding:11px 12px;border:1px solid rgba(80,126,163,.25);border-radius:12px;background:rgba(9,28,47,.56)}
+.v145-period strong{display:block;color:var(--text);font-size:13px}.v145-period small{display:block;color:var(--mut);margin-top:3px}.v145-good{color:var(--teal)!important}.v145-warn{color:var(--gold)!important}.v145-bad{color:var(--coral)!important}
+.v145-assess{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}.v145-assess>div{padding:10px;border:1px solid rgba(75,120,158,.22);border-radius:11px;background:rgba(7,25,42,.5)}.v145-assess b{display:block;font-size:11px;color:var(--mut)}.v145-assess span{display:block;margin-top:4px;font-size:12px;color:var(--text);line-height:1.55}
+.v145-summary-list{display:grid;gap:7px}.v145-summary-list div{padding:9px 11px;border-left:3px solid var(--cyan);background:rgba(8,28,45,.5);border-radius:8px}.v145-summary-list b{color:var(--text)}.v145-summary-list small{display:block;color:var(--mut);margin-top:3px}
+.v145-gm-section{scroll-margin-top:160px}.v145-note{padding:9px 11px;border:1px solid rgba(236,184,73,.25);border-radius:9px;background:rgba(88,63,14,.12);color:var(--mut);font-size:10px;line-height:1.7}
+@media(max-width:900px){.v145-period-grid,.v145-assess{grid-template-columns:1fr}}
+</style>
+
+<script id="v145-gm-original-reports-plus-forward-analytics">
+(function(){
+'use strict';
+const V145='V1.1.45';
+const V145_PROJECTS={
+ gp:{titleAr:'مزارع الجدود ومفقس الجدود',titleEn:'Grandparent Farms & Grandparent Hatchery',code:'1.1',keys:['gpHE','gphRecv','gphSet','gphHatch','gphRear','gphOffSex']},
+ ps:{titleAr:'أمهات التسمين — التربية والإنتاج',titleEn:'Parent Stock Farming — Rearing & Production',code:'1.2',keys:['psrPlace','pspTransfer','psHE','brhIncoming']},
+ br:{titleAr:'مفاقس التسمين ومزارع التسمين والمجزر',titleEn:'Broiler Hatcheries, Broiler Farms & PPP',code:'1.3',keys:['brhSet','brhSaleable','broPlace','process']}
+};
+const V145_LABELS=new Map([
+ ['gpHE',['بيض تفقيس الجدود','GP hatching eggs']],['gphRecv',['استلام بيض مفقس الجدود','GP hatchery receipts']],['gphSet',['إيداع مفقس الجدود','GP hatchery setting']],['gphHatch',['فقس مفقس الجدود','GP hatch']],['gphRear',['كتاكيت PS','PS chicks']],['gphOffSex',['Off-Sex','Off-Sex']],
+ ['psrPlace',['تسكين أمهات التربية','PS rearing placement']],['pspTransfer',['النقل إلى الإنتاج','Transfer to production']],['psHE',['بيض تفقيس الأمهات','PS hatching eggs']],['brhIncoming',['استلام بيض مفاقس التسمين','Broiler hatchery receipts']],
+ ['brhSet',['إيداع مفاقس التسمين','Broiler hatchery setting']],['brhSaleable',['كتاكيت تسمين صالحة','Saleable broiler chicks']],['broPlace',['تسكين مزارع التسمين','Broiler placement']],['process',['المرسل للمجزر','Processed / kill']]
+]);
+function v145Brand(){try{CFG.version=V145;document.title='Sama Karbala — Poultry Command Center '+V145;const s=document.getElementById('brandSub');if(s)s.textContent=T('منصة مستقلة · Live Google Sheets · '+V145,'Independent platform · Live Google Sheets · '+V145);document.querySelectorAll('.version').forEach(v=>v.textContent='NEW CORE · '+V145)}catch(e){}}
+function v145YMAdd(ym,n){const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function v145Pct(x){return x==null||!Number.isFinite(+x)?'—':pct(x)}
+function v145Num(x){return x==null||!Number.isFinite(+x)?'—':fmt(x)}
+function v145Var(x){if(x==null||!Number.isFinite(+x))return'—';return (x>0?'+':'')+fmt(x)}
+function v145Cls(x){return x==null?'':x>=.97?'v145-good':x>=.90?'v145-warn':'v145-bad'}
+function v145Rows(M,ym,keys){return keys.map(k=>{const r=window.v142StageRow(M,k,ym),l=V145_LABELS.get(k)||[k,k];return{...r,label:T(l[0],l[1])}}).filter(r=>r.has)}
+function v145PastFutureTable(id,M,pastYM,nextYM,keys){
+ const past=v145Rows(M,pastYM,keys),future=v145Rows(M,nextYM,keys),all=[...new Set([...past.map(x=>x.key),...future.map(x=>x.key)])];
+ const pm=new Map(past.map(x=>[x.key,x])),fm=new Map(future.map(x=>[x.key,x]));
+ return tableHTML(id,[T('المؤشر','Metric'),T('Actual السابق','Previous actual'),T('Plan لنفس الفترة','Same-period plan'),T('تحقيق','Achievement'),T('Plan الفترة القادمة','Next-period plan'),T('Actual MTD','Actual MTD'),T('Expected','Expected'),T('تحقيق متوقع','Expected ach.'),T('فرق متوقع','Expected variance')],all.map(k=>{const p=pm.get(k)||{},f=fm.get(k)||{},lab=(p.label||f.label||k);return[lab,p.actual==null?'—':fmt(p.actual),p.planTD>0?fmt(p.planTD):'—',`<span class="${v145Cls(p.ach)}">${v145Pct(p.ach)}</span>`,f.plan>0?fmt(f.plan):'—',f.actual==null?'—':fmt(f.actual),f.expected==null?'—':fmt(f.expected),`<span class="${v145Cls(f.fcAch)}">${v145Pct(f.fcAch)}</span>`,f.expected!=null&&f.plan>0?v145Var(f.expected-f.plan):'—']}) )
+}
+function v145ProjectSummary(M,project,pastYM,nextYM){
+ const p=v145Rows(M,pastYM,project.keys),f=v145Rows(M,nextYM,project.keys),pBad=p.filter(x=>x.ach!=null&&x.ach<.95).sort((a,b)=>a.ach-b.ach),fBad=f.filter(x=>x.fcAch!=null&&x.fcAch<.95).sort((a,b)=>a.fcAch-b.fcAch),pGood=p.filter(x=>x.ach!=null&&x.ach>=.97).sort((a,b)=>b.ach-a.ach);
+ const parts=[];
+ if(pGood[0])parts.push(`<div><b>${T('أبرز نتيجة منفذة','Best executed result')}: ${pGood[0].label}</b><small>${T('تحقيق','Achievement')} ${pct(pGood[0].ach)}</small></div>`);
+ if(pBad[0])parts.push(`<div><b>${T('أهم انحراف منفذ','Main executed variance')}: ${pBad[0].label}</b><small>${T('تحقيق','Achievement')} ${pct(pBad[0].ach)}</small></div>`);
+ if(fBad[0])parts.push(`<div><b>${T('أهم مخاطرة قادمة','Main forward risk')}: ${fBad[0].label}</b><small>${T('Expected/Plan','Expected/Plan')} ${pct(fBad[0].fcAch)} · ${T('فرق','variance')} ${v145Var((fBad[0].expected||0)-(fBad[0].plan||0))}</small></div>`);
+ if(!parts.length)parts.push(`<div><b>${T('لا توجد إشارة كمية حرجة ضمن المؤشرات المدعومة','No critical quantitative signal in supported metrics')}</b><small>${T('يستمر الرصد حسب الخطة والفعلي والمتوقع','Continue monitoring plan, actual and expected')}</small></div>`);
+ return `<div class="v145-summary-list">${parts.join('')}</div>`
+}
+function v145Assessment(M,project,pastYM,nextYM){
+ const p=v145Rows(M,pastYM,project.keys),f=v145Rows(M,nextYM,project.keys),pAvg=(()=>{const z=p.filter(x=>x.ach!=null);return z.length?sum(z,x=>x.ach)/z.length:null})(),fAvg=(()=>{const z=f.filter(x=>x.fcAch!=null);return z.length?sum(z,x=>x.fcAch)/z.length:null})();
+ const pastText=pAvg==null?T('لا توجد مقارنة خطة قابلة للتدقيق','No auditable plan comparison'):pAvg>=.97?T('التنفيذ قريب/فوق الخطة','Execution at/above plan'):pAvg>=.9?T('انحراف متوسط عن الخطة','Moderate variance to plan'):T('فجوة تنفيذية تحتاج متابعة','Execution gap requires follow-up');
+ const futText=fAvg==null?T('لا يوجد Expected/Plan قابل للمقارنة','No comparable Expected/Plan'):fAvg>=.97?T('التوقع يغطي الخطة القادمة','Expected covers forward plan'):fAvg>=.9?T('تغطية متوقعة قريبة من الخطة','Expected close to forward plan'):T('فجوة متوقعة قبل الفترة القادمة','Expected forward shortfall');
+ return `<div class="v145-assess"><div><b>${T('Operational Assessment','Operational Assessment')}</b><span>${pastText}</span></div><div><b>${T('Forward Outlook','Forward Outlook')}</b><span>${futText}</span></div><div><b>${T('Management Action','Management Action')}</b><span>${fAvg!=null&&fAvg<.97?T('مراجعة جدول التنفيذ والتنسيق بين المشروع والمرحلة التالية قبل بداية الفترة','Review execution schedule and downstream coordination before period start'):T('الاستمرار بالمراجعة الأسبوعية Actual / Plan / Expected','Continue weekly Actual / Plan / Expected review')}</span></div></div>`
+}
+function v145ProjectSection(M,key,pastYM,nextYM,suffix='m'){
+ const p=V145_PROJECTS[key],title=`${p.code} · ${T(p.titleAr,p.titleEn)} — ${T('ملحق الإدارة العامة','GM management extension')}`;
+ const body=`<div class="v145-period-grid"><div class="v145-period"><strong>${T('الفترة المنفذة','Executed period')}: ${monthLabel(pastYM)}</strong><small>${T('Actual مقابل Plan لنفس الفترة ونسبة التحقيق','Actual vs same-period plan and achievement')}</small></div><div class="v145-period"><strong>${T('الفترة القادمة','Forward period')}: ${monthLabel(nextYM)}</strong><small>${T('Plan + Actual MTD إن وجد + Expected + نسبة التحقيق المتوقعة','Plan + Actual MTD where available + Expected + forecast attainment')}</small></div></div><div style="margin-top:10px">${v145PastFutureTable(`v145_${suffix}_${key}`,M,pastYM,nextYM,p.keys)}</div><div style="margin-top:10px">${v145ProjectSummary(M,p,pastYM,nextYM)}</div>${v145Assessment(M,p,pastYM,nextYM)}`;
+ return section(title,T('إضافة تحليلية فوق التقرير السابق؛ لا تحذف أو تستبدل أي تقرير قائم.','Additive analytics on top of the original report; no existing report is removed or replaced.'),body,`v145-${suffix}-${key}`)
+}
+function v145TrendTable(M,targetYM){
+ const m2=v145YMAdd(targetYM,-2),m1=v145YMAdd(targetYM,-1),keys=['gpHE','psHE','brhSaleable','broPlace','process'];
+ return tableHTML('v145Trend',[T('المؤشر','Metric'),monthLabel(m2),monthLabel(m1),T('التغير','Change'),T('قراءة الإدارة','Management reading')],keys.map(k=>{const a=window.v142StageRow(M,k,m2).actual,b=window.v142StageRow(M,k,m1).actual,l=V145_LABELS.get(k)||[k,k],chg=a>0&&b!=null?(b-a)/a:null;return[T(l[0],l[1]),a==null?'—':fmt(a),b==null?'—':fmt(b),chg==null?'—':pct(chg),chg==null?'—':chg>=.03?T('ارتفاع','Increase'):chg<=-.03?T('انخفاض','Decrease'):T('مستقر','Stable')]}) )
+}
+async function v145AppendMonthly(){
+ if(S.page!=='monthly'||!window.v142LoadAll)return;const host=document.getElementById('view');if(!host||host.querySelector('#v145-monthly-ribbon'))return;
+ const M=await window.v142LoadAll(),sel=document.getElementById('v117MonthSel'),targetYM=sel?.value||v145YMAdd(v142YM(M.latest),1),pastYM=v145YMAdd(targetYM,-1);
+ host.insertAdjacentHTML('beforeend',`<div id="v145-monthly-ribbon" class="v145-ribbon"><b>${T('إضافة الإدارة العامة — Actual / Plan / Expected','GM Add-on — Actual / Plan / Expected')}</b><span>${T('تم الإبقاء على التقرير الشهري السابق بالكامل أعلاه. الأقسام التالية تضيف فقط مقارنة الفترة المنفذة بالخطة وصورة الفترة القادمة بالخطة والمتوقع.','The original monthly report above is preserved in full. The following sections only add executed-period plan comparison and forward Plan/Expected visibility.')}</span></div>`);
+ host.insertAdjacentHTML('beforeend',v145ProjectSection(M,'gp',pastYM,targetYM,'m'));
+ host.insertAdjacentHTML('beforeend',v145ProjectSection(M,'ps',pastYM,targetYM,'m'));
+ host.insertAdjacentHTML('beforeend',v145ProjectSection(M,'br',pastYM,targetYM,'m'));
+ host.insertAdjacentHTML('beforeend',section('1.4 · '+T('Management Variance & Trend Indicators','Management Variance & Trend Indicators'),T('امتداد مباشر لطلب المدير العام: الاتجاه لا يعني حكماً بحد ذاته، والحكم يعتمد على طبيعة المؤشر.','Direct extension of the GM request: direction alone is not the judgement; interpretation depends on the metric.'),v145TrendTable(M,targetYM),'v145-m-trend'));
+ const risks=window.v142Risks(v145Rows(M,targetYM,[...V145_PROJECTS.gp.keys,...V145_PROJECTS.ps.keys,...V145_PROJECTS.br.keys]),M,targetYM);
+ host.insertAdjacentHTML('beforeend',section('1.5 · '+T('Operational Risk & Monitoring — الفترة القادمة','Operational Risk & Monitoring — Forward Period'),T('إشارات كمية فقط من الخطة والمتوقع والقياسي؛ لا يتم افتراض الأسباب الجذرية.','Quantitative signals from plan, expected and standards only; root causes are not inferred.'),risks.length?`<div class="v142-risk-grid">${risks.map(x=>`<div class="v142-risk ${x.c}"><b>${x.t}</b><span>${x.s}</span></div>`).join('')}</div>`:`<div class="v145-note">${T('لا توجد إشارة كمية حرجة ضمن المؤشرات المدعومة.','No critical quantitative signal in supported metrics.')}</div>`,'v145-m-risk'));
+ wireExports();
+}
+function v145QuarterPair(M,pastMonths,nextMonths,project,id){
+ const pa=window.v142QuarterAgg(M,pastMonths).filter(x=>project.keys.includes(x.key)),nx=window.v142QuarterAgg(M,nextMonths).filter(x=>project.keys.includes(x.key)),all=[...new Set([...pa.map(x=>x.key),...nx.map(x=>x.key)])],pm=new Map(pa.map(x=>[x.key,x])),nm=new Map(nx.map(x=>[x.key,x]));
+ return tableHTML(id,[T('المؤشر','Metric'),T('Actual الربع المنفذ','Executed Q actual'),T('Plan لنفس الفترة','Same Q plan'),T('تحقيق','Achievement'),T('Plan الربع القادم','Next Q plan'),T('Expected الربع القادم','Next Q expected'),T('تحقيق متوقع','Expected ach.'),T('فرق متوقع','Expected variance')],all.map(k=>{const p=pm.get(k)||{},n=nm.get(k)||{},l=V145_LABELS.get(k)||[k,k];return[T(l[0],l[1]),p.actual==null?'—':fmt(p.actual),p.planTD>0?fmt(p.planTD):'—',`<span class="${v145Cls(p.ach)}">${v145Pct(p.ach)}</span>`,n.plan>0?fmt(n.plan):'—',n.expected==null?'—':fmt(n.expected),`<span class="${v145Cls(n.fcAch)}">${v145Pct(n.fcAch)}</span>`,n.expected!=null&&n.plan>0?v145Var(n.expected-n.plan):'—']}) )
+}
+async function v145AppendQuarterly(){
+ if(S.page!=='quarterly'||!window.v142LoadAll)return;const host=document.getElementById('view');if(!host||host.querySelector('#v145-quarterly-ribbon'))return;
+ const M=await window.v142LoadAll(),sel=document.getElementById('v117QSel'),q=sel?.value||v142QuarterEnd(v142YM(M.latest)),past=[v145YMAdd(q,-3),v145YMAdd(q,-2),v145YMAdd(q,-1)],next=[q,v145YMAdd(q,1),v145YMAdd(q,2)];
+ host.insertAdjacentHTML('beforeend',`<div id="v145-quarterly-ribbon" class="v145-ribbon"><b>${T('إضافة الإدارة العامة للربع — المحافظة على التقرير السابق + Forward View','GM Quarterly Add-on — original report preserved + Forward View')}</b><span>${T('كل جداول ومخططات التقرير الربع سنوي السابق بقيت أعلاه. هذا الملحق يضيف Actual/Plan للربع المنفذ وPlan/Expected للربع القادم حسب المشاريع.','All original quarterly tables and charts remain above. This add-on adds executed-quarter Actual/Plan and next-quarter Plan/Expected by project.')}</span></div>`);
+ for(const key of ['gp','ps','br']){const p=V145_PROJECTS[key];host.insertAdjacentHTML('beforeend',section(`${p.code} · ${T(p.titleAr,p.titleEn)} — ${T('Quarter Management Extension','Quarter Management Extension')}`,T('نفس تقسيم تقرير المدير العام السابق مع إضافة الخطة والتوقع للربع القادم.','Same GM project grouping with forward plan and expected added.'),v145QuarterPair(M,past,next,p,`v145_q_${key}`),`v145-q-${key}`))}
+ const bridge=[...past,...next];host.insertAdjacentHTML('beforeend',section('1.4 · '+T('Monthly Bridge — من الربع المنفذ إلى الربع القادم','Monthly Bridge — executed to forward quarter'),T('يبقي الأشهر المنفذة Actual والأشهر القادمة Expected منفصلة بوضوح.','Keeps executed months as Actual and future months as Expected.'),tableHTML('v145QBridge',[T('الشهر','Month'),T('GP HE','GP HE'),T('PS HE','PS HE'),T('Saleable chicks','Saleable chicks'),T('Broiler placement','Broiler placement'),T('Processing','Processing'),T('نوع القراءة','Reading type')],bridge.map(m=>{const future=next.includes(m),vals=['gpHE','psHE','brhSaleable','broPlace','process'].map(k=>window.v142StageRow(M,k,m));return[monthLabel(m),...vals.map(r=>future?(r.expected==null?'—':fmt(r.expected)):(r.actual==null?'—':fmt(r.actual))),future?T('Expected / Forecast','Expected / Forecast'):'Actual']})),'v145-q-bridge'));
+ const pl=next.map(m=>({m,...window.v142PlantOps(M,m)}));host.insertAdjacentHTML('beforeend',section('1.5 · '+T('Processing Capacity & Stoppage Outlook','Processing Capacity & Stoppage Outlook'),T('التوقفات التاريخية من أيام صفر إنتاج غير الجمعة؛ لا يتم افتراض سبب التوقف.','Historical stoppage signal uses non-Friday zero-output days; the cause is not inferred.'),tableHTML('v145QPlant',[T('الشهر','Month'),T('Processed','Processed'),T('أيام تشغيل','Operating days'),T('أيام صفر غير الجمعة','Zero-output non-Friday'),T('استغلال الطاقة','Capacity util.'),T('طاقة غير مستخدمة','Unused capacity')],pl.map(x=>[monthLabel(x.m),fmt(x.head),fmt(x.operating),fmt(x.zero),x.util==null?'—':pct(x.util),x.unused==null?'—':fmt(x.unused)])),'v145-q-plant'));
+ wireExports();
+}
+const _v145Monthly=RENDER.monthly,_v145Quarterly=RENDER.quarterly;
+RENDER.monthly=async function(){await _v145Monthly();try{await v145AppendMonthly()}catch(e){console.warn('V145 monthly add-on',e)}v145Brand()};
+RENDER.quarterly=async function(){await _v145Quarterly();try{await v145AppendQuarterly()}catch(e){console.warn('V145 quarterly add-on',e)}v145Brand()};
+const _v145RenderCurrent=renderCurrent;renderCurrent=async function(){const r=await _v145RenderCurrent();v145Brand();return r};
+const _v145SetLang=setLang;setLang=function(){_v145SetLang();v145Brand()};
+window.v145AppendMonthly=v145AppendMonthly;window.v145AppendQuarterly=v145AppendQuarterly;
+setTimeout(()=>{v145Brand();if(['monthly','quarterly'].includes(S.page))renderCurrent()},450);
+})();
+</script>
+
 </body>
 </html>
