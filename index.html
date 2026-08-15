@@ -1946,12 +1946,14 @@ function pl115Status(x){
 }
 function pl115Build(place,farms,proc,live){
  const H=new Map();
- const ensure=(c,f,h)=>{const k=keyH(c,f,h);if(!H.has(k))H.set(k,{key:k,cycle:c,farm:f,house:h,placed:0,placeDate:null,procRows:[],liveRows:[],firstProc:null,lastProc:null,lastLive:null,processed:0,netkg:0,live:0,mort:0,cull:0,feed:0,lastFarmDate:null});return H.get(k)};
- place.forEach(r=>{const x=ensure(r.cycle,r.farm,r.house);x.placed+=r.placed;if(!x.placeDate||r.date<x.placeDate)x.placeDate=r.date});
- proc.forEach(r=>{const x=ensure(r.cycle,r.farm,r.house);x.procRows.push(r);x.processed+=r.head;x.netkg+=r.kg;if(!x.firstProc||r.date<x.firstProc)x.firstProc=r.date;if(!x.lastProc||r.date>x.lastProc)x.lastProc=r.date});
- live.forEach(r=>{const x=ensure(r.cycle,r.farm,r.house);x.liveRows.push(r);x.live+=r.head;if(!x.lastLive||r.date>x.lastLive)x.lastLive=r.date});
+ const cohorts=new Map();
+ const ensure=(c,f,h,placementDate='')=>{const base=keyH(c,f,h),stamp=placementDate||'UNMATCHED',k=`${base}|${stamp}`;if(!H.has(k))H.set(k,{key:k,baseKey:base,cohortDate:placementDate,cycle:c,farm:f,house:h,placed:0,placeDate:null,procRows:[],liveRows:[],firstProc:null,lastProc:null,lastLive:null,processed:0,netkg:0,live:0,mort:0,cull:0,feed:0,lastFarmDate:null});return H.get(k)};
+ place.slice().sort((a,b)=>a.date-b.date).forEach(r=>{const base=keyH(r.cycle,r.farm,r.house),stamp=iso(r.date),x=ensure(r.cycle,r.farm,r.house,stamp);x.placed+=r.placed;x.placeDate=r.date;const list=cohorts.get(base)||[];if(!list.includes(x)){list.push(x);list.sort((a,b)=>a.placeDate-b.placeDate);cohorts.set(base,list)}});
+ const locate=r=>{const base=keyH(r.cycle,r.farm,r.house),list=cohorts.get(base)||[];let hit=null;for(const x of list){if(x.placeDate&&x.placeDate<=r.date)hit=x;else break}return hit||ensure(r.cycle,r.farm,r.house,'')};
+ proc.forEach(r=>{const x=locate(r);x.procRows.push(r);x.processed+=r.head;x.netkg+=r.kg;if(!x.firstProc||r.date<x.firstProc)x.firstProc=r.date;if(!x.lastProc||r.date>x.lastProc)x.lastProc=r.date});
+ live.forEach(r=>{const x=locate(r);x.liveRows.push(r);x.live+=r.head;if(!x.lastLive||r.date>x.lastLive)x.lastLive=r.date});
  // Sum farm movements once, only through the final output date for each house.
- farms.forEach(r=>{const x=H.get(keyH(r.cycle,r.farm,r.house));if(!x)return;const end=(x.lastProc&&x.lastLive)?(x.lastProc>x.lastLive?x.lastProc:x.lastLive):(x.lastProc||x.lastLive);if(!end)return;if(x.placeDate&&r.date<x.placeDate)return;if(r.date>end)return;x.mort+=r.mort;x.cull+=r.cull;x.feed+=r.feed;if(!x.lastFarmDate||r.date>x.lastFarmDate)x.lastFarmDate=r.date});
+ farms.forEach(r=>{const x=locate(r);if(!x||!x.placeDate)return;const end=(x.lastProc&&x.lastLive)?(x.lastProc>x.lastLive?x.lastProc:x.lastLive):(x.lastProc||x.lastLive);if(!end||r.date<x.placeDate||r.date>end)return;x.mort+=r.mort;x.cull+=r.cull;x.feed+=r.feed;if(!x.lastFarmDate||r.date>x.lastFarmDate)x.lastFarmDate=r.date});
  const houses=[...H.values()].filter(x=>x.processed>0||x.live>0);
  houses.forEach(x=>{
    x.available=x.placeDate?Math.max(0,x.placed-x.mort-x.cull):null;
@@ -2016,8 +2018,8 @@ RENDER.plant=async function(){
  const feedCycle=byCycle.filter(x=>x.effHouses>0).map(x=>[x.cycle,fmt(x.effHouses),fmt(x.effHead),fmt(x.effKg),fmt(x.effFeed),x.ratio!=null?fmt(x.ratio,3):'—',x.rossFcr!=null?fmt(x.rossFcr,3):'—',x.fcrGap!=null?pl115Signed(x.fcrGap,3):'—',x.age!=null?fmt(x.age,1):'—']);
  h+=section(T('العلف المستهلك لكل كغم وزن حي مرسل للمجزر','Feed consumed per kg live weight sent to plant'),T('على مستوى الحضيرة والمزرعة والدورة والإجمالي','House, farm, cycle and overall levels'),`<div class="kpis">${kpi(T('إجمالي العلف للحظائر المؤهلة','Eligible feed total'),fmt(eff.feed)+' kg',fmt(eff.houses)+' '+T('حضيرة','houses'),'var(--gold)')}${kpi(T('إجمالي الوزن الحي المؤهل','Eligible live kg'),fmt(eff.kg)+' kg',T('Farm Net Weight KG','Farm Net Weight KG'),'var(--cyan)')}${kpi(T('كغم علف / كغم وزن حي','kg feed / kg live weight'),eff.ratio!=null?fmt(eff.ratio,3):'—',T('ΣFeed ÷ ΣFarm Net Weight','ΣFeed ÷ ΣFarm Net Weight'),'var(--vio)')}${kpi(T('Ross لنفس الأعمار','Ross at same ages'),eff.rossFcr!=null?fmt(eff.rossFcr,3):'—',eff.fcrGap!=null?T('فرق ','Gap ')+pl115Signed(eff.fcrGap,3):'','var(--teal)')}</div><div class="grid2" style="margin-top:12px">${card(T('علف/kg حسب المزرعة','Feed/kg by farm'),'', '<div class="chartbox"><canvas id="pl115FeedFarm"></canvas></div>')}${card(T('علف/kg حسب الدورة','Feed/kg by cycle'),'', '<div class="chartbox"><canvas id="pl115FeedCycle"></canvas></div>')}</div><h3 style="margin-top:16px">${T('على مستوى الحضيرة','House level')}</h3>${tableHTML('pl115FeedHouse',[T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضيرة','House'),T('تاريخ التسكين','Placement date'),T('أول إرسال','First dispatch'),T('آخر إرسال','Last dispatch'),T('المسكن','Placed'),T('نافق','Mort'),T('معدم','Cull'),T('استبعاد','Depletion'),T('المجزر','Processed'),T('الوزن الحي kg','Live net kg'),T('متوسط kg','Avg kg'),T('العلف kg','Feed kg'),T('علف/kg','Feed/kg'),'Ross FCR',T('الفرق','Gap'),T('عمر الإرسال','Age'),T('مطابقة الخارج','Settlement'),T('الحالة','Status')],feedHouseRows)}<div class="grid2" style="margin-top:12px">${card(T('ملخص المزارع','Farm summary'),'',tableHTML('pl115FeedFarmTbl',[T('المزرعة','Farm'),T('حضائر مؤهلة','Eligible houses'),T('رؤوس','Head'),T('وزن kg','Net kg'),T('علف kg','Feed kg'),T('علف/kg','Feed/kg'),'Ross FCR',T('فرق','Gap'),T('العمر','Age')],feedFarm))}${card(T('ملخص الدورات','Cycle summary'),'',tableHTML('pl115FeedCycleTbl',[T('الدورة','Cycle'),T('حضائر مؤهلة','Eligible houses'),T('رؤوس','Head'),T('وزن kg','Net kg'),T('علف kg','Feed kg'),T('علف/kg','Feed/kg'),'Ross FCR',T('فرق','Gap'),T('العمر','Age')],feedCycle))}</div><div class="method-note"><b>${T('طريقة الحساب','Calculation')}</b> ${T('الحظيرة تدخل الحساب فقط إذا كانت مطابقتها ≥95% ولا تحتوي بيعاً حياً. علف/kg = مجموع علف الحضيرة من التسكين حتى آخر خروج ÷ Farm Net Weight KG المرسل للمجزر. هذا المؤشر يساوي منطق FCR للحظائر المؤهلة. Farm Net Weight هو وزن حي صافي مرسل من المزرعة وليس وزن الذبيحة؛ لذلك لا يسمى كغم لحم أو Dressed Weight.','A house is included only when settlement is ≥95% and it has no live sales. Feed/kg = house feed from placement through final output ÷ Farm Net Weight KG sent to the plant. This is the FCR logic for eligible houses. Farm Net Weight is net live weight sent from the farm, not carcass/dressed weight, so it is not labelled kg of meat.')}</div>`,'pl115-feedkg');
  // House reconciliation back to broiler farms.
- const recRows=houses.slice().sort((a,b)=>Math.abs((b.balance??0)) - Math.abs((a.balance??0))).map(x=>[x.cycle,x.farm,x.house,fmt(x.placed),fmt(x.mort),fmt(x.cull),x.available!=null?fmt(x.available):'—',fmt(x.processed),fmt(x.live),fmt(x.output),x.balance!=null?pl115Signed(x.balance,0):'—',x.completion!=null?pct(x.completion):'—',x.avgAge!=null?fmt(x.avgAge,1):'—',x.status]);
- h+=section(T('مطابقة مزارع التسمين مع المجزر','Broiler farm to plant reconciliation'),T('المسكن − النافق − المعدم مقابل المجزر والبيع الحي','Placed − mortality − culls versus processed and live sales'),tableHTML('pl115Recon',[T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضيرة','House'),T('المسكن','Placed'),T('نافق','Mort'),T('معدم','Cull'),T('المتاح','Available'),T('المجزر','Processed'),T('بيع حي','Live'),T('إجمالي الخارج','Output'),T('الرصيد/الفرق','Balance/Gap'),T('الخارج/المتاح','Output/available'),T('عمر المجزر','Plant age'),T('الحالة','Status')],recRows),'pl115-recon');
+ const recRows=houses.slice().sort((a,b)=>Math.abs((b.balance??0)) - Math.abs((a.balance??0))).map(x=>[x.cycle,x.farm,x.house,iso(x.placeDate),fmt(x.placed),fmt(x.mort),fmt(x.cull),x.available!=null?fmt(x.available):'—',fmt(x.processed),fmt(x.live),fmt(x.output),x.balance!=null?pl115Signed(x.balance,0):'—',x.completion!=null?pct(x.completion):'—',x.avgAge!=null?fmt(x.avgAge,1):'—',x.status]);
+ h+=section(T('مطابقة مزارع التسمين مع المجزر','Broiler farm to plant reconciliation'),T('كل تاريخ تسكين يمثل دفعة مستقلة؛ تُربط الحركات والمجزر بأحدث تسكين سابق لنفس الدورة والمزرعة والحضيرة.','Each placement date is a separate cohort; farm movements and plant output link to the latest prior placement for the same cycle, farm and house.'),tableHTML('pl115Recon',[T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضيرة','House'),T('تاريخ التسكين','Placement date'),T('المسكن','Placed'),T('نافق','Mort'),T('معدم','Cull'),T('المتاح','Available'),T('المجزر','Processed'),T('بيع حي','Live'),T('إجمالي الخارج','Output'),T('الرصيد/الفرق','Balance/Gap'),T('الخارج/المتاح','Output/available'),T('عمر المجزر','Plant age'),T('الحالة','Status')],recRows),'pl115-recon');
  const monRows=months.map(x=>[x.month,fmt(x.processed),fmt(x.live),fmt(x.total),x.mix!=null?pct(x.mix):'—',fmt(x.kg),x.avg?fmt(x.avg,3):'—',fmt(x.shipments),fmt(x.farms),fmt(x.yHead),fmt(x.yKg)]);
  h+=section(T('الإنتاج الشهري — المجزر والبيع الحي','Monthly output — processing & live sales'),T('تقرير V13.2 / Power BI المدعوم مباشرة من بيانات الحركة','V13.2 / Power BI report directly supported by transaction data'),tableHTML('pl115Month',[T('الشهر','Month'),T('المجزر','Processed'),T('بيع حي','Live'),T('إجمالي الخارج','Total output'),T('حصة المجزر','Processed mix'),T('الوزن kg','Net kg'),T('متوسط kg','Avg kg'),T('إرساليات','Dispatches'),T('مزارع','Farms'),T('مجزر تراكمي','Processed YTD*'),T('وزن تراكمي kg','Net kg YTD*')],monRows),'pl115-month');
  // Dedicated Actual vs Budget; budget is project-level only and therefore hidden when farm/cycle filter is selected.
@@ -2026,7 +2028,7 @@ RENDER.plant=async function(){
    let yh=0,yhb=0,yk=0,ykb=0,lastY='';const br=bm.map(x=>{const yr=x.ym.slice(0,4);if(yr!==lastY){yh=0;yhb=0;yk=0;ykb=0;lastY=yr}yh+=x.actualHead;yhb+=x.budgetHead;yk+=x.actualKg;ykb+=x.budgetKg;return[x.ym,fmt(x.actualHead),fmt(x.budgetHead),x.budgetHead?pct(x.actualHead/x.budgetHead):'—',fmt(x.actualKg),fmt(x.budgetKg),x.budgetKg?pct(x.actualKg/x.budgetKg):'—',fmt(yh),fmt(yhb),fmt(yk),fmt(ykb),x.doa!=null?pct(x.doa):'—',x.budgetDoa!=null?pct(x.budgetDoa):'—']});
    h+=section('Actual vs Budget',T('من ملف Actual vs Budget فقط؛ لا يعيد تعريف أرقام التشغيل أعلاه','From the Actual vs Budget dataset only; it does not redefine the operational figures above'),`<div class="grid2">${card(T('الرؤوس الفعلية مقابل الميزانية','Actual vs budget head'),'', '<div class="chartbox"><canvas id="pl115BudgetHead"></canvas></div>')}${card(T('الوزن الفعلي مقابل الميزانية','Actual vs budget weight'),'', '<div class="chartbox"><canvas id="pl115BudgetKg"></canvas></div>')}</div>${tableHTML('pl115Budget',[T('الشهر','Month'),T('رؤوس فعلي','Actual head'),T('رؤوس Budget','Budget head'),T('تحقيق الرؤوس','Head ach'),T('kg فعلي','Actual kg'),T('kg Budget','Budget kg'),T('تحقيق kg','kg ach'),T('رؤوس YTD فعلي','Actual head YTD'),T('رؤوس YTD Budget','Budget head YTD'),T('kg YTD فعلي','Actual kg YTD'),T('kg YTD Budget','Budget kg YTD'),'DOA '+T('فعلي','Actual'),'DOA Budget'],br)}`,'pl115-budget');
  }
- const pl115HouseMap=new Map(housesAll.map(z=>[z.key,z]));const ledger=proc.slice().sort((a,b)=>b.date-a.date).map(x=>{const hh=pl115HouseMap.get(keyH(x.cycle,x.farm,x.house));const age=hh?.placeDate?dayDiff(hh.placeDate,x.date):null;return[iso(x.date),x.cycle,x.farm,x.house,fmt(x.head),fmt(x.kg),x.head&&x.kg>0?fmt(x.kg/x.head,3):'—',age!=null?fmt(age):'—']});
+ const pl115CohortsByBase=group(housesAll,z=>z.baseKey||keyH(z.cycle,z.farm,z.house));const pl115CohortAt=x=>{const list=(pl115CohortsByBase.get(keyH(x.cycle,x.farm,x.house))||[]).slice().sort((a,b)=>(a.placeDate||0)-(b.placeDate||0));let hit=null;for(const z of list){if(z.placeDate&&z.placeDate<=x.date)hit=z;else break}return hit};const ledger=proc.slice().sort((a,b)=>b.date-a.date).map(x=>{const hh=pl115CohortAt(x);const age=hh?.placeDate?dayDiff(hh.placeDate,x.date):null;return[iso(x.date),x.cycle,x.farm,x.house,fmt(x.head),fmt(x.kg),x.head&&x.kg>0?fmt(x.kg/x.head,3):'—',age!=null?fmt(age):'—']});
  h+=section(T('دفتر الإرسال للمجزر','Processing dispatch ledger'),'',tableHTML('pl115Ledger',[T('التاريخ','Date'),T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضيرة','House'),T('الرؤوس','Head'),T('الوزن الصافي kg','Net kg'),T('متوسط الوزن kg','Avg kg'),T('العمر يوم','Age d')],ledger),'pl115-ledger');
  const lrows=live.slice().sort((a,b)=>b.date-a.date).map(x=>[iso(x.date),x.cycle,x.farm,x.house,fmt(x.head)]);
  h+=section(T('دفتر البيع الحي','Live-sales ledger'),T('البيع الحي يخصم من رصيد الحضيرة لكنه لا يدخل ضمن إنتاج المجزر ولا Feed/kg','Live sales reduce house balance but are excluded from processing output and Feed/kg'),tableHTML('pl115Live',[T('التاريخ','Date'),T('الدورة','Cycle'),T('المزرعة','Farm'),T('الحضيرة','House'),T('الرؤوس','Head')],lrows),'pl115-live');
@@ -7279,6 +7281,53 @@ const oldChain=RENDER.chain;RENDER.chain=async function(){const r=await oldChain
 const oldCurrent=renderCurrent;renderCurrent=async function(){const r=await oldCurrent();if(S.page==='chain')await enhance();stamp();return r};
 window.SK_CHAIN_SOURCE_BINDINGS_V135=Object.freeze({release:RELEASE,parseGphSource,parsePspPlan,parseBrhPlan,rules:Object.freeze({gphMale:'GP_Hatchery N · Act. Set M / L4',gphFemale:'GP_Hatchery G · Act. Set FML / L8',gphJoin:'flock number, never row position',pspPlan:'PS_Production F · Day Plan',pspExpected:'Flocks female inventory and age × Ross 308 PS',brhPlan:'BR_Hatchery Set Plan and Placement Chicks Plan',brhExpected:'set plan × recent weighted actual hatch/saleable rate'})});
 const ready=()=>{stamp();setTimeout(()=>{if(S.page==='chain')enhance().catch(e=>window.SK_ERROR_BUS?.capture(e,'v135 ready'))},2800)};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();
+})();
+</script>
+
+<style id="v136-psr-mtd-cohort-style">
+#pl115Recon th:nth-child(4),#pl115Recon td:nth-child(4){white-space:nowrap;color:var(--cyan)}
+.v136-source-proof{margin-top:7px;color:var(--mut);font-size:8px;line-height:1.55}
+.v136-source-proof b{color:var(--teal)}
+</style>
+<script id="v136-psr-mtd-cohort-fix">
+(function(){
+'use strict';
+const RELEASE='V1.3.6';
+const previousStageRow=window.v142StageRow;
+const monthRange=period=>{const m=String(period||'').match(/^(\d{4})-(\d{2})$/);if(!m)return{a:'',b:''};const y=+m[1],mo=+m[2];return{a:`${m[1]}-${m[2]}-01`,b:iso(new Date(y,mo,0))}};
+const mapSum=(map,a,b)=>Object.entries(map||{}).reduce((s,[d,v])=>s+(d>=a&&d<=b&&Number.isFinite(+v)?+v:0),0);
+const addDay=d=>{const x=parseDate(d);return x?iso(addDays(x,1)):''};
+if(typeof previousStageRow==='function')window.v142StageRow=function(M,k,period){
+ const base=previousStageRow(M,k,period);
+ if(k!=='psrPlace')return base;
+ const rg=monthRange(period),fresh=M?.cuts?.psrDaily||'',eventCut=M?.cuts?.psrPlace||base.cut||'';
+ if(!rg.a||!fresh||fresh<rg.a)return{...base,eventCut,freshnessCut:fresh};
+ const cut=fresh<rg.b?fresh:rg.b,actual=mapSum(M?.A?.psrPlace,rg.a,cut),planTD=mapSum(M?.P?.psrPlace,rg.a,cut),plan=mapSum(M?.P?.psrPlace,rg.a,rg.b);
+ let expected=null;if(rg.b>cut){const next=addDay(cut);expected=actual+(next&&next<=rg.b?mapSum(M?.E?.psrPlace,next,rg.b):0)}
+ const ach=planTD>0?actual/planTD:null,fcAch=plan>0&&expected!=null?expected/plan:null;
+ return{...base,actual:Math.round(actual),planTD:Math.round(planTD),plan:Math.round(plan),expected:expected==null?null:Math.round(expected),ach,fcAch,cut,covered:true,eventCut,freshnessCut:fresh,has:actual>0||plan>0||(expected||0)>0,cutBasis:'psrDaily'};
+};
+const display=d=>{const x=parseDate(d);return x?x.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'};
+function fixExecutivePeriods(M){
+ const root=document.getElementById('uxExecutiveHome');if(!root)return;
+ const defs={GP:'gpHE',GPH:'gphSet',PSR:'psrPlace',PSP:'psHE',BRH:'brhSaleable',BR:'broPlace',PL:'process'};
+ const period=String(M.latest||'').slice(0,7),rg=monthRange(period);
+ for(const card of root.querySelectorAll('.ux-stage')){
+  const code=String(card.querySelector('.ux-stage-code')?.textContent||'').trim(),key=defs[code];if(!key)continue;
+  const row=window.v142StageRow(M,key,period),end=code==='PSR'?(M.cuts?.psrDaily||row.cut):row.cut;
+  const box=card.querySelector('.v216-card-periods');if(box)box.innerHTML=`<span><b>MTD</b> ${row.covered&&end?`${display(rg.a)} → ${display(end<rg.b?end:rg.b)}`:'—'}</span><span><b>EOM</b> ${display(rg.a)} → ${display(rg.b)}</span>`;
+  if(code==='PSR'){const status=card.querySelector('.ux-status');if(status)status.innerHTML=`${T('تسكين أمهات التربية','PS rearing placement')} · <span class="v215-unit-badge">${T('طائر','bird')}</span><div class="v136-source-proof"><b>${T('حداثة التشغيل اليومي','Daily operations freshness')}:</b> ${display(M.cuts?.psrDaily)} · ${T('آخر حركة تسكين','Latest placement event')}: ${display(M.cuts?.psrPlace)}</div>`}
+ }
+}
+async function enhance(){
+ if(!['home','data'].includes(S.page)||typeof window.v142LoadAll!=='function')return;
+ try{const M=await window.v142LoadAll();if(S.page==='home')fixExecutivePeriods(M)}catch(e){window.SK_ERROR_BUS?.capture(e,'v136 PSR MTD period')}
+ stamp();
+}
+function stamp(){try{CFG.version=RELEASE;document.title=`Sama Karbala — ${RELEASE}`;const b=document.getElementById('brandSub');if(b)b.textContent=T(`فترات MTD صحيحة · ربط دفعات التسمين حسب تاريخ التسكين · ${RELEASE}`,`Correct MTD periods · placement-date cohort reconciliation · ${RELEASE}`);document.querySelectorAll('.version').forEach(x=>x.textContent=`MTD + COHORT FIX · ${RELEASE}`)}catch(e){window.SK_ERROR_BUS?.capture(e,'v136 stamp')}}
+const oldRender=renderCurrent;renderCurrent=async function(){const r=await oldRender();await enhance();setTimeout(()=>enhance().catch(e=>window.SK_ERROR_BUS?.capture(e,'v136 delayed enhance')),800);return r};
+window.SK_PSR_MTD_COHORT_V136=Object.freeze({release:RELEASE,psrCut:'psrDaily',mtdStart:'calendar month day 1',cohortKey:'cycle + farm + house + placement date',sourceProof:'Placement BF01-10 cycle 0022 = 34,000 on 2026-06-03 and 34,000 on 2026-07-29; never summed as one cohort'});
+const ready=()=>{stamp();setTimeout(()=>enhance().catch(e=>window.SK_ERROR_BUS?.capture(e,'v136 ready')),1800)};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();
 })();
 </script>
 
