@@ -1,6 +1,6 @@
 <!-- V1.1.34 | Runtime/Data Fix: repaired Cumulative row-3 header, CX scope bridge, official broiler current inventory, and chain active-house reconciliation. -->
 <!DOCTYPE html>
-<!-- V1.3.31 | Quarterly authoritative rebuild. Calendar-quarter semantics, audited source roles, live-plan attempt under file://, weighted ratio calculations, PS HE plan-actualization guard, explicit Planned Chicks for Broiler/Plant Plan, non-duplicate project scorecards, next-quarter readiness, 12-month outlook, variance Pareto, source freshness. V1.3.21 Chain structure preserved. -->
+<!-- V1.3.36 | Tom feedback applied: leaderboard rank = validated KGS/M2/WEEK (KGM2PW), equivalent to Total Weight / area / cycle-days × 7; farm denominator = 16×1,680 = 26,880 m². Live Sales rows are not ranked because Live Sales has no weight. LITRES/M2 clarified as LPG/fuel-oil metric, not water, and remains NA without a validated fuel-volume source. Rolling remains latest 4/3 completed cycles. No estimated weights, areas, fuel litres, or farm names. -->
 
 <!-- V1.1.46: Monthly/Quarterly calculation audit. Original GM reports preserved; future engine corrected for stage-specific cutoffs, 32-day slaughter age, mortality-aware breeder forecasts, historical-plan actualization guard, and forward capacity logic. -->
 <html dir="rtl" lang="ar">
@@ -333,6 +333,49 @@ body.light .v188-kpi .sub{color:#5f738b!important}
 .v131q-legend{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.v131q-legend span{padding:4px 8px;border-radius:999px;border:1px solid rgba(80,126,163,.22);font-size:9.5px}.v131q-legend b{color:var(--text)}
 @media(max-width:1150px){.v131q-kpis{grid-template-columns:repeat(3,1fr)}.v131q-grid3{grid-template-columns:1fr 1fr}}
 @media(max-width:800px){.v131q-kpis,.v131q-grid2,.v131q-grid3{grid-template-columns:1fr}.v131q-meta{grid-template-columns:1fr}}
+</style>
+
+
+<style id="v133m-gm-monthly-compat-style">
+.v133m-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid rgba(74,183,237,.25);border-radius:999px;font-size:9.5px;font-weight:850}
+.v133m-tag.ok{color:var(--teal);border-color:rgba(53,208,178,.32)}
+.v133m-tag.warn{color:var(--gold);border-color:rgba(242,184,75,.32)}
+.v133m-tag.bad{color:var(--coral);border-color:rgba(255,117,136,.32)}
+.v133m-good{color:var(--teal);font-weight:850}.v133m-warn{color:var(--gold);font-weight:850}.v133m-bad{color:var(--coral);font-weight:850}
+.v133m-source{font-size:9.5px;color:var(--mut);line-height:1.55}
+.v133m-method{margin-top:8px;padding:8px 10px;border-inline-start:3px solid var(--cyan);border-radius:8px;background:rgba(74,183,237,.045);color:var(--mut);font-size:10.5px;line-height:1.65}
+.v133m-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.v133m-chart{height:260px}
+.v133m-mini-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:8px}
+.v133m-mini{padding:9px;border:1px solid rgba(80,126,163,.2);border-radius:9px;background:rgba(255,255,255,.015)}
+.v133m-mini span{display:block;color:var(--mut);font-size:9.5px}.v133m-mini b{display:block;margin-top:3px;font-size:14px}
+@media(max-width:980px){.v133m-grid2,.v133m-mini-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.v133m-grid2,.v133m-mini-grid{grid-template-columns:1fr}}
+</style>
+
+
+<style id="v134-tom-report-style">
+.tom-page{padding:0 2px 28px}.tom-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;margin:8px 0 10px;border:1px solid #153958;border-radius:10px;background:linear-gradient(180deg,#10243d,#0c1c31)}.tom-tabs{display:flex;gap:6px;flex-wrap:wrap}.tom-tabs button{border:1px solid #244862;border-radius:7px;background:#0a1b2e;color:#b8cae0;padding:9px 12px;font-weight:850;cursor:pointer}.tom-tabs button.on{background:#1479eb;color:#fff;border-color:#2793ff;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}.tom-left{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}.tom-control{display:flex;flex-direction:column;gap:4px}.tom-control label{font-size:9.5px;color:#aac0d8;font-weight:800}.tom-control select{min-width:170px;background:#081b2e;color:#fff;border:1px solid #244862;border-radius:7px;padding:8px 10px;font-weight:800}
+.tom-report-sheet{background:#fff;color:#111;padding:15px 13px 16px;border:1px solid #d6d6d6;border-radius:2px;box-shadow:0 10px 25px rgba(0,0,0,.16)}.tom-report-brand{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:13px}.tom-report-brand .company{font-family:Arial,sans-serif;font-size:18px;font-weight:950;letter-spacing:-.3px}.tom-report-brand small{display:block;color:#6f9acb;font:10px Arial,sans-serif;margin-top:2px}.tom-report-brand .period{font:900 11px Arial,sans-serif;text-align:right}.tom-report-brand .period small{color:#7096c3;font-size:9px}
+.tom-table-wrap{overflow:auto;border:1px solid #202020;background:#fff}.tom-table{width:100%;min-width:1280px;border-collapse:collapse;table-layout:auto;font-family:Arial,sans-serif;font-size:10.5px;color:#111!important;background:#fff;direction:ltr}
+.tom-table th,.tom-table td{border:1px solid #222;padding:6px 6px;text-align:center;white-space:nowrap;opacity:1!important}
+.tom-table thead th{background:#b9b9b9!important;color:#050505!important;font-weight:950}
+.tom-table thead th:first-child{background:#ffc400!important;color:#080808!important}
+.tom-table tbody td{color:#111827!important;background:#fff!important;font-weight:650}
+.tom-table tbody tr:nth-child(even) td:not(:first-child){background:#f3f4f6!important}
+.tom-table tbody td:first-child{background:#ffc400!important;color:#0a0a0a!important;font-weight:950;text-align:left}
+.tom-table tbody tr.tom-total td{color:#111!important;font-weight:950;background:#fff7d5!important}
+.tom-table tbody tr.tom-total td:first-child{background:#ffc400!important;color:#111!important}
+.tom-table tbody tr:hover td:not(:first-child){background:#e9f1f8!important}
+.tom-table .tom-na{color:#65717f!important;font-weight:800}
+.tom-table .tom-unscored{color:#8a4b08!important;font-weight:900}
+.tom-table .tom-empty{color:#111!important;background:#ffd000!important;text-align:left;font-weight:900}
+.tom-table .tom-cycle-tip{color:#111!important;font-weight:950;text-decoration:underline dotted #777;text-underline-offset:2px}
+.tom-note{margin-top:12px;border-inline-end:3px solid #f2b705;background:#0b2034;color:#d6e4f3;padding:10px 12px;border-radius:7px;font-size:10.5px;line-height:1.7}.tom-note b{color:#fff}
+.tom-meta-row{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:10px 0}.tom-chip{font-size:9.5px;border:1px solid #1f4260;border-radius:999px;background:#10263e;color:#b7cce3;padding:5px 8px}.tom-chip b{color:#fff}
+.tom-qa{margin-top:12px;padding:10px 12px;border:1px solid #294760;border-radius:9px;background:#0a1c30}.tom-qa h3{margin:0 0 5px;color:#fff;font-size:12px}.tom-qa p{margin:0 0 8px;color:#a9c0d8;font-size:10px;line-height:1.55}.tom-qa table{min-width:980px}.tom-qa .tom-table tbody td{font-size:10px}.tom-qa-decision.exclude{color:#a83a3a!important;font-weight:900}.tom-qa-decision.info{color:#8a4b08!important;font-weight:900}
+.tablebar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 8px 8px 8px}.tablebar .badge{background:#f7f7f7;color:#111!important;border:1px solid #c5c5c5;font-weight:850}.tablebar .export{color:#111!important;background:#fff!important;border:1px solid #888!important;font-weight:900}
+@media(max-width:800px){.tom-toolbar{align-items:stretch}.tom-left{width:100%}.tom-control{flex:1}.tom-control select{width:100%;min-width:0}.tom-tabs{width:100%}.tom-tabs button{flex:1}}
 </style>
 
 </head>
@@ -7515,6 +7558,202 @@ const ready=()=>{identity();injectHealth()};if(document.readyState==='loading')d
 </script>
 
 
+
+<script id="v133m-monthly-gm-design-authoritative">
+(function(){
+'use strict';
+const RELEASE='V1.3.33';
+const STATE=window.SK_MONTHLY_GM_V133M||(window.SK_MONTHLY_GM_V133M={planMode:'snapshot',planError:'',lastBuild:0});
+const N=v=>Number.isFinite(+v)?+v:0;
+const F=v=>v!=null&&Number.isFinite(+v)?+v:null;
+const DSTR=v=>iso(parseDate(v));
+const ADD=(d,n)=>iso(addDays(parseDate(d),n));
+const E=v=>esc(v??'');
+function ymOf(v){const d=parseDate(v);return d?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`:''}
+function addM(ym,n){const[y,m]=String(ym).split('-').map(Number),d=new Date(y,m-1+n,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function mRange(ym){const[y,m]=ym.split('-').map(Number);return{a:`${ym}-01`,b:iso(new Date(y,m,0)),days:new Date(y,m,0).getDate()}}
+function maxD(a,b){return!a?b:!b?a:(a>b?a:b)} function minD(a,b){return!a?b:!b?a:(a<b?a:b)}
+function entries(mp,a,b){return Object.entries(mp||{}).filter(([d])=>d>=a&&d<=b)}
+function sumMap(mp,a,b){return entries(mp,a,b).reduce((z,[,v])=>z+N(v),0)}
+function hasMap(mp,a,b){return entries(mp,a,b).length>0}
+function sgn(v,d=0){if(v==null||!Number.isFinite(+v))return'—';return`${+v>=0?'+':''}${fmt(+v,d)}`}
+function pc(v){return v==null?'—':pct(v)}
+function cls(v){return v==null?'':v>=.97?'v133m-good':v>=.90?'v133m-warn':'v133m-bad'}
+function tag(t,k='ok'){return`<span class="v133m-tag ${k}">${t}</span>`}
+function src(a,p,e){return`<span class="v133m-source">A: ${a||'—'} · P: ${p||'—'} · E: ${e||'—'}</span>`}
+
+async function ensurePlan(){
+ const L=window.SK_CHAIN_LIVE_PLAN;
+ if(!L?.load||!L?.apply){STATE.planMode='snapshot';STATE.planError='live-plan bridge unavailable';return}
+ try{const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('live-plan timeout')),7000)),x=await Promise.race([L.load(false),timeout]);L.apply(x);STATE.planMode='live';STATE.planError=''}
+ catch(e){STATE.planMode='snapshot';STATE.planError=String(e?.message||e||'')}
+}
+function processPlan(cx){const out={};for(const[d,q]of Object.entries(cx?.plans?.broPlaceExplicit||{})){const k=ADD(d,32);out[k]=(out[k]||0)+N(q)*.95}return out}
+function planMap(k,cx,proc){
+ const p=cx?.plans||{};
+ if(k==='gpHE')return null;
+ if(k==='gphSet')return p.gphSet||{};
+ if(k==='gphHatch')return p.gphHatch||{};
+ if(k==='psrPlace')return p.psrPlace||{};
+ if(k==='pspTransfer')return p.pspTransfer||{};
+ if(k==='psHE')return p.psHE||{};
+ if(k==='brhSet')return p.brhSet||{};
+ if(k==='brhSaleable')return p.brhChicks||{};
+ if(k==='broPlace')return p.broPlaceExplicit||{};
+ if(k==='process')return proc||{};
+ return null
+}
+const STAGES=[
+ ['gpHE','GP',T('بيض تفقيس الجدود','GP HE'),'GP Farms · Sheet2',T('لا يوجد Approved Plan صريح','No explicit Approved Plan'),'GP_Hatchery Expected + Ross'],
+ ['gphSet','GPH',T('إيداع مفقس الجدود','GP Hatchery setting'),'GP Hatchery DB','GP_Hatchery Plan Set FML/M','Egg-bank constrained expected'],
+ ['gphHatch','GPH',T('فقس مفقس الجدود','GP hatch'),'GP Hatchery DB','GP_Hatchery Hatch Plan F/M','Set × operational hatch'],
+ ['psrPlace','PSR',T('تسكين التربية','PSR placement'),'Placements PSR Farms','PS_Housing Plan F/M','Approved schedule'],
+ ['pspTransfer','PSP',T('النقل إلى الإنتاج','PSR→PSP transfer'),'Transfers To PSP Farms','PS_Transfer Plan F/M','PSR flow × governed survival'],
+ ['psHE','PSP',T('بيض تفقيس الأمهات','PS HE'),'Field PSP','PS_Production Day Plan','Ross PS + live performance'],
+ ['brhSet','BRH',T('إيداع مفاقس التسمين','Broiler Hatchery setting'),'BR Hatchery #1+#2','BR_Hatchery Set Plan','Egg-bank constrained expected'],
+ ['brhSaleable','BRH',T('كتاكيت صالحة','Saleable chicks'),'BR Hatchery #1+#2','BR_Hatchery Planned Chicks','Expected hatch × saleable quality'],
+ ['broPlace','BR',T('تسكين التسمين','Broiler placement'),'Broiler Placement DB','BR_Hatchery Planned Chicks +22','Available chicks + Off-Sex'],
+ ['process','PL',T('المجزر','Processing'),'Processing transactions','Planned Chicks ×95% at +32','Active/future stock']
+];
+const S5=['gpHE','psHE','brhSaleable','broPlace','process'];
+function stageMeta(k){return STAGES.find(x=>x[0]===k)}
+function cut(k,M){return M.cuts?.[k]||''}
+function A(k,M){return M.A?.[k]||{}} function X(k,M){return M.E?.[k]||{}}
+function psIntegrity(a,b,M,P){
+ const am=A('psHE',M),c=cut('psHE',M),e=c&&c<b?c:b;if(!c||e<a)return{state:'no-overlap',days:0,exactShare:null,nmae:null};
+ const z=[];for(const[d,p]of entries(P||{},a,e)){const av=am[d];if(N(p)>0&&av!=null)z.push([N(av),N(p)])}
+ if(z.length<7)return{state:'insufficient',days:z.length,exactShare:null,nmae:null};
+ let ex=0,abs=0,den=0;for(const[a0,p]of z){if(Math.abs(a0-p)<=Math.max(1,Math.abs(p)*.001))ex++;abs+=Math.abs(a0-p);den+=Math.abs(p)}
+ const es=ex/z.length,ne=den?abs/den:null,act=es>=.85||(ne!=null&&ne<=.003);return{state:act?'actualized':'independent',days:z.length,exactShare:es,nmae:ne}
+}
+function period(k,R,M,cx,proc){
+ const am=A(k,M),em=X(k,M),pm=planMap(k,cx,proc),c=cut(k,M),ae=c?minD(R.b,c):'',covered=!!ae&&ae>=R.a,actual=covered?sumMap(am,R.a,ae):null,has=!!pm&&hasMap(pm,R.a,R.b),plan=has?sumMap(pm,R.a,R.b):null,planTD=has&&covered?sumMap(pm,R.a,ae):null;
+ let final=null,type='—';if(c&&c>=R.b){final=actual;type='Actual'}else{const from=c&&c>=R.a?ADD(c,1):R.a,rem=hasMap(em,from,R.b)?sumMap(em,from,R.b):null;if(rem!=null){final=(actual||0)+rem;type=covered?'Actual + Expected':'Expected'}else if(actual!=null){final=actual;type='Actual to cutoff'}}
+ let integrity={state:'independent',days:0,exactShare:null,nmae:null};if(k==='psHE'&&pm)integrity=psIntegrity(R.a,R.b,M,pm);const ok=integrity.state!=='actualized',ach=actual!=null&&planTD>0&&ok?actual/planTD:null,fach=final!=null&&plan>0&&ok?final/plan:null;
+ return{k,actual,planTD,plan,final,type,cut:c,integrity,ach,fach,var:actual!=null&&planTD>0&&ok?actual-planTD:null,fvar:final!=null&&plan>0&&ok?final-plan:null}
+}
+function bundle(ym,M,cx,proc){const R=mRange(ym),mp=new Map;for(const st of STAGES)mp.set(st[0],period(st[0],R,M,cx,proc));return{R,mp}}
+function samePrior(k,ym,M){
+ const R=mRange(ym),latest=ymOf(M.latest),historical=ym<latest,current=ym===latest,days=historical?R.days:(current?Math.min(R.days,parseDate(M.latest).getDate()):0),pym=addM(ym,-1),PR=mRange(pym),a=days?sumMap(A(k,M),R.a,ADD(R.a,Math.min(days,R.days)-1)):null,p=days?sumMap(A(k,M),PR.a,ADD(PR.a,Math.min(days,PR.days)-1)):null;return{a,p,days,growth:a!=null&&p>0?(a-p)/p:null}
+}
+function integrityCell(x){if(x.plan==null)return'—';if(x.integrity.state==='actualized')return tag(T('Actualized — مستبعد','Actualized — excluded'),'bad');if(x.integrity.state==='insufficient')return tag(T('تحقق محدود','Limited validation'),'warn');return tag(T('مستقل','Independent'),'ok')}
+function KPI(title,x,growth){return`<div class="v179-kpi"><small>${title} · ${x.type}</small><b>${x.final==null?'—':fmt(x.final)}</b><div class="sub">${T('Plan','Plan')} ${x.plan==null?'—':fmt(x.plan)} · <span class="${cls(x.fach)}">${T('تحقيق','Ach.')} ${pc(x.fach)}</span><br>${T('Actual/Plan لنفس التغطية','Actual/Plan same coverage')} ${pc(x.ach)}<br>${T('التغير عن نفس المدة السابقة','Change vs prior same-period')} <span class="${growth==null?'':growth>=0?'v133m-good':'v133m-bad'}">${pc(growth)}</span></div></div>`}
+function groupRows(keys,ym,nx,M,cx,proc){
+ const B=bundle(ym,M,cx,proc),NXT=bundle(nx,M,cx,proc);
+ return keys.map(k=>{const st=stageMeta(k),x=B.mp.get(k),n=NXT.mp.get(k),sp=samePrior(k,ym,M);return[st?.[1]||'',st?.[2]||k,x.actual==null?'—':fmt(x.actual),x.planTD==null?'—':fmt(x.planTD),integrityCell(x),x.ach==null?'—':pct(x.ach),x.final==null?'—':fmt(x.final),x.plan==null?'—':fmt(x.plan),x.fach==null?'—':pct(x.fach),sp.p==null?'—':fmt(sp.p),sp.growth==null?'—':pct(sp.growth),n.final==null?'—':fmt(n.final),n.plan==null?'—':fmt(n.plan),n.fach==null?'—':pct(n.fach),src(st?.[3],st?.[4],st?.[5])]});
+}
+function simpleActual(D,k,R){
+ if(k==='gphRecv'){const r=(D.gph?.rows||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b);return sum(r,x=>x.recvF+x.recvM)}
+ if(k==='gphRear'){const r=(D.gph?.rows||[]).filter(x=>x.hatchDate&&DSTR(x.hatchDate)>=R.a&&DSTR(x.hatchDate)<=R.b);return sum(r,x=>x.placedF+x.placedM)}
+ if(k==='gphOffSex'){const r=(D.gph?.rows||[]).filter(x=>x.hatchDate&&DSTR(x.hatchDate)>=R.a&&DSTR(x.hatchDate)<=R.b);return sum(r,x=>x.offsex)}
+ if(k==='brhIncoming'){const r=(D.brh||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b);return sum(r,x=>x.recv)}
+ return null
+}
+function extendedGroupRows(group,ym,nx,M,cx,proc,D){
+ const map={gp:['gpHE','gphRecv','gphSet','gphHatch','gphRear','gphOffSex'],ps:['psrPlace','pspTransfer','psHE','brhIncoming'],br:['brhSet','brhSaleable','broPlace','process']},keys=map[group]||[],B=bundle(ym,M,cx,proc),NXT=bundle(nx,M,cx,proc),R=B.R;return keys.map(k=>{
+  if(B.mp.has(k)){const st=stageMeta(k),x=B.mp.get(k),n=NXT.mp.get(k),sp=samePrior(k,ym,M);return[st?.[2]||k,x.actual==null?'—':fmt(x.actual),x.planTD==null?'—':fmt(x.planTD),integrityCell(x),x.ach==null?'—':pct(x.ach),x.final==null?'—':fmt(x.final),x.plan==null?'—':fmt(x.plan),sp.p==null?'—':fmt(sp.p),sp.growth==null?'—':pct(sp.growth),n.final==null?'—':fmt(n.final),n.plan==null?'—':fmt(n.plan),src(st?.[3],st?.[4],st?.[5])]}
+  const a=simpleActual(D,k,R),label={gphRecv:T('استلام مفقس الجدود','GPH receipts'),gphRear:T('كتاكيت PS','PS chicks'),gphOffSex:'Off-Sex',brhIncoming:T('استلام مفاقس التسمين','BRH receipts')}[k]||k;return[label,a==null?'—':fmt(a),'—','—','—',a==null?'—':fmt(a),'—','—','—','—','—',src(T('قاعدة Actual التشغيلية','Operational Actual DB'),T('لا يوجد Plan معتمد','No approved Plan'),T('لا يوجد Expected مستقل','No independent Expected'))]
+ }).filter(r=>r.slice(1).some(v=>String(v)!=='—'))
+}
+function v179Table(id,rows){return tableHTML(id,[T('المؤشر','Metric'),T('Actual','Actual'),T('Plan لنفس التغطية','Plan same coverage'),T('سلامة Plan','Plan integrity'),T('تحقيق Actual/Plan','Actual/Plan ach.'),T('Final / Expected','Final / Expected'),T('Approved Plan الشهر','Full-month Plan'),T('Actual نفس المدة السابقة','Prior same-period Actual'),T('التغير','Growth'),T('الشهر القادم','Next Expected'),T('Plan القادم','Next Plan'),T('المصدر','Source')],rows)}
+
+function GP(D,R){const r=(D.gp||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),he=sum(r,x=>x.he),te=sum(r,x=>x.te),hd=sum(r,x=>x.fEnd),ross=sum(r,x=>{const z=gpStdAt(x.ageW,x.line);return z&&x.fEnd>0?x.fEnd*z.he/100:0});return{he,te,hehd:hd?he/hd:null,rossHd:hd?ross/hd:null,rossAch:ross?he/ross:null,loss:sum(r,x=>x.fMort+x.fCull+x.mMort+x.mCull)}}
+function GPH(D,R){const tx=(D.gph?.rows||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),hr=(D.gph?.rows||[]).filter(x=>x.hatchDate&&DSTR(x.hatchDate)>=R.a&&DSTR(x.hatchDate)<=R.b),linked=sum(hr,x=>x.linkedSet),hat=sum(hr,x=>x.hatchedF+x.hatchedM);return{recv:sum(tx,x=>x.recvF+x.recvM),set:sum(tx,x=>x.setF+x.setM),hat,linked,hatch:linked?hat/linked:null,ps:sum(hr,x=>x.placedF+x.placedM),off:sum(hr,x=>x.offsex)}}
+function PSP(D,R){const r=(D.ps?.p||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),he=sum(r,x=>x.he),te=sum(r,x=>x.te),hens=sum(r,x=>endOfDayStock(x).f),ross=sum(r,x=>{const w=(x.age||0)/7,z=window.v117PsHE?.(w),h=endOfDayStock(x).f;return z!=null&&h>0?h*z/7:0});return{he,te,hehd:hens?he/hens:null,rossHd:hens?ross/hens:null,rossAch:ross?he/ross:null,loss:sum(r,x=>x.fMort+x.fCull+x.mMort+x.mCull)}}
+function BRH(D,R){const r=(D.brh||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),linked=sum(r,x=>x.linkedSet),hat=sum(r,x=>x.hatched),sale=sum(r,x=>x.saleable);return{recv:sum(r,x=>x.recv),set:sum(r,x=>x.set),hat,sale,hatch:linked?hat/linked:null,saleHatch:hat?sale/hat:null}}
+function BRO(M,R){const h=(M.m?.houses||[]).filter(x=>x.lastProc&&DSTR(x.lastProc)>=R.a&&DSTR(x.lastProc)<=R.b&&x.completed),e=h.filter(x=>x.eligible),placed=sum(h,x=>x.placed),dep=placed?safeDiv(sum(h,x=>x.mort+x.cull),placed):null,fcr=safeDiv(sum(e,x=>x.feed),sum(e,x=>x.netkg)),wt=safeDiv(sum(e,x=>x.netkg),sum(e,x=>x.processed)),age=weighted(e,x=>x.ageSold,x=>x.processed),epef=fcr&&wt&&age&&dep!=null?((1-dep)*100*wt*100)/(age*fcr):null;return{houses:h.length,eligible:e.length,dep,fcr,wt,age,epef,rossWt:age!=null?r308w(age):null,rossFcr:age!=null?r308fcr(age):null}}
+function PLANT(D,M,R){const pr=(D.proc||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),lv=(D.live||[]).filter(x=>x.date&&DSTR(x.date)>=R.a&&DSTR(x.date)<=R.b),c=cut('process',M),b=c?minD(R.b,c):'',days=b&&b>=R.a?(dayDiff(parseDate(R.a),parseDate(b))+1):0,head=sum(pr,x=>x.head),kg=sum(pr,x=>x.kg),live=sum(lv,x=>x.head);return{head,kg,live,total:head+live,avg:head?kg/head:null,days,util:days?head/(650000*days):null}}
+function parseSetting(rows){return(rows||[]).map(r=>{const sd=DSTR(r?.[0]),pd=DSTR(r?.[6]),eg=N(r?.[4]);return{sd,pd,eg,age:sd&&pd?dayDiff(parseDate(pd),parseDate(sd)):null,grade:String(r?.[7]||''),farm:String(r?.[2]||''),flock:String(r?.[3]||''),setter:String(r?.[8]||'')}}).filter(x=>x.sd&&x.eg>0)}
+function settingSummary(rows,R){const r=parseSetting(rows).filter(x=>x.sd>=R.a&&x.sd<=R.b),valid=r.filter(x=>x.age!=null&&x.age>=0&&x.age<=21),eggs=sum(r,x=>x.eg),ve=sum(valid,x=>x.eg),avg=ve?sum(valid,x=>x.eg*x.age)/ve:null,anom=eggs-ve;return{rows:r.length,eggs,avg,anom,anomPct:eggs?anom/eggs:null,farms:new Set(r.map(x=>x.farm).filter(Boolean)).size,flocks:new Set(r.map(x=>x.flock).filter(Boolean)).size,setters:new Set(r.map(x=>x.setter).filter(Boolean)).size,gradeA:sum(r.filter(x=>/grade[_\s-]*a/i.test(x.grade)),x=>x.eg),gradeB:sum(r.filter(x=>/grade[_\s-]*b/i.test(x.grade)),x=>x.eg)}}
+
+function budgetRows(D,ym){const B=(D.budget||[]).find(x=>x.ym===ym),P=(D.budget||[]).find(x=>x.ym===addM(ym,-1));if(!B)return[];const row=(n,a,b,p,fn,lower=false)=>{const d=a!=null&&b!=null?a-b:null,g=a!=null&&p!=null&&p!==0?(a-p)/Math.abs(p):null,good=d==null?'':lower?(d<=0?'v133m-good':'v133m-bad'):(d>=0?'v133m-good':'v133m-bad');return[n,fn(a),fn(b),d==null?'—':`<span class="${good}">${fn(d)}</span>`,fn(p),g==null?'—':pc(g)]};return[row('EPEF',B.actualEpef,B.budgetEpef,P?.actualEpef,x=>x==null?'—':fmt(x,0)),row('FCR',B.actualFcr,B.budgetFcr,P?.actualFcr,x=>x==null?'—':fmt(x,3),true),row(T('الاستبعاد %','Depletion %'),B.actualDep,B.budgetDep,P?.actualDep,x=>x==null?'—':pct(x),true),row(T('متوسط الوزن kg','Avg weight kg'),B.actualWt,B.budgetWt,P?.actualWt,x=>x==null?'—':fmt(x,3)),row('DOA %',B.doa,B.budgetDoa,P?.doa,x=>x==null?'—':pct(x),true),row(T('الرؤوس','Head'),B.actualHead,B.budgetHead,P?.actualHead,x=>x==null?'—':fmt(x)),row(T('الوزن kg','Weight kg'),B.actualKg,B.budgetKg,P?.actualKg,x=>x==null?'—':fmt(x))]}
+function satStart(d){const x=parseDate(d);if(!x)return null;const diff=(x.getDay()-6+7)%7;return addDays(x,-diff)}
+function weekly(ym,M,cx,proc){const R=mRange(ym),out=[];for(let w=satStart(R.a);w&&iso(w)<=R.b;w=addDays(w,7)){const a=maxD(iso(w),R.a),b=minD(iso(addDays(w,6)),R.b),rr={a,b},vals=S5.map(k=>period(k,rr,M,cx,proc)),type=vals.some(x=>x.type==='Actual + Expected')?'Actual + Expected':vals.every(x=>x.type==='Actual')?'Actual':vals.some(x=>x.type==='Expected')?'Expected':'Mixed';out.push([`${a} → ${b}`,type,...vals.map(x=>x.final==null?'—':fmt(x.final))])}return out}
+function outlook(ym,M,cx,proc){return Array.from({length:6},(_,i)=>addM(ym,i)).map(m=>{const B=bundle(m,M,cx,proc);return{ym:m,...Object.fromEntries(S5.map(k=>[k,B.mp.get(k).final])),processPlan:B.mp.get('process').plan}})}
+function freshness(M){const latest=M.latest||'',fr=latestDate(M.m?.farms||[],['date'])||'',rows=[['GP','GP Farms','daily',cut('gpHE',M)],['GPH','GP Hatchery DB','daily',maxD(cut('gphSet',M),cut('gphHatch',M))],['PSR','Field PSR','daily',latestDate(M.D.ps?.r||[],['date'])||''],['PSP','Field PSP','daily',cut('psHE',M)],['BRH','BR Hatchery H1+H2','daily',maxD(cut('brhSet',M),cut('brhHatch',M))],['BR','Broiler Farms / Performance','daily',fr],['Placement','Broiler Placement','event',cut('broPlace',M)],['Processing','Processing transactions','event',cut('process',M)],['Live Sales','Live Sales','event',cut('live',M)]];return rows.map(([st,srcn,kind,d])=>{const lag=latest&&d?dayDiff(parseDate(d),parseDate(latest)):null,health=kind==='daily'?(lag==null?tag(T('غير متاح','Unavailable'),'bad'):lag<=1?tag(T('حديث','Fresh'),'ok'):lag<=3?tag(T('متأخر','Lagging'),'warn'):tag(T('قديم','Stale'),'bad')):tag(T('سجل أحداث','Event ledger'),'ok');return[st,srcn,kind==='daily'?T('يومي','Daily'):T('أحداث','Events'),d||'—',lag==null?'—':fmt(lag),health]})}
+function planCoverage(ym,M,cx,proc){const R=mRange(ym),B=bundle(ym,M,cx,proc);return STAGES.map(st=>{const pm=planMap(st[0],cx,proc),ds=pm?entries(pm,R.a,R.b).map(x=>x[0]).sort():[],x=B.mp.get(st[0]);return[st[1],st[2],st[4],x.plan==null?'—':fmt(x.plan),ds.length?`${ds[0]} → ${ds.at(-1)}`:'—',integrityCell(x)]})}
+function cleanUnsupported(){
+ document.querySelectorAll('#view .v145-gm-section,#view .v179-section').forEach(sec=>{const tb=sec.querySelector('tbody');if(!tb)return;const cells=[...tb.querySelectorAll('td')].map(x=>(x.textContent||'').trim()),meaningful=cells.some(x=>x&&x!=='—'&&x!=='0'&&x!=='0.0%'&&!/No data|لا توجد بيانات/i.test(x));if(!meaningful)sec.remove()});
+}
+
+function bankCardOld(title,F){
+ if(!F)return`<div class="v179-bank-card"><h3>${title}</h3><div class="v179-method">${T('لا يتوفر Closing Balance تاريخي رسمي لهذا الشهر؛ لا يتم اختراع رصيد رسمي.','No dated official historical Closing Balance is available for this month; an official historical balance is not fabricated.')}</div></div>`;
+ return`<div class="v179-bank-card"><h3>${title} <span class="v179-reading">${T('Actual + Expected','Actual + Expected')}</span></h3><div class="v179-bank-flow"><div><span>${T('الرصيد الحالي','Current bank')}</span><b>${fmt(F.current)}</b></div><div><span>${T('افتتاح التوقع','Forecast opening')}</span><b>${fmt(F.opening)}</b></div><div><span>${T('استلام','Receipts')}</span><b class="v179-positive">+${fmt(F.recv)}</b></div><div><span>${T('إيداع','Setting')}</span><b>−${fmt(F.set)}</b></div><div><span>${T('مستبعد/إتلاف','Cull / disposal')}</span><b>−${fmt(F.cull)}</b></div><div><span>${T('مبيعات البيض','Egg sales')}</span><b class="v179-negative">−${fmt(F.sales)}</b></div><div><span>${T('رصيد نهاية الشهر','Month-end bank')}</span><b>${fmt(F.end)}</b></div></div><div class="v179-method">${T('Sold Plan له الأولوية. Actual run-rate بديل معلن فقط عند عدم تغطية البند بالخطة.','Sold Plan has priority. Actual run-rate is an explicit fallback only where that movement is not covered by Plan.')}<br>${E(JSON.stringify(F.basis||{}))}</div></div>`
+}
+
+function replaceManagement(D,M,ym,cx,proc,settingRows){
+ const nx=addM(ym,1),B=bundle(ym,M,cx,proc),NXT=bundle(nx,M,cx,proc),keyR=S5.map(k=>{const st=stageMeta(k),x=B.mp.get(k),sp=samePrior(k,ym,M);return{st,x,g:sp.growth}}),bankFn=window.SK_MONTHLY_HATCHERY_BANK_FLOW_V182,G=typeof bankFn==='function'?bankFn(D,'gph',ym,M.latest):null,H=typeof bankFn==='function'?bankFn(D,'brh',ym,M.latest):null,bud=budgetRows(D,ym),set=settingSummary(settingRows,B.R),wk=weekly(ym,M,cx,proc),ol=outlook(ym,M,cx,proc),fresh=freshness(M),pcov=planCoverage(ym,M,cx,proc);
+ const gp=GP(D,B.R),gph=GPH(D,B.R),psp=PSP(D,B.R),brh=BRH(D,B.R),bro=BRO(M,B.R),pl=PLANT(D,M,B.R);
+ const groups=[
+  [T('الجدود ومفقس الجدود','GP & GP Hatchery'),'gp'],
+  [T('أمهات التسمين — التربية والإنتاج','Parent Stock — Rearing & Production'),'ps'],
+  [T('مفاقس ومزارع التسمين والمجزر','Broiler Hatcheries, Farms & Processing'),'br']
+ ];
+ let body=`<section id="v179-management-report" class="v179-shell"><div class="v179-head"><div><h2>${T('لوحة الإدارة العليا — التقرير الشهري','Executive Management Dashboard — Monthly')}</h2><p>${ym} · ${T('التصميم الإداري الأصلي محفوظ؛ الحسابات والمصادر أعيدت حوكمتها على Actual / Approved Plan / Expected / Ross.','Original GM visual design preserved; calculations and sources are governed as Actual / Approved Plan / Expected / Ross.')}</p></div><span class="v179-badge">${T('الفترة المختارة','Selected period')}: ${ym}</span></div><div class="v179-kpis">${keyR.map(z=>KPI(z.st[2],z.x,z.g)).join('')}</div>`;
+ body+=`<div class="v179-grid2"><div class="v179-card"><h3>${T('التحقيق مقابل الخطة — الشهر المختار والقادم','Attainment vs Plan — selected & next month')}</h3><div class="v179-chart"><canvas id="v179MonthAttain"></canvas></div></div><div class="v179-card"><h3>${T('التغير عن نفس المدة من الشهر السابق','Change vs same period previous month')}</h3><div class="v179-chart"><canvas id="v179MonthGrowth"></canvas></div></div></div>`;
+ body+=`<div class="v179-section"><h3>${T('حركة رصيد البيض — الإقفال الشهري','Hatchery Egg-Bank Month-End Bridge')}</h3><div class="v179-bank">${bankCardOld(T('مفقس الجدود','GP Hatchery'),G)}${bankCardOld(T('مفاقس التسمين','Broiler Hatcheries'),H)}</div></div>`;
+ for(const[gtitle,gkey]of groups){const rows=extendedGroupRows(gkey,ym,nx,M,cx,proc,D);if(rows.length)body+=`<div class="v179-section"><h3>${gtitle}</h3>${v179Table('v133m_'+gkey,rows)}</div>`}
+ if(bud.length)body+=`<div class="v179-section"><h3>${T('كفاءة مزارع التسمين — Actual مقابل Budget / Reference','Broiler Efficiency — Actual vs Budget / Reference')}</h3>${tableHTML('v133mBudget',[T('المؤشر','Metric'),T('Actual الشهر','Monthly Actual'),T('Budget / Reference','Budget / Reference'),T('الانحراف','Variance'),T('Actual الشهر السابق','Prior-month Actual'),T('التغير عن السابق','Change vs prior')],bud)}</div>`;
+
+ // V1.3.32 additions, deliberately styled as old v179 sections/cards.
+ const same=S5.map(k=>{const st=stageMeta(k),sp=samePrior(k,ym,M),x=B.mp.get(k);return[st[1],st[2],sp.a==null?'—':fmt(sp.a),sp.p==null?'—':fmt(sp.p),sp.growth==null?'—':pct(sp.growth),x.planTD==null?'—':fmt(x.planTD),x.ach==null?'—':pct(x.ach),sp.days||'—']});
+ body+=`<div class="v179-section"><h3>${T('مقارنة عادلة مع الشهر السابق — نفس عدد الأيام','Fair prior-month comparison — same calendar-day coverage')}</h3>${tableHTML('v133mSame',[T('المشروع','Project'),T('المؤشر','Metric'),T('Actual الفترة','Selected Actual'),T('Actual نفس المدة السابقة','Prior same-period'),T('التغير','Change'),T('Plan لنفس التغطية','Plan same coverage'),T('تحقيق Plan','Plan attainment'),T('أيام المقارنة','Compared days')],same)}</div>`;
+ body+=`<div class="v179-section"><h3>${T('الجسر الأسبوعي داخل الشهر','Weekly bridge inside selected month')}</h3>${tableHTML('v133mWeekly',[T('الأسبوع','Week'),T('نوع القراءة','Reading'),T('GP HE','GP HE'),T('PS HE','PS HE'),T('Saleable chicks','Saleable chicks'),T('Broiler placement','Broiler placement'),T('Processing','Processing')],wk)}<div class="v179-card" style="margin-top:10px"><div class="v133m-chart"><canvas id="v133mWeeklyChart"></canvas></div></div></div>`;
+ body+=`<div class="v179-section"><h3>${T('تحليل عمر ومصدر البيض المودع — BR_Setting','Set egg age & source quality — BR_Setting')}</h3><div class="v133m-mini-grid"><div class="v133m-mini"><span>${T('البيض','Eggs')}</span><b>${fmt(set.eggs)}</b></div><div class="v133m-mini"><span>${T('متوسط عمر صالح','Valid weighted age')}</span><b>${set.avg==null?'—':fmt(set.avg,1)+' d'}</b></div><div class="v133m-mini"><span>${T('سجلات/بيض شاذ','Anomalous eggs')}</span><b>${fmt(set.anom)} · ${pc(set.anomPct)}</b></div><div class="v133m-mini"><span>${T('مصادر','Sources')}</span><b>${set.farms} ${T('مزرعة','farm')} · ${set.flocks} ${T('قطيع','flock')}</b></div><div class="v133m-mini"><span>Grade A / B</span><b>${fmt(set.gradeA)} / ${fmt(set.gradeB)}</b></div></div><div class="v133m-method">${T('لا يتم تطبيق خصم Storage Age على Hatch Expected لعدم وجود منحنى خصم معتمد في المصدر.','No storage-age penalty is applied to Hatch Expected because no approved storage-adjustment curve exists in the source.')}</div></div>`;
+ body+=`<div class="v179-section"><h3>${T('أفق ستة أشهر — Plan / Expected','Six-month outlook — Plan / Expected')}</h3>${tableHTML('v133mOutlook',[T('الشهر','Month'),'GP HE','PS HE',T('Saleable','Saleable'),T('Placement','Placement'),T('Processing Approved Plan','Processing Approved Plan'),T('Processing Expected','Processing Expected')],ol.map(x=>[x.ym,x.gpHE==null?'—':fmt(x.gpHE),x.psHE==null?'—':fmt(x.psHE),x.brhSaleable==null?'—':fmt(x.brhSaleable),x.broPlace==null?'—':fmt(x.broPlace),x.processPlan==null?'—':fmt(x.processPlan),x.process==null?'—':fmt(x.process)]))}<div class="v179-card" style="margin-top:10px"><div class="v133m-chart"><canvas id="v133mOutlookChart"></canvas></div></div></div>`;
+ body+=`<div class="v179-section"><h3>${T('سلامة المصادر والخطة','Source freshness & Plan governance')}</h3><div class="v133m-grid2"><div>${tableHTML('v133mFresh',[T('المرحلة','Stage'),T('المصدر','Source'),T('النوع','Type'),T('آخر تاريخ','Latest date'),T('Lag','Lag'),T('الحالة','Status')],fresh)}</div><div>${tableHTML('v133mPlanCov',[T('المشروع','Project'),T('المؤشر','Metric'),T('مصدر Plan','Plan source'),T('إجمالي Plan','Plan total'),T('تغطية التواريخ','Date coverage'),T('سلامة','Integrity')],pcov)}</div></div><div class="v133m-method"><b>${T('مصدر الخطة','Plan source')}:</b> ${STATE.planMode==='live'?T('Google Sheet حي','Live Google Sheet'):T('Snapshot احتياطي','Snapshot fallback')}${STATE.planError?' · '+E(STATE.planError):''}<br>${T('Actual من قواعد التشغيل؛ Approved Plan من أعمدة Plan الصريحة فقط؛ BR_Housing 95% = Expected من Actual وليس Plan؛ 84% قياسي عام وليس Plan؛ Live Sales منفصل عن استغلال طاقة المجزر.','Actual from operational DBs; Approved Plan from explicit Plan columns only; BR_Housing 95% = Expected from Actual, not Plan; 84% is a general benchmark, not Plan; Live Sales is separate from plant-capacity utilization.')}</div></div>`;
+ body+=`<div class="v179-method">${T('طريقة القراءة: التاريخي Actual؛ الجاري Actual حتى Cutoff + Expected لبقية الشهر؛ المستقبل Expected/Approved Plan. Actual/Plan يقارن نفس التغطية الزمنية. PS HE التاريخي Actualized يُستبعد من المقارنة.','Reading rule: historical = Actual; current = Actual to cutoff + Expected remainder; future = Expected/Approved Plan. Actual/Plan compares identical date coverage. Historical actualized PS HE Plan is excluded.')}</div></section>`;
+
+ document.getElementById('v179-management-report')?.remove();
+ const p=document.getElementById('v177-period-review'),head=document.querySelector('#view .v117-report-head');if(p)p.insertAdjacentHTML('afterend',body);else if(head)head.insertAdjacentHTML('afterend',body);else document.getElementById('view')?.insertAdjacentHTML('afterbegin',body);
+
+ // Correct two old GM explanatory notes that became stale after BR_Setting / governed Plant Plan were added.
+ const hatch=document.getElementById('mr-hatch');if(hatch){const ph=hatch.querySelector('.section-head p');if(ph)ph.textContent=T('رصيد البيض الحالي، الإقفال المتوقع، برنامج الإيداع، وتحليل عمر/مصدر البيض من BR_Setting متاح في لوحة الإدارة أدناه.','Current egg bank, expected close, setting program and BR_Setting egg-age/source analysis are available in the management dashboard below.')}
+ const brosec=document.getElementById('mr-broiler');if(brosec){const ph=brosec.querySelector('.section-head p');if(ph)ph.textContent=T('Approved Processing Plan = Planned Chicks ×95% عند Placement+32. Expected يبقى منفصلاً ومبنيًا على الحالة الفعلية/المتوقعة.','Approved Processing Plan = Planned Chicks ×95% at Placement+32. Expected remains separate and is based on actual/forecast operational state.')}
+
+ // Charts in the restored legacy visual positions.
+ const C=colors(),Avals=S5.map(k=>B.mp.get(k).ach),Nvals=S5.map(k=>NXT.mp.get(k).fach),labs=S5.map(k=>stageMeta(k)[2]),growth=S5.map(k=>samePrior(k,ym,M).growth);
+ chart('v179MonthAttain',{type:'bar',data:{labels:labs,datasets:[{label:T('تحقيق Actual/Plan لنفس التغطية','Actual/Plan same coverage'),data:Avals.map(x=>x==null?null:x*100),backgroundColor:C.teal},{label:T('تحقيق الشهر القادم المتوقع','Next-month expected attainment'),data:Nvals.map(x=>x==null?null:x*100),backgroundColor:C.cyan}]},options:{scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ chart('v179MonthGrowth',{type:'bar',data:{labels:labs,datasets:[{label:T('التغير عن نفس المدة السابقة','Change vs prior same-period'),data:growth.map(x=>x==null?null:x*100),backgroundColor:growth.map(x=>x!=null&&x>=0?C.teal:C.coral)}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+ chart('v133mWeeklyChart',{type:'line',data:{labels:wk.map(x=>x[0]),datasets:[lineDS('GP HE',wk.map(x=>+String(x[2]).replace(/,/g,'')||null),C.gold),lineDS('PS HE',wk.map(x=>+String(x[3]).replace(/,/g,'')||null),C.teal),lineDS(T('Saleable','Saleable'),wk.map(x=>+String(x[4]).replace(/,/g,'')||null),C.cyan),lineDS(T('Placement','Placement'),wk.map(x=>+String(x[5]).replace(/,/g,'')||null),C.vio),lineDS(T('Processing','Processing'),wk.map(x=>+String(x[6]).replace(/,/g,'')||null),C.coral)]}});
+ chart('v133mOutlookChart',{type:'line',data:{labels:ol.map(x=>x.ym),datasets:[lineDS('GP HE',ol.map(x=>x.gpHE),C.gold),lineDS('PS HE',ol.map(x=>x.psHE),C.teal),lineDS(T('Saleable','Saleable'),ol.map(x=>x.brhSaleable),C.cyan),lineDS(T('Placement','Placement'),ol.map(x=>x.broPlace),C.vio),lineDS(T('Processing Expected','Processing Expected'),ol.map(x=>x.process),C.coral),{...lineDS(T('Processing Approved Plan','Processing Approved Plan'),ol.map(x=>x.processPlan),C.text),borderDash:[7,5],pointRadius:0}]}});
+
+ // Patch the v177 month-comparison table with the same governed Final semantics.
+ const t=document.getElementById('v177MonthCompare');if(t){const rows=S5.map(k=>{const st=stageMeta(k),x=B.mp.get(k),n=NXT.mp.get(k),d=x.final!=null&&n.final!=null?n.final-x.final:null,g=x.final?d/x.final:null;return[st[1],st[2],x.actual==null?'—':fmt(x.actual),x.final==null?'—':fmt(x.final),x.type,n.actual==null?'—':fmt(n.actual),n.final==null?'—':fmt(n.final),n.type,d==null?'—':sgn(d),g==null?'—':pct(g)]});const box=t.closest('.tblwrap')||t.parentElement;if(box)box.outerHTML=tableHTML('v177MonthCompare',[T('المشروع','Project'),T('المؤشر','Metric'),`${ym} Actual`,`${ym} ${T('القراءة النهائية','Final')}`,T('النوع','Type'),`${nx} Actual`,`${nx} ${T('القراءة النهائية','Final')}`,T('النوع','Type'),T('الفرق','Variance'),T('التغير','Change')],rows)}
+
+ cleanUnsupported();
+ try{wireExports();window.wireSortableTables?.(document)}catch(_){}
+}
+
+async function enhance(){
+ if(S.page!=='monthly')return;
+ await ensurePlan();
+ const M=await window.v142LoadAll(),D=M.D,cx=window.CHAIN_XLSX_V130||{},proc=processPlan(cx),ym=window.SK_PERIOD_REVIEW_V177?.month||document.getElementById('v177MonthSel')?.value||ymOf(M.latest);
+ let settingRows=[];try{settingRows=await load('v214BRSetting')}catch(_){settingRows=[]}
+ replaceManagement(D,M,ym,cx,proc,settingRows);STATE.lastBuild=Date.now();
+}
+const base=RENDER.monthly;
+RENDER.monthly=async function(){const r=await base();try{await enhance()}catch(e){window.SK_ERROR_BUS?.capture(e,'v133m monthly GM restoration');console.error('V1.3.33 monthly enhancement',e)}return r};
+window.SK_MONTHLY_AUDIT_V133M=Object.freeze({
+ release:RELEASE,
+ design:'V1.3.31 / GM legacy visual and dashboards preserved',
+ governance:{
+  actual:'Operational DBs',
+  plan:'Explicit approved Plan columns only',
+  currentMonth:'Actual to cutoff + Expected remainder',
+  historical:'Actual',
+  gpHE:'No invented Approved Plan',
+  psHE:'Historical actualization guard',
+  brh84:'General standard only',
+  placementPlan:'BR_Hatchery Planned Chicks +22',
+  plantPlan:'Planned Chicks ×95% at +32',
+  liveSales:'Separate from plant utilization',
+  bank:'Official current Closing Balance; planned future movement; no fabricated historical official bank'
+ }
+});
+})();
+</script>
+
 <script id="v131q-quarterly-authoritative">
 (function(){
 'use strict';
@@ -7783,10 +8022,176 @@ window.SK_QUARTERLY_AUDIT_V131Q=Object.freeze({
 })();
 </script>
 
-<script id="v331-release-owner">
+
+
+<style id="v136-tom-kgm2pw-style">
+.tom-table th:last-child{background:#0f6fc6!important;color:#fff!important}.tom-table td:last-child{font-weight:950!important;color:#0a3c68!important}.tom-table tr.tom-unscored-row td:last-child{color:#8a4b08!important}.tom-note b{color:#fff}.tom-chip b{color:#fff}
+</style>
+<script id="v134-tom-report">
 (function(){
 'use strict';
-const RELEASE='V1.3.31';
+const RELEASE='V1.3.36';
+const TOM=window.SK_TOM_REPORT_V136||(window.SK_TOM_REPORT_V136={mode:'weekly',week:'',cycle:''});
+const HOUSE_AREA=1680,FARM_HOUSES=16,FARM_AREA=HOUSE_AREA*FARM_HOUSES,ROLL_MAX=4,ROLL_MIN=3;
+const EXPECTED_HOUSES=Object.freeze(Array.from({length:FARM_HOUSES},(_,i)=>String(i+1).padStart(2,'0')));
+function tomIso(v){return iso(parseDate(v))}
+function tomDate(v){const d=parseDate(v);return d?`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`:'NA'}
+function tomNum(v,d=2){return v==null||!Number.isFinite(+v)?'<span class="tom-na">NA</span>':new Intl.NumberFormat('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}).format(+v)}
+function tomInt(v){return v==null||!Number.isFinite(+v)?'<span class="tom-na">NA</span>':new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(+v)}
+function tomPct(v,d=2){return v==null||!Number.isFinite(+v)?'<span class="tom-na">NA</span>':(+v*100).toFixed(d)+'%'}
+function tomNA(reason=''){return `<span class="tom-na"${reason?` title="${esc(reason)}"`:''}>NA</span>`}
+function tomWeekStart(v){const d=parseDate(v);if(!d)return null;const x=new Date(d);const delta=(x.getDay()-6+7)%7;x.setDate(x.getDate()-delta);x.setHours(0,0,0,0);return x}
+function tomWeekEnd(v){const s=tomWeekStart(v);return s?addDays(s,6):null}
+function tomWeekNo(v){const d=tomWeekEnd(v);if(!d)return'';const jan1=new Date(d.getFullYear(),0,1);const doy=Math.floor((d-jan1)/86400000)+1;return Math.max(1,Math.ceil((doy+((jan1.getDay()+1)%7))/7))}
+function tomKey(c,f,h){return `${c}|${f}|${h}`}
+function tomFarmLabel(v){const s=String(v??'').trim();return s||'NA'}
+function tomSum(a,f){return (a||[]).reduce((z,x)=>z+(+f(x)||0),0)}
+function tomWeighted(a,val,w){const v=(a||[]).filter(x=>Number.isFinite(+val(x))&&(+w(x)||0)>0),den=tomSum(v,x=>w(x));return den?tomSum(v,x=>(+val(x))*(+w(x)||0))/den:null}
+function tomEpef(dep,wt,age,fcr){return dep!=null&&wt>0&&age>0&&fcr>0?((1-dep)*100*wt*100)/(age*fcr):null}
+function tomGroup(rows,fn){const M=new Map;for(const x of rows||[]){const k=fn(x);if(!M.has(k))M.set(k,[]);M.get(k).push(x)}return M}
+function tomCanonicalHouseSet(hs){return [...new Set((hs||[]).map(x=>String(x.house||'').padStart(2,'0')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))}
+function tomStandardHouseCoverage(houses){return houses.length===FARM_HOUSES&&EXPECTED_HOUSES.every((h,i)=>houses[i]===h)}
+function tomSortPerformance(a,b){
+ // Tom leaderboard rule: KGS/M2/WEEK (KGM2PW) is the primary rank.
+ // Rows with unprovable total output weight (e.g. Live Sales without KG) stay visible but unranked after valid rows.
+ const av=Number.isFinite(+a.kgM2Week),bv=Number.isFinite(+b.kgM2Week);if(av!==bv)return av?-1:1;
+ if(av&&bv&&a.kgM2Week!==b.kgM2Week)return b.kgM2Week-a.kgM2Week;
+ const ae=Number.isFinite(+a.epef),be=Number.isFinite(+b.epef);if(ae!==be)return ae?-1:1;
+ if(ae&&be&&a.epef!==b.epef)return b.epef-a.epef;
+ const af=Number.isFinite(+a.fcr)?a.fcr:Infinity,bf=Number.isFinite(+b.fcr)?b.fcr:Infinity;if(af!==bf)return af-bf;
+ return String(a.farm).localeCompare(String(b.farm),undefined,{numeric:true})
+}
+function tomEligibilityReason(hs){
+ const live=hs.filter(x=>(+x.live||0)>0).length,elig=hs.filter(x=>x.eligible).length,proc=hs.filter(x=>(+x.processed||0)>0).length;
+ const parts=[];if(live)parts.push(`${live} house(s) with Live Sales and no live-sale weight`);if(elig<FARM_HOUSES)parts.push(`${elig}/${FARM_HOUSES} houses pass FCR/EPEF quality gate`);if(proc<FARM_HOUSES)parts.push(`${proc}/${FARM_HOUSES} houses have Processing weight`);
+ return parts.join(' · ')||'Whole farm is not eligible for exact FCR/EPEF';
+}
+
+function tomFarmCycles(M){
+ const dailyByKey=new Map();
+ for(const r of M.farms||[]){const k=tomKey(r.cycle,r.farm,r.house);if(!dailyByKey.has(k))dailyByKey.set(k,[]);dailyByKey.get(k).push(r)}
+ const groups=tomGroup(M.houses||[],h=>`${h.farm}|${h.cycle}`),rows=[],qa=[];
+ for(const hs0 of groups.values()){
+   const hs=hs0.slice(),farm=String(hs[0]?.farm||''),cycle=String(hs[0]?.cycle||'');
+   if(!farm||!cycle||/open/i.test(farm)||/open/i.test(cycle))continue;
+   const houseIds=tomCanonicalHouseSet(hs),standard=tomStandardHouseCoverage(houseIds),placed=tomSum(hs,x=>x.placed),withOutput=hs.filter(x=>x.lastOutput),closedOutput=hs.filter(x=>x.lastOutput&&x.completed),clear=withOutput.length?withOutput.map(x=>x.lastOutput).sort((a,b)=>b-a)[0]:null;
+   if(!standard){
+     if(withOutput.length)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:hs.filter(x=>x.eligible).length,placed,clear,kind:'coverage',decision:`Excluded: source proves ${houseIds.length}/${FARM_HOUSES} standard houses; 26,880 m² is not assigned`});
+     continue;
+   }
+   if(closedOutput.length!==FARM_HOUSES){
+     if(withOutput.length)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:hs.filter(x=>x.eligible).length,placed,clear,kind:'closure',decision:`Excluded until all ${FARM_HOUSES} houses have actual output and operational closure`});
+     continue;
+   }
+   const placeDates=hs.map(x=>x.placeDate).filter(Boolean).sort((a,b)=>a-b),placeMin=placeDates[0]||null,mort=tomSum(hs,x=>x.mort),cull=tomSum(hs,x=>x.cull),processed=tomSum(hs,x=>x.processed),kg=tomSum(hs,x=>x.netkg),live=tomSum(hs,x=>x.live);
+   let mort7=0;
+   for(const h of hs){for(const r of dailyByKey.get(h.key)||[]){const ag=h.placeDate?dayDiff(h.placeDate,r.date):null;if(ag!=null&&ag>=0&&ag<7)mort7+=+r.mort||0}}
+   const scoreEligible=hs.every(x=>x.eligible),scoreFeed=scoreEligible?tomSum(hs,x=>x.feed):0,scoreKg=scoreEligible?tomSum(hs,x=>x.netkg):0,scoreHead=scoreEligible?tomSum(hs,x=>x.processed):0,scoreAge=scoreEligible?tomWeighted(hs,x=>x.ageSold,x=>x.processed):null,scoreFcr=scoreEligible&&scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreEligible&&scoreHead?scoreKg/scoreHead:null,dep=placed?(mort+cull)/placed:null,epef=scoreEligible?tomEpef(dep,scoreWt,scoreAge,scoreFcr):null;
+   const age=processed?tomWeighted(hs.filter(x=>x.processed>0&&x.ageSold!=null),x=>x.ageSold,x=>x.processed):null,alw=processed?kg/processed:null,cycleLength=placeMin&&clear?dayDiff(placeMin,clear)/7:null,eligibilityReason=scoreEligible?'':tomEligibilityReason(hs);
+   const weightComplete=live<=0&&kg>0,kgM2=kg>0?kg/FARM_AREA:null,kgM2Week=weightComplete&&cycleLength>0?kg/(FARM_AREA*cycleLength):null;
+   const rankReason=weightComplete?'':(live>0?'Live Sales exists but the Live Sales source has no KG; KGM2PW is not estimated':'No validated total output KG');
+   const row={farm,cycle,houses:FARM_HOUSES,houseIds,clear,placeMin,cycleLength,placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr:scoreFcr,epef,scoreEligible,eligibilityReason,scoreFeed,scoreKg,scoreHead,scoreAge,loss:mort+cull,area:FARM_AREA,kgM2,chicksM2:placed/FARM_AREA,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason};
+   rows.push(row);
+   if(!scoreEligible)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:hs.filter(x=>x.eligible).length,placed,clear,kind:'score',decision:`Row shown, but FCR/EPEF = NA: ${eligibilityReason}`});
+ }
+ rows.sort((a,b)=>String(a.cycle).localeCompare(String(b.cycle),undefined,{numeric:true})||String(a.farm).localeCompare(String(b.farm),undefined,{numeric:true}));
+ qa.sort((a,b)=>String(b.cycle).localeCompare(String(a.cycle),undefined,{numeric:true})||String(a.farm).localeCompare(String(b.farm),undefined,{numeric:true}));
+ return{rows,qa}
+}
+function tomAggregate(rs,label='TOTAL',rolling=false){
+ if(!rs.length)return null;
+ const placed=tomSum(rs,x=>x.placed),mort7=tomSum(rs,x=>x.mort7),mort=tomSum(rs,x=>x.mort),cull=tomSum(rs,x=>x.cull),processed=tomSum(rs,x=>x.processed),kg=tomSum(rs,x=>x.kg),live=tomSum(rs,x=>x.live),strict=rs.every(x=>x.scoreEligible),scoreFeed=strict?tomSum(rs,x=>x.scoreFeed):0,scoreKg=strict?tomSum(rs,x=>x.scoreKg):0,scoreHead=strict?tomSum(rs,x=>x.scoreHead):0,scoreAge=strict?tomWeighted(rs,x=>x.scoreAge,x=>x.scoreHead):null,fcr=strict&&scoreKg?scoreFeed/scoreKg:null,scoreWt=strict&&scoreHead?scoreKg/scoreHead:null,dep=placed?(mort+cull)/placed:null,epef=strict?tomEpef(dep,scoreWt,scoreAge,fcr):null,age=processed?tomWeighted(rs,x=>x.age,x=>x.processed):null,alw=processed?kg/processed:null,cycles=[...new Set(rs.map(x=>x.cycle))];
+ const area=rolling?FARM_AREA:FARM_AREA*rs.length,areaExposure=rolling?FARM_AREA*rs.length:area;
+ const durationExposure=tomSum(rs,x=>FARM_AREA*(+x.cycleLength||0)),weightComplete=rs.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null;
+ return{farm:label,cycle:cycles.length===1?cycles[0]:'MIXED',clear:rs.map(x=>x.clear).filter(Boolean).sort((a,b)=>b-a)[0]||null,cycleLength:tomWeighted(rs,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible:strict,eligibilityReason:strict?'':'FCR/EPEF total withheld because not every included farm/cycle has a complete weighted score',scoreFeed,scoreKg,scoreHead,scoreAge,loss:mort+cull,area,areaExposure,kgM2:areaExposure?kg/areaExposure:null,chicksM2:areaExposure?placed/areaExposure:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one included farm/cycle has Live Sales without KG; KGM2PW total is withheld'}
+}
+function tomRolling(rows){
+ const byFarm=tomGroup(rows,x=>x.farm),out=[];
+ for(const [farm,rs0] of byFarm){
+   const sorted=rs0.slice().sort((a,b)=>b.clear-a.clear),n=sorted.length>=ROLL_MAX?ROLL_MAX:sorted.length>=ROLL_MIN?ROLL_MIN:0;if(!n)continue;
+   const selected=sorted.slice(0,n),a=tomAggregate(selected,farm,true);if(!a)continue;
+   a.rollN=n;a.cyclesUsed=selected.map(x=>x.cycle);a.sourceCycles=selected;a.clear=selected[0]?.clear||null;out.push(a)
+ }
+ return out.sort(tomSortPerformance)
+}
+function tomTotalRolling(rs){
+ if(!rs.length)return null;
+ const cycles=rs.flatMap(x=>x.sourceCycles||[]),placed=tomSum(cycles,x=>x.placed),mort7=tomSum(cycles,x=>x.mort7),mort=tomSum(cycles,x=>x.mort),cull=tomSum(cycles,x=>x.cull),processed=tomSum(cycles,x=>x.processed),kg=tomSum(cycles,x=>x.kg),live=tomSum(cycles,x=>x.live),strict=cycles.every(x=>x.scoreEligible),scoreFeed=strict?tomSum(cycles,x=>x.scoreFeed):0,scoreKg=strict?tomSum(cycles,x=>x.scoreKg):0,scoreHead=strict?tomSum(cycles,x=>x.scoreHead):0,scoreAge=strict?tomWeighted(cycles,x=>x.scoreAge,x=>x.scoreHead):null,fcr=strict&&scoreKg?scoreFeed/scoreKg:null,scoreWt=strict&&scoreHead?scoreKg/scoreHead:null,dep=placed?(mort+cull)/placed:null,epef=strict?tomEpef(dep,scoreWt,scoreAge,fcr):null,age=processed?tomWeighted(cycles,x=>x.age,x=>x.processed):null,alw=processed?kg/processed:null,footprint=FARM_AREA*rs.length,exposure=FARM_AREA*cycles.length,durationExposure=tomSum(cycles,x=>FARM_AREA*(+x.cycleLength||0)),weightComplete=cycles.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null;
+ return{farm:'TOTAL',cycleLength:tomWeighted(cycles,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible:strict,eligibilityReason:strict?'':'FCR/EPEF total withheld because at least one selected rolling cycle is not fully eligible',area:footprint,areaExposure:exposure,kgM2:exposure?kg/exposure:null,chicksM2:exposure?placed/exposure:null,rollN:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one selected rolling cycle has Live Sales without KG; KGM2PW total is withheld'}
+}
+function tomCols(mode){
+ if(mode==='rolling')return ['SITE NAME','SqM','Cycle Length (wk)','7 Day Mort %','Mort %','A.L.W.','AGE','ADG (KG)','Factory R %','F.C.R.','E.P.E.F.','G KGS/M2','CHICKS/M2','LPG/OIL LITRES/M2','KGS/M2/WEEK'];
+ return ['SITE NAME','DATE CLEARED','SqM','Cycle Length (wk)','Crop Cycle','7 Day Mort %','Mort %','A.L.W.','AGE','ADG (KG)','Factory R %','F.C.R.','E.P.E.F.','G KGS/M2','CHICKS/M2','LPG/OIL LITRES/M2','KGS/M2/WEEK']
+}
+function tomScoreCell(v,d,reason){return v==null||!Number.isFinite(+v)?tomNA(reason):tomNum(v,d)}
+function tomRow(x,mode,total=false){
+ const cyclesTitle=x.cyclesUsed?.length?`Cycles used: ${x.cyclesUsed.join(', ')}`:'',name=total?'TOTAL':mode==='rolling'?`<span class="tom-cycle-tip" title="${esc(cyclesTitle)}">${esc(tomFarmLabel(x.farm))}</span>`:esc(tomFarmLabel(x.farm)),mort7=x.placed?x.mort7/x.placed:null,mort=x.placed?x.mort/x.placed:null,adg=x.adg!=null?x.adg:(x.alw&&x.age?x.alw/x.age:null),reason=x.eligibilityReason||'Exact FCR/EPEF unavailable';
+ const fcr=tomScoreCell(x.fcr,3,reason),epef=tomScoreCell(x.epef,2,reason),kgm2pw=tomScoreCell(x.kgM2Week,3,x.rankReason||'KGM2PW unavailable');
+ if(mode==='rolling')return [name,tomInt(x.area||FARM_AREA),tomNum(x.cycleLength,2),tomPct(mort7),tomPct(mort),tomNum(x.alw,3),tomNum(x.age,2),tomNum(adg,3),tomNA('No validated Factory R source'),fcr,epef,tomNum(x.kgM2,2),tomNum(x.chicksM2,2),tomNA('LITRES/M2 refers to LPG/fuel-oil consumption, not water; no validated fuel-volume source is available'),kgm2pw];
+ return [name,total?'':tomDate(x.clear),tomInt(x.area||FARM_AREA),tomNum(x.cycleLength,2),x.cycle||'NA',tomPct(mort7),tomPct(mort),tomNum(x.alw,3),tomNum(x.age,2),tomNum(adg,3),tomNA('No validated Factory R source'),fcr,epef,tomNum(x.kgM2,2),tomNum(x.chicksM2,2),tomNA('LITRES/M2 refers to LPG/fuel-oil consumption, not water; no validated fuel-volume source is available'),kgm2pw]
+}
+function tomTable(id,mode,rows,total,meta=''){
+ const hs=tomCols(mode),scored=rows.filter(x=>x.scoreEligible).length,ranked=rows.filter(x=>x.rankEligible).length,body=(total?[`<tr class="tom-total">${tomRow(total,mode,true).map(x=>`<td>${x}</td>`).join('')}</tr>`]:[]).concat(rows.map(x=>`<tr class="${x.rankEligible?'':'tom-unscored-row'}">${tomRow(x,mode,false).map(v=>`<td>${v}</td>`).join('')}</tr>`)).join('');
+ const badge=mode==='rolling'?`${fmt(rows.length)} ${T('مزرعة','farms')} · ${fmt(ranked)} KGM2PW ${T('مؤهلة للترتيب','ranked')} · ${rows.filter(x=>x.rollN===4).length} × 4 ${T('دورات','cycles')} · ${rows.filter(x=>x.rollN===3).length} × 3 ${T('دورات','cycles')}`:`${fmt(rows.length)} ${T('مزرعة','farms')} · ${fmt(ranked)} KGM2PW ${T('مؤهلة للترتيب','ranked')} · ${fmt(scored)} ${T('مؤهلة FCR/EPEF','FCR/EPEF scored')}`;
+ return `<div class="tablebar"><span class="badge">${badge}${meta?` · ${meta}`:''}</span><button class="export" data-export="${id}">▦ ${T('تصدير CSV','Export CSV')}</button></div><div class="tom-table-wrap"><table id="${id}" class="tom-table" data-cols="${hs.length}"><thead><tr>${hs.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${hs.length}" class="tom-empty">No completed standard 16-house farm data for this selection</td></tr>`}</tbody></table></div>`
+}
+function tomReportSheet(title,subtitle,id,mode,rows,total,meta=''){return `<div class="tom-report-sheet" dir="ltr"><div class="tom-report-brand"><div><div class="company">SAMA KARBALA</div><small>Broiler Farms Performance</small></div><div class="period">${title}<small>${subtitle||''}</small></div></div>${tomTable(id,mode,rows,total,meta)}</div>`}
+function tomSelectors(rows){const weeks=[...new Set(rows.map(x=>tomIso(tomWeekEnd(x.clear))).filter(Boolean))].sort().reverse(),cycles=[...new Set(rows.map(x=>x.cycle).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a),undefined,{numeric:true}));if(!TOM.week||!weeks.includes(TOM.week))TOM.week=weeks[0]||'';if(!TOM.cycle||!cycles.includes(TOM.cycle))TOM.cycle=cycles[0]||'';return{weeks,cycles}}
+function tomCurrent(rows){const sel=tomSelectors(rows),we=parseDate(TOM.week),ws=we?addDays(we,-6):null,weekly=we?rows.filter(x=>x.clear&&x.clear>=ws&&x.clear<=we).sort(tomSortPerformance):[],league=rows.filter(x=>x.cycle===TOM.cycle).sort(tomSortPerformance),rolling=tomRolling(rows);return{...sel,we,ws,weekly,league,rolling}}
+function tomControls(C){return `<div class="tom-toolbar"><div class="tom-left"><div class="tom-control"><label>${T('الأسبوع المنتهي','Week ending')}</label><select id="tomWeek">${C.weeks.map(w=>`<option value="${w}"${w===TOM.week?' selected':''}>Week ${tomWeekNo(w)} · ${tomDate(addDays(parseDate(w),-6))} – ${tomDate(w)}</option>`).join('')}</select></div><div class="tom-control"><label>${T('الدورة','Cycle')}</label><select id="tomCycle">${C.cycles.map(c=>`<option value="${c}"${c===TOM.cycle?' selected':''}>Cycle ${c}</option>`).join('')}</select></div></div><div class="tom-tabs"><button data-tom-mode="weekly" class="${TOM.mode==='weekly'?'on':''}">Weekly Performance</button><button data-tom-mode="league" class="${TOM.mode==='league'?'on':''}">League Table</button><button data-tom-mode="rolling" class="${TOM.mode==='rolling'?'on':''}">Crop Rolling Average 4/3</button></div></div>`}
+function tomQaRows(qa,C){
+ let rows=qa||[];
+ if(TOM.mode==='league')rows=rows.filter(x=>x.cycle===TOM.cycle);
+ else if(TOM.mode==='weekly'&&C.ws&&C.we)rows=rows.filter(x=>x.clear&&x.clear>=C.ws&&x.clear<=C.we);
+ else rows=rows.slice(0,120);
+ return rows.slice(0,120)
+}
+function tomQaPanel(rows){
+ if(!rows.length)return '';
+ const hs=[T('المزرعة','Farm'),T('الدورة','Cycle'),T('هاوسات Placement','Placement houses'),T('الهاوسات الموجودة','Houses found'),T('هاوسات مغلقة بخروج فعلي','Closed/output houses'),T('هاوسات مؤهلة FCR/EPEF','FCR/EPEF eligible houses'),T('المسكن','Placed'),T('آخر خروج','Last output'),T('قرار التقرير','Report decision')];
+ const body=rows.map(x=>`<tr><td>${esc(x.farm)}</td><td>${esc(x.cycle)}</td><td>${x.houseCount}/${FARM_HOUSES}</td><td>${esc(x.houses||'—')}</td><td>${x.closed}/${FARM_HOUSES}</td><td>${x.eligible}/${FARM_HOUSES}</td><td>${tomInt(x.placed)}</td><td>${x.clear?tomDate(x.clear):'—'}</td><td class="tom-qa-decision ${x.kind==='score'?'info':'exclude'}">${esc(x.decision)}</td></tr>`).join('');
+ return `<div class="tom-qa"><h3>${T('تدقيق مصدر Tom Report — الصفوف المستبعدة أو غير المؤهلة','Tom Report Source Audit — excluded or unscored rows')}</h3><p>${T('أي Farm+Cycle لا يثبت المصدر أنه يحتوي الهاوسات 01–16 كاملة لا يُعامل كمزرعة قياسية 26,880 م². الصف القياسي المكتمل يبقى ظاهراً، لكن FCR/EPEF يصبح NA إذا لم تكن كل الهاوسات مؤهلة بحساب وزن/علف كامل.','A Farm+Cycle is not treated as a standard 26,880 m² farm unless the source proves houses 01–16. A completed standard row remains visible, but FCR/EPEF is NA unless all houses have a complete weight/feed eligibility chain.')}</p><div class="tom-table-wrap"><table class="tom-table"><thead><tr>${hs.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div></div>`
+}
+async function renderTom(){
+ setFilterOptions([],[]);const view=document.getElementById('view');view.innerHTML=hero('Tom Report',T('تقرير أداء مزارع التسمين بنفس ترتيب وأسماء أعمدة النموذج، من البيانات الفعلية المتاحة فقط.','Broiler farm performance report using the reference column order and names, driven only by available actual source data.'))+`<div class="loader"><span class="spinner"></span><span>${T('تحميل وتدقيق بيانات التسمين…','Loading and validating broiler data…')}</span></div>`;
+ try{
+  const M=await broilerModel(),FC=tomFarmCycles(M),groups=FC.rows,C=tomCurrent(groups),qa=tomQaRows(FC.qa,C);let content='';
+  if(TOM.mode==='weekly'){const total=tomAggregate(C.weekly);content=tomReportSheet(`Week ${tomWeekNo(TOM.week)}`,`${tomDate(C.ws)} – ${tomDate(C.we)}`,'tomWeekly','weekly',C.weekly,total)}
+  else if(TOM.mode==='league'){const total=tomAggregate(C.league);content=tomReportSheet(`League Table Cycle ${TOM.cycle}`,`${C.league.length} standard completed farms`,'tomLeague','league',C.league,total)}
+  else{const total=tomTotalRolling(C.rolling);content=tomReportSheet('Crop Rolling Average 4/3',`${T('آخر 4 دورات مكتملة عند توفرها، وإلا آخر 3','Latest 4 completed cycles where available; otherwise latest 3')}`,'tomRolling','rolling',C.rolling,total)}
+  const note=`<div class="tom-note"><b>${T('المصدر والحساب:','Source & calculation:')}</b> ${T('Placement + Farms + Processing Transactions + Live Sales. لا يُعطى Farm+Cycle مساحة 26,880 م² إلا إذا أثبت Placement وجود الهاوسات 01–16 كاملة. DATE CLEARED = آخر خروج فعلي Processing أو Live Sales بعد اكتمال إغلاق الهاوسات. Cycle Length = من أول Placement فعلي إلى DATE CLEARED ÷ 7. 7 Day Mort% = النافق في أول 7 أيام تقويمية فقط (Day 0 إلى Day 6). Mort% = النافق فقط مثل نموذج Tom. A.L.W. وAGE وG KGS/M2 مبنية على Processing الفعلي لأن Live Sales لا يحتوي وزناً. ترتيب League Table أصبح حسب KGS/M2/WEEK (KGM2PW) كما طلب Tom: على مستوى الهاوس = Total Weight ÷ 1,680 ÷ Cycle Length بالأيام × 7؛ وعلى مستوى المزرعة = Total Weight ÷ 26,880 ÷ Cycle Length بالأيام × 7. وبما أن Cycle Length المعروض هنا بالأسابيع فالمعادلة المكافئة = Total Weight ÷ 26,880 ÷ Cycle Length (weeks). أي Farm/Cycle فيه Live Sales لا يُعطى KGM2PW تخمينياً لأن وزن البيع الحي غير موجود بالمصدر، ويبقى ظاهراً لكنه غير مرتب. FCR/EPEF لا يظهران إلا إذا كانت المزرعة القياسية كاملة وكل 16 هاوس مؤهلة للحساب. Rolling يستخدم آخر 4 دورات قياسية مكتملة، أو آخر 3 إذا لم تتوفر 4؛ KGM2PW للـRolling = مجموع الوزن الموثق ÷ مجموع (مساحة المزرعة × مدة الدورة بالأسابيع). LITRES/M2 ليس ماء؛ المقصود LPG/وقود أو Oil حسب نموذج Tom، ولا يوجد حالياً مصدر حجم وقود موثوق لذلك يبقى NA. Factory R% كذلك يبقى NA دون مصدر.','Placement + Farms + Processing Transactions + Live Sales. A Farm+Cycle receives the 26,880 m² standard-farm denominator only when Placement proves the complete house set 01–16. DATE CLEARED is the last actual Processing or Live Sales output after operational house closure. Cycle Length runs from first actual Placement to DATE CLEARED divided by 7. 7 Day Mort% uses exactly the first seven calendar days (Day 0 through Day 6). Mort% is mortality only, matching the Tom model. A.L.W., AGE and G KGS/M2 use actual Processing because Live Sales has no weight. League Table rank is now KGS/M2/WEEK (KGM2PW), per Tom: house-level = Total Weight ÷ 1,680 ÷ Cycle Length in days × 7; farm-level = Total Weight ÷ 26,880 ÷ Cycle Length in days × 7. Because Cycle Length is displayed here in weeks, the exact equivalent is Total Weight ÷ 26,880 ÷ Cycle Length (weeks). Any Farm/Cycle with Live Sales is not given an estimated KGM2PW because the Live Sales source has no KG; it remains visible but unranked. FCR/EPEF are shown only when the entire standard farm and all 16 houses are eligible. Rolling uses the latest 4 standard completed cycles, or the latest 3 when 4 are unavailable; rolling KGM2PW = validated total KG ÷ sum(farm area × cycle weeks). LITRES/M2 is not water; it refers to LPG/fuel-oil consumption in Tom\'s model, and remains NA until a validated fuel-volume source exists. Factory R% also remains NA without a source.')}</div>`;
+  view.innerHTML=hero('Tom Report',T('تقرير أداء مزارع التسمين — Weekly / League Table / Crop Rolling 4/3','Broiler Farms Performance — Weekly / League Table / Crop Rolling 4/3'))+`<div class="tom-page">${tomControls(C)}${content}<div class="tom-meta-row"><span class="tom-chip"><b>${T('آخر بيانات','Latest data')}</b> ${tomDate(M.latest)}</span><span class="tom-chip"><b>${T('مساحة الهاوس','House area')}</b> 1,680 m²</span><span class="tom-chip"><b>${T('المزرعة القياسية','Standard farm')}</b> 16 × 1,680 = 26,880 m²</span><span class="tom-chip"><b>KGM2PW</b> ${T('الترتيب حسب كغم/م²/أسبوع','rank = KG/m²/week')}</span><span class="tom-chip"><b>${T('Farm/Cycle مكتمل قياسي','Standard completed Farm/Cycle')}</b> ${fmt(groups.length)}</span><span class="tom-chip"><b>${T('استثناءات المصدر','Source exceptions')}</b> ${fmt(FC.qa.length)}</span></div>${note}${tomQaPanel(qa)}</div>`;
+  document.getElementById('tomWeek')?.addEventListener('change',e=>{TOM.week=e.target.value;renderCurrent()});document.getElementById('tomCycle')?.addEventListener('change',e=>{TOM.cycle=e.target.value;renderCurrent()});document.querySelectorAll('[data-tom-mode]').forEach(b=>b.onclick=()=>{TOM.mode=b.dataset.tomMode;renderCurrent()});wireExports();
+ }catch(e){window.SK_ERROR_BUS?.capture(e,'V1.3.36 Tom Report');view.innerHTML=hero('Tom Report',T('تعذر تحميل التقرير','Unable to load report'))+`<div class="empty">${esc(e?.message||e)}</div>`}
+}
+if(!PAGES.some(x=>x[0]==='tomreport')){const di=PAGES.findIndex(x=>x[0]==='data');PAGES.splice(di<0?PAGES.length:di,0,['tomreport','TR','Tom Report','Tom Report'])}
+RENDER.tomreport=renderTom;
+const tomFilterBase=activePageFilterMode;activePageFilterMode=function(){tomFilterBase.apply(this,arguments);const bar=document.getElementById('filterbar');if(bar&&S.page==='tomreport')bar.style.display='none'};
+try{renderNav()}catch(_){ }
+window.SK_TOM_REPORT_AUDIT_V136=Object.freeze({
+ release:RELEASE,
+ houseArea:HOUSE_AREA,housesPerFarm:FARM_HOUSES,farmArea:FARM_AREA,
+ source:['bPlace','bFarms','bProc','bLive'],
+ standardFarmGate:'Placement must prove exact houses 01-16',
+ closureGate:'all 16 houses require actual output + completed operational closure',
+ sevenDayMortality:'Day 0 through Day 6 only',
+ farmScoreGate:'FCR/EPEF only if every one of the 16 houses is eligible',
+ rolling:'latest 4 standard completed cycles; otherwise latest 3; minimum 3',
+ rollingAreaExposure:'26880 × cycles used per farm',
+ unsupported:['Factory R %','LPG/OIL LITRES/M2'],
+ litresSemantic:'LPG/fuel-oil volume metric, not water; no validated source so NA',
+ kgm2pwFormula:'farm = validated total output KG / 26880 / cycleLengthDays * 7; equivalent = KG / 26880 / cycleLengthWeeks',
+ kgm2pwLiveSalesGuard:'if Live Sales > 0 and no live-sale KG exists, KGM2PW is NA and row is unranked',
+ ranking:'valid KGS/M2/WEEK desc; EPEF desc tie-break; lower FCR next tie-break; unranked rows after ranked rows',
+ noEstimation:true
+});
+})();
+</script>
+
+<script id="v335-release-owner">
+(function(){
+'use strict';
+const RELEASE='V1.3.35';
 window.SK_RELEASE_LOCK=RELEASE;
 
 const BRAND_AR='جميع التقارير محفوظة · بيانات مباشرة ومدققة · '+RELEASE;
@@ -7809,7 +8214,7 @@ function ownCfgVersion(){
    }
   });
  }catch(e){
-  try{CFG.version=RELEASE}catch(_){window.SK_ERROR_BUS?.capture(_,'v331 cfg version')}
+  try{CFG.version=RELEASE}catch(_){window.SK_ERROR_BUS?.capture(_,'v335 cfg version')}
  }
 }
 
@@ -7827,7 +8232,7 @@ function apply(){
   document.querySelectorAll('.version').forEach(x=>{
    if(x.textContent!==BADGE)x.textContent=BADGE;
   });
- }catch(e){window.SK_ERROR_BUS?.capture(e,'v331 apply')}
+ }catch(e){window.SK_ERROR_BUS?.capture(e,'v335 apply')}
  finally{fixing=false}
 }
 
@@ -7854,7 +8259,7 @@ function bindObserver(){
   const b=document.getElementById('brandSub');
   if(b)observer.observe(b,{childList:true,characterData:true,subtree:true});
   document.querySelectorAll('.version').forEach(x=>observer.observe(x,{childList:true,characterData:true,subtree:true}));
- }catch(e){window.SK_ERROR_BUS?.capture(e,'v331 observer')}
+ }catch(e){window.SK_ERROR_BUS?.capture(e,'v335 observer')}
  window.SK_RELEASE_OBSERVER_V322=observer;
 }
 
@@ -7871,7 +8276,7 @@ function selfCheck(){
  const b=document.getElementById('brandSub');
  if(b&&!b.textContent.includes(RELEASE))issues.push('BRAND_RELEASE');
  if([...document.querySelectorAll('.version')].some(x=>!x.textContent.includes(RELEASE)))issues.push('BADGE_RELEASE');
- window.SK_RUNTIME_CHECK_V1331=Object.freeze({
+ window.SK_RUNTIME_CHECK_V1335=Object.freeze({
   release:RELEASE,
   ok:issues.length===0,
   issues,
@@ -7882,7 +8287,7 @@ function selfCheck(){
   brand:b?.textContent||'',
   legacyWrites:(window.SK_LEGACY_VERSION_WRITES||[]).slice(-10)
  });
- if(issues.length)console.warn('V1.3.31 runtime self-check',issues);
+ if(issues.length)console.warn('V1.3.35 runtime self-check',issues);
 }
 
 const oldLang=setLang;
@@ -7902,7 +8307,7 @@ renderCurrent=async function(){
 };
 
 window.SK_REFERENCE_BASE_V1326=Object.freeze({base:'V1.3.21',chainLayout:'V1.3.21 linked-report placement; legacy Plant daily/weekly removed',acceptedLaterFixes:['Sales Flock Off-Sex','GP male setting','latest-transaction activity','placement/slaughter attainment','PSR→PSP handoff','Broiler last-output closure','BRH 84% vs Ross expected governance','approved Plant plan','runtime scope and Off-Sex bundle hotfix']});
-window.SK_RELEASE_V1331=Object.freeze({
+window.SK_RELEASE_V1335=Object.freeze({
  release:RELEASE,
  feature:'single authoritative release owner + Chain Analytics source/calc audit + 20-column linked report'
 });
