@@ -1,6 +1,6 @@
 <!-- V1.1.34 | Runtime/Data Fix: repaired Cumulative row-3 header, CX scope bridge, official broiler current inventory, and chain active-house reconciliation. -->
 <!DOCTYPE html>
-<!-- V1.3.37 | Tom Report NA/data-coverage cleanup. Unsupported Factory R and LPG/OIL litres columns removed. FCR/EPEF now use exact eligible-house actual data with transparent coverage rather than being withheld unless all 16 houses qualify. No weight/fuel/reject values are estimated. KGS/M2/WEEK ranking and Rolling 4/3 remain unchanged. -->
+<!-- V1.3.38 | Tom Report deep audit: source loading decoupled to the four required Broiler sources only; mode-specific filters prevent inactive/misleading selectors; KGM2PW uses exact house-area-time exposure; farm cycle length is average actual house placement-to-last-output duration; G KGS/M2 is withheld when Live Sales make total KG incomplete; FCR/EPEF quality gate adds upper completion validation; source freshness/count audit added. No estimated weights or missing-source values. -->
 
 <!-- V1.1.46: Monthly/Quarterly calculation audit. Original GM reports preserved; future engine corrected for stage-specific cutoffs, 32-day slaughter age, mortality-aware breeder forecasts, historical-plan actualization guard, and forward capacity logic. -->
 <html dir="rtl" lang="ar">
@@ -371,7 +371,7 @@ body.light .v188-kpi .sub{color:#5f738b!important}
 .tom-table .tom-unscored{color:#8a4b08!important;font-weight:900}
 .tom-table .tom-empty{color:#111!important;background:#ffd000!important;text-align:left;font-weight:900}
 .tom-table .tom-cycle-tip{color:#111!important;font-weight:950;text-decoration:underline dotted #777;text-underline-offset:2px}
-.tom-table .tom-partial-score{color:#5b3b00!important;font-weight:950;border-bottom:2px dotted #d59b00;cursor:help}.tom-table .tom-full-score{color:#111827!important;font-weight:850}
+.tom-table .tom-partial-score{color:#5b3b00!important;font-weight:950;border-bottom:2px dotted #d59b00;cursor:help}.tom-table .tom-full-score{color:#111827!important;font-weight:850}.tom-reload{padding:8px 10px;border:1px solid #28527a;border-radius:8px;background:#0b2740;color:#dcecff;font-weight:800;cursor:pointer}.tom-reload:hover{background:#123b5d}
 .tom-note{margin-top:12px;border-inline-end:3px solid #f2b705;background:#0b2034;color:#d6e4f3;padding:10px 12px;border-radius:7px;font-size:10.5px;line-height:1.7}.tom-note b{color:#fff}
 .tom-meta-row{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:10px 0}.tom-chip{font-size:9.5px;border:1px solid #1f4260;border-radius:999px;background:#10263e;color:#b7cce3;padding:5px 8px}.tom-chip b{color:#fff}
 .tom-qa{margin-top:12px;padding:10px 12px;border:1px solid #294760;border-radius:9px;background:#0a1c30}.tom-qa h3{margin:0 0 5px;color:#fff;font-size:12px}.tom-qa p{margin:0 0 8px;color:#a9c0d8;font-size:10px;line-height:1.55}.tom-qa table{min-width:980px}.tom-qa .tom-table tbody td{font-size:10px}.tom-qa-decision.exclude{color:#a83a3a!important;font-weight:900}.tom-qa-decision.info{color:#8a4b08!important;font-weight:900}
@@ -379,6 +379,11 @@ body.light .v188-kpi .sub{color:#5f738b!important}
 @media(max-width:800px){.tom-toolbar{align-items:stretch}.tom-left{width:100%}.tom-control{flex:1}.tom-control select{width:100%;min-width:0}.tom-tabs{width:100%}.tom-tabs button{flex:1}}
 </style>
 
+
+<style id="v138-tom-filter-audit-style">
+.tom-filter-static{min-width:360px;max-width:560px;padding:8px 10px;border:1px solid #274866;border-radius:8px;background:#091c30;color:#d8e7f6;font-size:10px;font-weight:750;line-height:1.45}.tom-source-health{margin-top:10px}.tom-qa-decision.info{color:#0f5d78}.tom-qa-decision.weight{color:#8a5a00}
+@media(max-width:800px){.tom-filter-static{min-width:0;max-width:none;width:100%}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -8031,8 +8036,8 @@ window.SK_QUARTERLY_AUDIT_V131Q=Object.freeze({
 <script id="v134-tom-report">
 (function(){
 'use strict';
-const RELEASE='V1.3.37';
-const TOM=window.SK_TOM_REPORT_V137||(window.SK_TOM_REPORT_V137=window.SK_TOM_REPORT_V136||{mode:'weekly',week:'',cycle:''});
+const RELEASE='V1.3.38';
+const TOM=window.SK_TOM_REPORT_V138||(window.SK_TOM_REPORT_V138=window.SK_TOM_REPORT_V137||{mode:'weekly',week:'',cycle:''});
 const HOUSE_AREA=1680,FARM_HOUSES=16,FARM_AREA=HOUSE_AREA*FARM_HOUSES,ROLL_MAX=4,ROLL_MIN=3;
 const EXPECTED_HOUSES=Object.freeze(Array.from({length:FARM_HOUSES},(_,i)=>String(i+1).padStart(2,'0')));
 function tomIso(v){return iso(parseDate(v))}
@@ -8068,6 +8073,28 @@ function tomEligibilityReason(hs){
  return parts.join(' · ')||'All 16 houses have exact FCR/EPEF inputs';
 }
 
+function tomHouseCycleWeeks(h){
+ if(!h?.placeDate||!h?.lastOutput)return null;
+ const d=dayDiff(h.placeDate,h.lastOutput);return d!=null&&d>0?d/7:null
+}
+async function tomLoadOne(key,force=false){
+ try{return await load(key,force)}catch(e){throw new Error(`Tom Report source ${key} failed: ${e?.message||e}`)}
+}
+async function tomLoadCoreModel(force=false){
+ const [pl,fa,pr,lv]=await Promise.all([tomLoadOne('bPlace',force),tomLoadOne('bFarms',force),tomLoadOne('bProc',force),tomLoadOne('bLive',force)]);
+ const place=bPlaceNorm(pl),farms=bFarmNorm(fa),proc=bProcNorm(pr),live=bLiveNorm(lv);
+ const model=buildBroilerModel({place,farms,proc,live,ctl:[],gph:{rows:[]},gphPlan:[],brh:[]});
+ const stat=(raw,norm)=>({rawRows:raw.length,validRows:norm.length,dropped:Math.max(0,raw.length-norm.length),latest:latestDate(norm,['date'])||''});
+ model.tomSourceStats={Placement:stat(pl,place),Farms:stat(fa,farms),Processing:stat(pr,proc),LiveSales:stat(lv,live)};
+ model.latest=[model.tomSourceStats.Placement.latest,model.tomSourceStats.Farms.latest,model.tomSourceStats.Processing.latest,model.tomSourceStats.LiveSales.latest].filter(Boolean).sort().at(-1)||model.latest||'';
+ return model
+}
+function tomSourcePanel(M){
+ const st=M.tomSourceStats||{},keys=['Placement','Farms','Processing','LiveSales'];
+ const rows=keys.map(k=>{const z=st[k]||{},kind=k==='Farms'?T('يومي','Daily'):T('سجل أحداث','Event ledger'),drop=+z.dropped||0,dropCell=drop?`<span class="tom-partial-score" title="${T('صفوف لم تمر من تطبيع المصدر بسبب تاريخ/مزرعة/معرف غير صالح','Rows rejected during source normalization due to invalid date/farm/identifier')}">${tomInt(drop)}</span>`:'0';return `<tr><td>${k}</td><td>${kind}</td><td>${tomInt(z.rawRows||0)}</td><td>${tomInt(z.validRows||0)}</td><td>${dropCell}</td><td>${z.latest?tomDate(z.latest):'—'}</td></tr>`}).join('');
+ return `<div class="tom-qa tom-source-health"><h3>${T('صحة استدعاء مصادر Tom Report','Tom Report source-load health')}</h3><p>${T('التقرير يستدعي فقط Placement + Farms + Processing + Live Sales. يعرض الجدول الصفوف الخام والصفوف الصالحة بعد التطبيع حتى يظهر أي فقد بالربط. أي فشل بمصدر آخر في الصفحة لا يوقف Tom Report.','Tom Report calls only Placement + Farms + Processing + Live Sales. Raw and valid normalized rows are shown so any parsing/linkage loss is visible. A failure in an unrelated page source no longer blocks Tom Report.')}</p><div class="tom-table-wrap"><table class="tom-table"><thead><tr><th>${T('المصدر','Source')}</th><th>${T('النوع','Type')}</th><th>${T('صفوف خام','Raw rows')}</th><th>${T('صفوف صالحة','Valid rows')}</th><th>${T('مستبعد بالتطبيع','Dropped')}</th><th>${T('آخر تاريخ','Latest date')}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`
+}
+
 function tomFarmCycles(M){
  const dailyByKey=new Map();
  for(const r of M.farms||[]){const k=tomKey(r.cycle,r.farm,r.house);if(!dailyByKey.has(k))dailyByKey.set(k,[]);dailyByKey.get(k).push(r)}
@@ -8087,13 +8114,14 @@ function tomFarmCycles(M){
    const placeDates=hs.map(x=>x.placeDate).filter(Boolean).sort((a,b)=>a-b),placeMin=placeDates[0]||null,mort=tomSum(hs,x=>x.mort),cull=tomSum(hs,x=>x.cull),processed=tomSum(hs,x=>x.processed),kg=tomSum(hs,x=>x.netkg),live=tomSum(hs,x=>x.live);
    let mort7=0;
    for(const h of hs){for(const r of dailyByKey.get(h.key)||[]){const ag=h.placeDate?dayDiff(h.placeDate,r.date):null;if(ag!=null&&ag>=0&&ag<7)mort7+=+r.mort||0}}
-   const scoreHs=hs.filter(x=>x.eligible),scoreEligibleHouses=scoreHs.length,scoreFull=scoreEligibleHouses===FARM_HOUSES,scoreEligible=scoreEligibleHouses>0,scoreFeed=tomSum(scoreHs,x=>x.feed),scoreKg=tomSum(scoreHs,x=>x.netkg),scoreHead=tomSum(scoreHs,x=>x.processed),scorePlaced=tomSum(scoreHs,x=>x.placed),scoreLoss=tomSum(scoreHs,x=>x.mort+x.cull),scoreDep=scorePlaced?scoreLoss/scorePlaced:null,scoreAge=scoreEligible?tomWeighted(scoreHs,x=>x.ageSold,x=>x.processed):null,scoreFcr=scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreHead?scoreKg/scoreHead:null,epef=scoreEligible?tomEpef(scoreDep,scoreWt,scoreAge,scoreFcr):null,scoreCoveragePct=placed?scorePlaced/placed:null;
-   const age=processed?tomWeighted(hs.filter(x=>x.processed>0&&x.ageSold!=null),x=>x.ageSold,x=>x.processed):null,alw=processed?kg/processed:null,cycleLength=placeMin&&clear?dayDiff(placeMin,clear)/7:null,dep=placed?(mort+cull)/placed:null,eligibilityReason=scoreFull?'':tomEligibilityReason(hs);
-   const weightComplete=live<=0&&kg>0,kgM2=kg>0?kg/FARM_AREA:null,kgM2Week=weightComplete&&cycleLength>0?kg/(FARM_AREA*cycleLength):null;
-   const rankReason=weightComplete?'':(live>0?'Live Sales exists but the Live Sales source has no KG; KGM2PW is not estimated':'No validated total output KG');
-   const row={farm,cycle,houses:FARM_HOUSES,houseIds,clear,placeMin,cycleLength,placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr:scoreFcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason,scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,loss:mort+cull,area:FARM_AREA,kgM2,chicksM2:placed/FARM_AREA,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason};
+   const scoreHs=hs.filter(x=>x.eligible&&x.completion!=null&&x.completion>=.95&&x.completion<=1.05&&x.live===0&&x.feed>0&&x.netkg>0&&x.processed>0&&x.ageSold>=20&&x.ageSold<=60),scoreEligibleHouses=scoreHs.length,scoreFull=scoreEligibleHouses===FARM_HOUSES,scoreEligible=scoreEligibleHouses>0,scoreFeed=tomSum(scoreHs,x=>x.feed),scoreKg=tomSum(scoreHs,x=>x.netkg),scoreHead=tomSum(scoreHs,x=>x.processed),scorePlaced=tomSum(scoreHs,x=>x.placed),scoreLoss=tomSum(scoreHs,x=>x.mort+x.cull),scoreDep=scorePlaced?scoreLoss/scorePlaced:null,scoreAge=scoreEligible?tomWeighted(scoreHs,x=>x.ageSold,x=>x.processed):null,scoreFcr=scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreHead?scoreKg/scoreHead:null,epef=scoreEligible?tomEpef(scoreDep,scoreWt,scoreAge,scoreFcr):null,scoreCoveragePct=placed?scorePlaced/placed:null;
+   const age=processed?tomWeighted(hs.filter(x=>x.processed>0&&x.ageSold!=null),x=>x.ageSold,x=>x.processed):null,alw=processed?kg/processed:null,houseWeeks=hs.map(tomHouseCycleWeeks),validWeeks=houseWeeks.filter(x=>x!=null&&x>0),cycleLength=validWeeks.length===FARM_HOUSES?validWeeks.reduce((a,b)=>a+b,0)/FARM_HOUSES:null,durationExposure=validWeeks.length===FARM_HOUSES?HOUSE_AREA*validWeeks.reduce((a,b)=>a+b,0):null,dep=placed?(mort+cull)/placed:null,eligibilityReason=scoreFull?'':tomEligibilityReason(hs);
+   const weightComplete=live<=0&&kg>0&&durationExposure>0,kgM2=weightComplete?kg/FARM_AREA:null,kgM2Week=weightComplete?kg/durationExposure:null;
+   const rankReason=weightComplete?'':(live>0?'Live Sales exists but the Live Sales source has no KG; total KG/m² and KGM2PW are not estimated':!durationExposure?'House cycle-duration exposure is incomplete':'No validated total output KG');
+   const row={farm,cycle,houses:FARM_HOUSES,houseIds,clear,placeMin,cycleLength,durationExposure,placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr:scoreFcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason,scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,loss:mort+cull,area:FARM_AREA,kgM2,chicksM2:placed/FARM_AREA,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason};
    rows.push(row);
-   if(!scoreFull)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:scoreEligibleHouses,placed,clear,kind:'score',decision:scoreEligible?`FCR/EPEF calculated from exact actual eligible subset ${scoreEligibleHouses}/${FARM_HOUSES} houses (${scoreCoveragePct!=null?(scoreCoveragePct*100).toFixed(1):'—'}% of placed heads); no estimate`: `FCR/EPEF = NA: ${eligibilityReason}`});
+   if(!scoreFull)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:scoreEligibleHouses,placed,clear,kind:'score',decision:scoreEligible?`FCR/EPEF calculated from exact actual eligible subset ${scoreEligibleHouses}/${FARM_HOUSES} houses (${scoreCoveragePct!=null?(scoreCoveragePct*100).toFixed(1):'—'}% of placed heads); completion quality gate 95–105%; no estimate`: `FCR/EPEF = NA: ${eligibilityReason}`});
+   if(!weightComplete)qa.push({farm,cycle,houseCount:houseIds.length,houses:houseIds.join(', '),closed:closedOutput.length,eligible:scoreEligibleHouses,placed,clear,kind:'weight',decision:`KGS/M² and KGM2PW = NA: ${rankReason}`});
  }
  rows.sort((a,b)=>String(a.cycle).localeCompare(String(b.cycle),undefined,{numeric:true})||String(a.farm).localeCompare(String(b.farm),undefined,{numeric:true}));
  qa.sort((a,b)=>String(b.cycle).localeCompare(String(a.cycle),undefined,{numeric:true})||String(a.farm).localeCompare(String(b.farm),undefined,{numeric:true}));
@@ -8103,8 +8131,8 @@ function tomAggregate(rs,label='TOTAL',rolling=false){
  if(!rs.length)return null;
  const placed=tomSum(rs,x=>x.placed),mort7=tomSum(rs,x=>x.mort7),mort=tomSum(rs,x=>x.mort),cull=tomSum(rs,x=>x.cull),processed=tomSum(rs,x=>x.processed),kg=tomSum(rs,x=>x.kg),live=tomSum(rs,x=>x.live),scoreFeed=tomSum(rs,x=>x.scoreFeed),scoreKg=tomSum(rs,x=>x.scoreKg),scoreHead=tomSum(rs,x=>x.scoreHead),scorePlaced=tomSum(rs,x=>x.scorePlaced),scoreLoss=tomSum(rs,x=>x.scoreLoss),scoreEligibleHouses=tomSum(rs,x=>x.scoreEligibleHouses),totalHouses=rs.length*FARM_HOUSES,scoreAge=scoreHead?tomWeighted(rs.filter(x=>x.scoreHead>0),x=>x.scoreAge,x=>x.scoreHead):null,fcr=scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreHead?scoreKg/scoreHead:null,scoreDep=scorePlaced?scoreLoss/scorePlaced:null,epef=scoreHead?tomEpef(scoreDep,scoreWt,scoreAge,fcr):null,age=processed?tomWeighted(rs,x=>x.age,x=>x.processed):null,alw=processed?kg/processed:null,cycles=[...new Set(rs.map(x=>x.cycle))],scoreCoveragePct=placed?scorePlaced/placed:null,scoreEligible=scoreEligibleHouses>0,scoreFull=scoreEligibleHouses===totalHouses;
  const area=rolling?FARM_AREA:FARM_AREA*rs.length,areaExposure=rolling?FARM_AREA*rs.length:area;
- const durationExposure=tomSum(rs,x=>FARM_AREA*(+x.cycleLength||0)),weightComplete=rs.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null;
- return{farm:label,cycle:cycles.length===1?cycles[0]:'MIXED',clear:rs.map(x=>x.clear).filter(Boolean).sort((a,b)=>b-a)[0]||null,cycleLength:tomWeighted(rs,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason:scoreFull?'':(scoreEligible?`Exact FCR/EPEF from ${scoreEligibleHouses}/${totalHouses} eligible houses; no estimate`:'No eligible houses for exact FCR/EPEF'),scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,loss:mort+cull,area,areaExposure,kgM2:areaExposure?kg/areaExposure:null,chicksM2:areaExposure?placed/areaExposure:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one included farm/cycle has Live Sales without KG; KGM2PW total is withheld'}
+ const durationExposure=tomSum(rs,x=>+x.durationExposure||0),weightComplete=rs.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null;
+ return{farm:label,cycle:cycles.length===1?cycles[0]:'MIXED',clear:rs.map(x=>x.clear).filter(Boolean).sort((a,b)=>b-a)[0]||null,cycleLength:tomWeighted(rs,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason:scoreFull?'':(scoreEligible?`Exact FCR/EPEF from ${scoreEligibleHouses}/${totalHouses} eligible houses; no estimate`:'No eligible houses for exact FCR/EPEF'),scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,loss:mort+cull,area,areaExposure,kgM2:weightComplete&&areaExposure?kg/areaExposure:null,chicksM2:areaExposure?placed/areaExposure:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one included farm/cycle has Live Sales without KG; KGM2PW total is withheld'}
 }
 function tomRolling(rows){
  const byFarm=tomGroup(rows,x=>x.farm),out=[];
@@ -8117,8 +8145,8 @@ function tomRolling(rows){
 }
 function tomTotalRolling(rs){
  if(!rs.length)return null;
- const cycles=rs.flatMap(x=>x.sourceCycles||[]),placed=tomSum(cycles,x=>x.placed),mort7=tomSum(cycles,x=>x.mort7),mort=tomSum(cycles,x=>x.mort),cull=tomSum(cycles,x=>x.cull),processed=tomSum(cycles,x=>x.processed),kg=tomSum(cycles,x=>x.kg),live=tomSum(cycles,x=>x.live),scoreFeed=tomSum(cycles,x=>x.scoreFeed),scoreKg=tomSum(cycles,x=>x.scoreKg),scoreHead=tomSum(cycles,x=>x.scoreHead),scorePlaced=tomSum(cycles,x=>x.scorePlaced),scoreLoss=tomSum(cycles,x=>x.scoreLoss),scoreEligibleHouses=tomSum(cycles,x=>x.scoreEligibleHouses),totalHouses=cycles.length*FARM_HOUSES,scoreAge=scoreHead?tomWeighted(cycles.filter(x=>x.scoreHead>0),x=>x.scoreAge,x=>x.scoreHead):null,fcr=scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreHead?scoreKg/scoreHead:null,scoreDep=scorePlaced?scoreLoss/scorePlaced:null,epef=scoreHead?tomEpef(scoreDep,scoreWt,scoreAge,fcr):null,age=processed?tomWeighted(cycles,x=>x.age,x=>x.processed):null,alw=processed?kg/processed:null,footprint=FARM_AREA*rs.length,exposure=FARM_AREA*cycles.length,durationExposure=tomSum(cycles,x=>FARM_AREA*(+x.cycleLength||0)),weightComplete=cycles.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null,scoreCoveragePct=placed?scorePlaced/placed:null,scoreEligible=scoreEligibleHouses>0,scoreFull=scoreEligibleHouses===totalHouses;
- return{farm:'TOTAL',cycleLength:tomWeighted(cycles,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason:scoreFull?'':(scoreEligible?`Exact FCR/EPEF from ${scoreEligibleHouses}/${totalHouses} eligible houses; no estimate`:'No eligible houses for exact FCR/EPEF'),scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,area:footprint,areaExposure:exposure,kgM2:exposure?kg/exposure:null,chicksM2:exposure?placed/exposure:null,rollN:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one selected rolling cycle has Live Sales without KG; KGM2PW total is withheld'}
+ const cycles=rs.flatMap(x=>x.sourceCycles||[]),placed=tomSum(cycles,x=>x.placed),mort7=tomSum(cycles,x=>x.mort7),mort=tomSum(cycles,x=>x.mort),cull=tomSum(cycles,x=>x.cull),processed=tomSum(cycles,x=>x.processed),kg=tomSum(cycles,x=>x.kg),live=tomSum(cycles,x=>x.live),scoreFeed=tomSum(cycles,x=>x.scoreFeed),scoreKg=tomSum(cycles,x=>x.scoreKg),scoreHead=tomSum(cycles,x=>x.scoreHead),scorePlaced=tomSum(cycles,x=>x.scorePlaced),scoreLoss=tomSum(cycles,x=>x.scoreLoss),scoreEligibleHouses=tomSum(cycles,x=>x.scoreEligibleHouses),totalHouses=cycles.length*FARM_HOUSES,scoreAge=scoreHead?tomWeighted(cycles.filter(x=>x.scoreHead>0),x=>x.scoreAge,x=>x.scoreHead):null,fcr=scoreKg?scoreFeed/scoreKg:null,scoreWt=scoreHead?scoreKg/scoreHead:null,scoreDep=scorePlaced?scoreLoss/scorePlaced:null,epef=scoreHead?tomEpef(scoreDep,scoreWt,scoreAge,fcr):null,age=processed?tomWeighted(cycles,x=>x.age,x=>x.processed):null,alw=processed?kg/processed:null,footprint=FARM_AREA*rs.length,exposure=FARM_AREA*cycles.length,durationExposure=tomSum(cycles,x=>+x.durationExposure||0),weightComplete=cycles.every(x=>x.weightComplete),kgM2Week=weightComplete&&durationExposure>0?kg/durationExposure:null,scoreCoveragePct=placed?scorePlaced/placed:null,scoreEligible=scoreEligibleHouses>0,scoreFull=scoreEligibleHouses===totalHouses;
+ return{farm:'TOTAL',cycleLength:tomWeighted(cycles,x=>x.cycleLength,x=>x.placed),placed,mort7,mort,cull,processed,kg,live,age,alw,adg:alw&&age?alw/age:null,fcr,epef,scoreEligible,scoreFull,scoreEligibleHouses,scoreCoveragePct,eligibilityReason:scoreFull?'':(scoreEligible?`Exact FCR/EPEF from ${scoreEligibleHouses}/${totalHouses} eligible houses; no estimate`:'No eligible houses for exact FCR/EPEF'),scoreFeed,scoreKg,scoreHead,scorePlaced,scoreLoss,scoreAge,area:footprint,areaExposure:exposure,kgM2:weightComplete&&exposure?kg/exposure:null,chicksM2:exposure?placed/exposure:null,rollN:null,weightComplete,kgM2Week,rankEligible:Number.isFinite(+kgM2Week),rankReason:weightComplete?'':'At least one selected rolling cycle has Live Sales without KG; KGM2PW total is withheld'}
 }
 function tomCols(mode){
  if(mode==='rolling')return ['SITE NAME','SqM','Cycle Length (wk)','7 Day Mort %','Mort %','A.L.W.','AGE','ADG (KG)','F.C.R.','E.P.E.F.','G KGS/M2','CHICKS/M2','KGS/M2/WEEK'];
@@ -8139,7 +8167,13 @@ function tomTable(id,mode,rows,total,meta=''){
 function tomReportSheet(title,subtitle,id,mode,rows,total,meta=''){return `<div class="tom-report-sheet" dir="ltr"><div class="tom-report-brand"><div><div class="company">SAMA KARBALA</div><small>Broiler Farms Performance</small></div><div class="period">${title}<small>${subtitle||''}</small></div></div>${tomTable(id,mode,rows,total,meta)}</div>`}
 function tomSelectors(rows){const weeks=[...new Set(rows.map(x=>tomIso(tomWeekEnd(x.clear))).filter(Boolean))].sort().reverse(),cycles=[...new Set(rows.map(x=>x.cycle).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a),undefined,{numeric:true}));if(!TOM.week||!weeks.includes(TOM.week))TOM.week=weeks[0]||'';if(!TOM.cycle||!cycles.includes(TOM.cycle))TOM.cycle=cycles[0]||'';return{weeks,cycles}}
 function tomCurrent(rows){const sel=tomSelectors(rows),we=parseDate(TOM.week),ws=we?addDays(we,-6):null,weekly=we?rows.filter(x=>x.clear&&x.clear>=ws&&x.clear<=we).sort(tomSortPerformance):[],league=rows.filter(x=>x.cycle===TOM.cycle).sort(tomSortPerformance),rolling=tomRolling(rows);return{...sel,we,ws,weekly,league,rolling}}
-function tomControls(C){return `<div class="tom-toolbar"><div class="tom-left"><div class="tom-control"><label>${T('الأسبوع المنتهي','Week ending')}</label><select id="tomWeek">${C.weeks.map(w=>`<option value="${w}"${w===TOM.week?' selected':''}>Week ${tomWeekNo(w)} · ${tomDate(addDays(parseDate(w),-6))} – ${tomDate(w)}</option>`).join('')}</select></div><div class="tom-control"><label>${T('الدورة','Cycle')}</label><select id="tomCycle">${C.cycles.map(c=>`<option value="${c}"${c===TOM.cycle?' selected':''}>Cycle ${c}</option>`).join('')}</select></div></div><div class="tom-tabs"><button data-tom-mode="weekly" class="${TOM.mode==='weekly'?'on':''}">Weekly Performance</button><button data-tom-mode="league" class="${TOM.mode==='league'?'on':''}">League Table</button><button data-tom-mode="rolling" class="${TOM.mode==='rolling'?'on':''}">Crop Rolling Average 4/3</button></div></div>`}
+function tomControls(C){
+ const weekCtl=TOM.mode==='weekly'?`<div class="tom-control"><label>${T('الأسبوع المنتهي','Week ending')}</label><select id="tomWeek">${C.weeks.map(w=>`<option value="${w}"${w===TOM.week?' selected':''}>Week ${tomWeekNo(w)} · ${tomDate(addDays(parseDate(w),-6))} – ${tomDate(w)}</option>`).join('')}</select></div>`:'';
+ const cycleCtl=TOM.mode==='league'?`<div class="tom-control"><label>${T('الدورة','Cycle')}</label><select id="tomCycle">${C.cycles.map(c=>`<option value="${c}"${c===TOM.cycle?' selected':''}>Cycle ${c}</option>`).join('')}</select></div>`:'';
+ const autoCtl=TOM.mode==='rolling'?`<div class="tom-control tom-auto-filter"><label>${T('فلتر Rolling','Rolling filter')}</label><div class="tom-filter-static">${T('تلقائي: آخر 4 دورات مكتملة لكل مزرعة، أو آخر 3 عند عدم توفر 4','Automatic: latest 4 completed cycles per farm, or latest 3 when 4 are unavailable')}</div></div>`:'';
+ const reload=`<button id="tomReload" class="tom-reload" title="${T('إعادة تحميل مصادر Tom الأربعة مباشرة','Force reload the four Tom Report sources')}">↻ ${T('إعادة تحميل البيانات','Reload Data')}</button>`;
+ return `<div class="tom-toolbar"><div class="tom-left">${weekCtl}${cycleCtl}${autoCtl}${reload}</div><div class="tom-tabs"><button data-tom-mode="weekly" class="${TOM.mode==='weekly'?'on':''}">Weekly Performance</button><button data-tom-mode="league" class="${TOM.mode==='league'?'on':''}">League Table</button><button data-tom-mode="rolling" class="${TOM.mode==='rolling'?'on':''}">Crop Rolling Average 4/3</button></div></div>`
+}
 function tomQaRows(qa,C){
  let rows=qa||[];
  if(TOM.mode==='league')rows=rows.filter(x=>x.cycle===TOM.cycle);
@@ -8150,35 +8184,35 @@ function tomQaRows(qa,C){
 function tomQaPanel(rows){
  if(!rows.length)return '';
  const hs=[T('المزرعة','Farm'),T('الدورة','Cycle'),T('هاوسات Placement','Placement houses'),T('الهاوسات الموجودة','Houses found'),T('هاوسات مغلقة بخروج فعلي','Closed/output houses'),T('هاوسات مؤهلة FCR/EPEF','FCR/EPEF eligible houses'),T('المسكن','Placed'),T('آخر خروج','Last output'),T('قرار التقرير','Report decision')];
- const body=rows.map(x=>`<tr><td>${esc(x.farm)}</td><td>${esc(x.cycle)}</td><td>${x.houseCount}/${FARM_HOUSES}</td><td>${esc(x.houses||'—')}</td><td>${x.closed}/${FARM_HOUSES}</td><td>${x.eligible}/${FARM_HOUSES}</td><td>${tomInt(x.placed)}</td><td>${x.clear?tomDate(x.clear):'—'}</td><td class="tom-qa-decision ${x.kind==='score'?'info':'exclude'}">${esc(x.decision)}</td></tr>`).join('');
+ const body=rows.map(x=>`<tr><td>${esc(x.farm)}</td><td>${esc(x.cycle)}</td><td>${x.houseCount}/${FARM_HOUSES}</td><td>${esc(x.houses||'—')}</td><td>${x.closed}/${FARM_HOUSES}</td><td>${x.eligible}/${FARM_HOUSES}</td><td>${tomInt(x.placed)}</td><td>${x.clear?tomDate(x.clear):'—'}</td><td class="tom-qa-decision ${x.kind==='score'?'info':x.kind==='weight'?'weight':'exclude'}">${esc(x.decision)}</td></tr>`).join('');
  return `<div class="tom-qa"><h3>${T('تدقيق مصدر Tom Report — الصفوف المستبعدة أو غير المؤهلة','Tom Report Source Audit — excluded or unscored rows')}</h3><p>${T('أي Farm+Cycle لا يثبت المصدر أنه يحتوي الهاوسات 01–16 كاملة لا يُعامل كمزرعة قياسية 26,880 م². الصف القياسي المكتمل يبقى ظاهراً. FCR/EPEF يُحسبان من الهاوسات المؤهلة فعلياً فقط، وتظهر التغطية في Tooltip/Source Audit؛ لا يتم تقدير وزن البيع الحي أو استكمال الهاوسات غير المؤهلة افتراضياً.','A Farm+Cycle is not treated as a standard 26,880 m² farm unless the source proves houses 01–16. A completed standard row remains visible. FCR/EPEF are calculated from the exact eligible-house subset only, with coverage exposed in the tooltip/source audit; live-sale weight and ineligible houses are never estimated.')}</p><div class="tom-table-wrap"><table class="tom-table"><thead><tr>${hs.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div></div>`
 }
 async function renderTom(){
  setFilterOptions([],[]);const view=document.getElementById('view');view.innerHTML=hero('Tom Report',T('تقرير أداء مزارع التسمين بنفس ترتيب وأسماء أعمدة النموذج، من البيانات الفعلية المتاحة فقط.','Broiler farm performance report using the reference column order and names, driven only by available actual source data.'))+`<div class="loader"><span class="spinner"></span><span>${T('تحميل وتدقيق بيانات التسمين…','Loading and validating broiler data…')}</span></div>`;
  try{
-  const M=await broilerModel(),FC=tomFarmCycles(M),groups=FC.rows,C=tomCurrent(groups),qa=tomQaRows(FC.qa,C);let content='';
+  const force=!!TOM.forceRefresh;TOM.forceRefresh=false;const M=await tomLoadCoreModel(force),FC=tomFarmCycles(M),groups=FC.rows,C=tomCurrent(groups),qa=tomQaRows(FC.qa,C);let content='';
   if(TOM.mode==='weekly'){const total=tomAggregate(C.weekly);content=tomReportSheet(`Week ${tomWeekNo(TOM.week)}`,`${tomDate(C.ws)} – ${tomDate(C.we)}`,'tomWeekly','weekly',C.weekly,total)}
   else if(TOM.mode==='league'){const total=tomAggregate(C.league);content=tomReportSheet(`League Table Cycle ${TOM.cycle}`,`${C.league.length} standard completed farms`,'tomLeague','league',C.league,total)}
   else{const total=tomTotalRolling(C.rolling);content=tomReportSheet('Crop Rolling Average 4/3',`${T('آخر 4 دورات مكتملة عند توفرها، وإلا آخر 3','Latest 4 completed cycles where available; otherwise latest 3')}`,'tomRolling','rolling',C.rolling,total)}
-  const note=`<div class="tom-note"><b>${T('المصدر والحساب:','Source & calculation:')}</b> ${T('Placement + Farms + Processing Transactions + Live Sales. لا يُعطى Farm+Cycle مساحة 26,880 م² إلا إذا أثبت Placement وجود الهاوسات 01–16 كاملة. DATE CLEARED = آخر خروج فعلي Processing أو Live Sales بعد اكتمال إغلاق الهاوسات. Cycle Length = من أول Placement فعلي إلى DATE CLEARED ÷ 7. 7 Day Mort% = النافق في أول 7 أيام تقويمية فقط (Day 0 إلى Day 6). Mort% = النافق فقط مثل نموذج Tom. A.L.W. وAGE وG KGS/M2 مبنية على Processing الفعلي لأن Live Sales لا يحتوي وزناً. ترتيب League Table أصبح حسب KGS/M2/WEEK (KGM2PW) كما طلب Tom: على مستوى الهاوس = Total Weight ÷ 1,680 ÷ Cycle Length بالأيام × 7؛ وعلى مستوى المزرعة = Total Weight ÷ 26,880 ÷ Cycle Length بالأيام × 7. وبما أن Cycle Length المعروض هنا بالأسابيع فالمعادلة المكافئة = Total Weight ÷ 26,880 ÷ Cycle Length (weeks). أي Farm/Cycle فيه Live Sales لا يُعطى KGM2PW تخمينياً لأن وزن البيع الحي غير موجود بالمصدر، ويبقى ظاهراً لكنه غير مرتب. FCR/EPEF يُحسبان من الهاوسات التي تملك فعلياً Feed + Processing KG + إغلاق مؤهل؛ إذا كانت التغطية أقل من 16/16 تظهر القيمة كتغطية جزئية فعلية مع توضيح عدد/نسبة الهاوسات، بدون أي تقدير. Rolling يستخدم آخر 4 دورات قياسية مكتملة، أو آخر 3 إذا لم تتوفر 4؛ KGM2PW للـRolling = مجموع الوزن الموثق ÷ مجموع (مساحة المزرعة × مدة الدورة بالأسابيع). أعمدة LPG/OIL LITRES/M2 وFactory R% أزيلت لأن المصادر الحالية لا تحتوي قيماً موثوقة لها، بدلاً من عرض NA دائم.','Placement + Farms + Processing Transactions + Live Sales. A Farm+Cycle receives the 26,880 m² standard-farm denominator only when Placement proves the complete house set 01–16. DATE CLEARED is the last actual Processing or Live Sales output after operational house closure. Cycle Length runs from first actual Placement to DATE CLEARED divided by 7. 7 Day Mort% uses exactly the first seven calendar days (Day 0 through Day 6). Mort% is mortality only, matching the Tom model. A.L.W., AGE and G KGS/M2 use actual Processing because Live Sales has no weight. League Table rank is now KGS/M2/WEEK (KGM2PW), per Tom: house-level = Total Weight ÷ 1,680 ÷ Cycle Length in days × 7; farm-level = Total Weight ÷ 26,880 ÷ Cycle Length in days × 7. Because Cycle Length is displayed here in weeks, the exact equivalent is Total Weight ÷ 26,880 ÷ Cycle Length (weeks). Any Farm/Cycle with Live Sales is not given an estimated KGM2PW because the Live Sales source has no KG; it remains visible but unranked. FCR/EPEF are calculated from houses with exact Feed + Processing KG + eligible closure. When coverage is below 16/16, the actual subset score is shown with transparent coverage and no estimation. Rolling uses the latest 4 standard completed cycles, or the latest 3 when 4 are unavailable; rolling KGM2PW = validated total KG ÷ sum(farm area × cycle weeks). LITRES/M2 is not water; it refers to LPG/fuel-oil consumption in Tom\'s model, and remains NA until a validated fuel-volume source exists. Factory R% also remains NA without a source.')}</div>`;
-  view.innerHTML=hero('Tom Report',T('تقرير أداء مزارع التسمين — Weekly / League Table / Crop Rolling 4/3','Broiler Farms Performance — Weekly / League Table / Crop Rolling 4/3'))+`<div class="tom-page">${tomControls(C)}${content}<div class="tom-meta-row"><span class="tom-chip"><b>${T('آخر بيانات','Latest data')}</b> ${tomDate(M.latest)}</span><span class="tom-chip"><b>${T('مساحة الهاوس','House area')}</b> 1,680 m²</span><span class="tom-chip"><b>${T('المزرعة القياسية','Standard farm')}</b> 16 × 1,680 = 26,880 m²</span><span class="tom-chip"><b>KGM2PW</b> ${T('الترتيب حسب كغم/م²/أسبوع','rank = KG/m²/week')}</span><span class="tom-chip"><b>FCR/EPEF</b> ${T('فعلي حسب الهاوسات المؤهلة فقط · التغطية ظاهرة','actual eligible-house subset · coverage disclosed')}</span><span class="tom-chip"><b>${T('Farm/Cycle مكتمل قياسي','Standard completed Farm/Cycle')}</b> ${fmt(groups.length)}</span><span class="tom-chip"><b>${T('استثناءات المصدر','Source exceptions')}</b> ${fmt(FC.qa.length)}</span></div>${note}${tomQaPanel(qa)}</div>`;
-  document.getElementById('tomWeek')?.addEventListener('change',e=>{TOM.week=e.target.value;renderCurrent()});document.getElementById('tomCycle')?.addEventListener('change',e=>{TOM.cycle=e.target.value;renderCurrent()});document.querySelectorAll('[data-tom-mode]').forEach(b=>b.onclick=()=>{TOM.mode=b.dataset.tomMode;renderCurrent()});wireExports();
- }catch(e){window.SK_ERROR_BUS?.capture(e,'V1.3.37 Tom Report');view.innerHTML=hero('Tom Report',T('تعذر تحميل التقرير','Unable to load report'))+`<div class="empty">${esc(e?.message||e)}</div>`}
+  const note=`<div class="tom-note"><b>${T('المصدر والحساب:','Source & calculation:')}</b> ${T('Placement + Farms + Processing Transactions + Live Sales. لا يُعطى Farm+Cycle مساحة 26,880 م² إلا إذا أثبت Placement وجود الهاوسات 01–16 كاملة. DATE CLEARED = آخر خروج فعلي Processing أو Live Sales بعد اكتمال إغلاق الهاوسات. Cycle Length = متوسط مدة الهاوسات الـ16 من Placement الفعلي لكل هاوس إلى آخر خروج فعلي لذلك الهاوس ÷ 7. 7 Day Mort% = النافق في أول 7 أيام تقويمية فقط (Day 0 إلى Day 6). Mort% = النافق فقط مثل نموذج Tom. A.L.W. وAGE مبنية على Processing الفعلي. G KGS/M2 وKGM2PW لا يظهران إذا وجد Live Sales لأن وزن البيع الحي غير موجود ولا يجوز اعتبار Processing KG وزناً كلياً للمزرعة. ترتيب League Table أصبح حسب KGS/M2/WEEK (KGM2PW) كما طلب Tom: على مستوى الهاوس = Total Weight ÷ 1,680 ÷ Cycle Length بالأيام × 7؛ وعلى مستوى المزرعة = Total Weight ÷ 26,880 ÷ Cycle Length بالأيام × 7. وعند مستوى المزرعة التجميعي يُستخدم المقام الأدق: مجموع (1,680 م² × مدة كل هاوس بالأسابيع)، وليس افتراض أن جميع الهاوسات لها نفس المدة. أي Farm/Cycle فيه Live Sales لا يُعطى KGM2PW تخمينياً لأن وزن البيع الحي غير موجود بالمصدر، ويبقى ظاهراً لكنه غير مرتب. FCR/EPEF يُحسبان من الهاوسات التي تملك فعلياً Feed + Processing KG + إغلاق مؤهل؛ إذا كانت التغطية أقل من 16/16 تظهر القيمة كتغطية جزئية فعلية مع توضيح عدد/نسبة الهاوسات، بدون أي تقدير. Rolling يستخدم آخر 4 دورات قياسية مكتملة، أو آخر 3 إذا لم تتوفر 4؛ KGM2PW للـRolling = مجموع الوزن الموثق ÷ مجموع (مساحة المزرعة × مدة الدورة بالأسابيع). أعمدة LPG/OIL LITRES/M2 وFactory R% أزيلت لأن المصادر الحالية لا تحتوي قيماً موثوقة لها، بدلاً من عرض NA دائم.','Placement + Farms + Processing Transactions + Live Sales. A Farm+Cycle receives the 26,880 m² standard-farm denominator only when Placement proves the complete house set 01–16. DATE CLEARED is the last actual Processing or Live Sales output after operational house closure. Cycle Length is the average of the 16 actual house durations from each house Placement to its last actual output, divided by 7. 7 Day Mort% uses exactly the first seven calendar days (Day 0 through Day 6). Mort% is mortality only, matching the Tom model. A.L.W. and AGE use actual Processing. G KGS/M2 and KGM2PW are withheld when Live Sales exists because live-sale KG is unavailable and Processing KG must not be presented as total farm weight. League Table rank is now KGS/M2/WEEK (KGM2PW), per Tom: house-level = Total Weight ÷ 1,680 ÷ Cycle Length in days × 7; farm-level = Total Weight ÷ 26,880 ÷ Cycle Length in days × 7. At aggregated farm level the exact denominator is sum(1,680 m² × each house actual cycle weeks), rather than assuming all houses had one identical duration. Any Farm/Cycle with Live Sales is not given an estimated KGM2PW because the Live Sales source has no KG; it remains visible but unranked. FCR/EPEF are calculated from houses with exact Feed + Processing KG + eligible closure. When coverage is below 16/16, the actual subset score is shown with transparent coverage and no estimation. Rolling uses the latest 4 standard completed cycles, or the latest 3 when 4 are unavailable; rolling KGM2PW = validated total KG ÷ sum(farm area × cycle weeks). LITRES/M2 and Factory R% are removed from Tom Report because no validated source exists for them.')}</div>`;
+  view.innerHTML=hero('Tom Report',T('تقرير أداء مزارع التسمين — Weekly / League Table / Crop Rolling 4/3','Broiler Farms Performance — Weekly / League Table / Crop Rolling 4/3'))+`<div class="tom-page">${tomControls(C)}${content}<div class="tom-meta-row"><span class="tom-chip"><b>${T('آخر بيانات','Latest data')}</b> ${tomDate(M.latest)}</span><span class="tom-chip"><b>${T('مساحة الهاوس','House area')}</b> 1,680 m²</span><span class="tom-chip"><b>${T('المزرعة القياسية','Standard farm')}</b> 16 × 1,680 = 26,880 m²</span><span class="tom-chip"><b>KGM2PW</b> ${T('الترتيب حسب كغم/م²/أسبوع','rank = KG/m²/week')}</span><span class="tom-chip"><b>FCR/EPEF</b> ${T('فعلي حسب الهاوسات المؤهلة فقط · التغطية ظاهرة','actual eligible-house subset · coverage disclosed')}</span><span class="tom-chip"><b>${T('Farm/Cycle مكتمل قياسي','Standard completed Farm/Cycle')}</b> ${fmt(groups.length)}</span><span class="tom-chip"><b>${T('استثناءات المصدر','Source exceptions')}</b> ${fmt(FC.qa.length)}</span></div>${note}${tomSourcePanel(M)}${tomQaPanel(qa)}</div>`;
+  document.getElementById('tomWeek')?.addEventListener('change',e=>{TOM.week=e.target.value;renderCurrent()});document.getElementById('tomCycle')?.addEventListener('change',e=>{TOM.cycle=e.target.value;renderCurrent()});document.getElementById('tomReload')?.addEventListener('click',()=>{TOM.forceRefresh=true;renderCurrent()});document.querySelectorAll('[data-tom-mode]').forEach(b=>b.onclick=()=>{TOM.mode=b.dataset.tomMode;renderCurrent()});wireExports();
+ }catch(e){window.SK_ERROR_BUS?.capture(e,'V1.3.38 Tom Report');view.innerHTML=hero('Tom Report',T('تعذر تحميل التقرير','Unable to load report'))+`<div class="empty">${esc(e?.message||e)}</div>`}
 }
 if(!PAGES.some(x=>x[0]==='tomreport')){const di=PAGES.findIndex(x=>x[0]==='data');PAGES.splice(di<0?PAGES.length:di,0,['tomreport','TR','Tom Report','Tom Report'])}
 RENDER.tomreport=renderTom;
 const tomFilterBase=activePageFilterMode;activePageFilterMode=function(){tomFilterBase.apply(this,arguments);const bar=document.getElementById('filterbar');if(bar&&S.page==='tomreport')bar.style.display='none'};
 try{renderNav()}catch(_){ }
-window.SK_TOM_REPORT_AUDIT_V137=Object.freeze({
+window.SK_TOM_REPORT_AUDIT_V138=Object.freeze({
  release:RELEASE,
  houseArea:HOUSE_AREA,housesPerFarm:FARM_HOUSES,farmArea:FARM_AREA,
- source:['bPlace','bFarms','bProc','bLive'],
+ source:['bPlace','bFarms','bProc','bLive'],sourceLoading:'Tom-only four-source loader; unrelated source failures cannot block report',filters:'Weekly=week only; League=cycle only; Rolling=automatic 4/3 with no inactive selectors',
  standardFarmGate:'Placement must prove exact houses 01-16',
  closureGate:'all 16 houses require actual output + completed operational closure',
  sevenDayMortality:'Day 0 through Day 6 only',
  farmScoreGate:'FCR/EPEF uses exact eligible-house actual subset; coverage disclosed; no estimation',
  rolling:'latest 4 standard completed cycles; otherwise latest 3; minimum 3',
- rollingAreaExposure:'26880 × cycles used per farm',
+ rollingAreaExposure:'sum of 1680 m² × actual house cycle weeks across selected cycles',
  unsupportedRemoved:['Factory R %','LPG/OIL LITRES/M2'],
  unsupportedRule:'columns without validated source are removed rather than shown as permanent NA',
  kgm2pwFormula:'farm = validated total output KG / 26880 / cycleLengthDays * 7; equivalent = KG / 26880 / cycleLengthWeeks',
@@ -8189,10 +8223,10 @@ window.SK_TOM_REPORT_AUDIT_V137=Object.freeze({
 })();
 </script>
 
-<script id="v337-release-owner">
+<script id="v338-release-owner">
 (function(){
 'use strict';
-const RELEASE='V1.3.37';
+const RELEASE='V1.3.38';
 window.SK_RELEASE_LOCK=RELEASE;
 
 const BRAND_AR='جميع التقارير محفوظة · بيانات مباشرة ومدققة · '+RELEASE;
@@ -8273,22 +8307,25 @@ function selfCheck(){
  if(!chainOk)issues.push('CHAIN_API');
  if(typeof renderCurrent!=='function')issues.push('RENDER_CURRENT');
  if(!homeOk)issues.push('HOME_RENDER');
+ let tomOk=false;try{tomOk=typeof RENDER==='object'&&typeof RENDER.tomreport==='function'&&!!window.SK_TOM_REPORT_AUDIT_V138}catch(_){tomOk=false}
+ if(!tomOk)issues.push('TOM_REPORT');
  if(document.title!=='Sama Karbala — Poultry Command Center '+RELEASE)issues.push('TITLE_RELEASE');
  const b=document.getElementById('brandSub');
  if(b&&!b.textContent.includes(RELEASE))issues.push('BRAND_RELEASE');
  if([...document.querySelectorAll('.version')].some(x=>!x.textContent.includes(RELEASE)))issues.push('BADGE_RELEASE');
- window.SK_RUNTIME_CHECK_V1335=Object.freeze({
+ window.SK_RUNTIME_CHECK_V1338=Object.freeze({
   release:RELEASE,
   ok:issues.length===0,
   issues,
   chainApi:chainOk,
   renderCurrent:typeof renderCurrent==='function',
   homeRender:homeOk,
+  tomReport:tomOk,
   title:document.title,
   brand:b?.textContent||'',
   legacyWrites:(window.SK_LEGACY_VERSION_WRITES||[]).slice(-10)
  });
- if(issues.length)console.warn('V1.3.37 runtime self-check',issues);
+ if(issues.length)console.warn('V1.3.38 runtime self-check',issues);
 }
 
 const oldLang=setLang;
@@ -8308,7 +8345,7 @@ renderCurrent=async function(){
 };
 
 window.SK_REFERENCE_BASE_V1326=Object.freeze({base:'V1.3.21',chainLayout:'V1.3.21 linked-report placement; legacy Plant daily/weekly removed',acceptedLaterFixes:['Sales Flock Off-Sex','GP male setting','latest-transaction activity','placement/slaughter attainment','PSR→PSP handoff','Broiler last-output closure','BRH 84% vs Ross expected governance','approved Plant plan','runtime scope and Off-Sex bundle hotfix']});
-window.SK_RELEASE_V1337=Object.freeze({
+window.SK_RELEASE_V1338=Object.freeze({
  release:RELEASE,
  feature:'single authoritative release owner + Chain Analytics source/calc audit + 20-column linked report'
 });
