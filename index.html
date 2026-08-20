@@ -583,12 +583,13 @@ function fetchRawJsonp(d,key){
   const cb='__SK_GVIZ_'+key.replace(/[^A-Za-z0-9_$]/g,'_')+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   const sc=document.createElement('script');
   let done=false;
-  const cleanup=()=>{try{delete window[cb]}catch(_){window[cb]=undefined}try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}};
-  const timer=setTimeout(()=>{if(done)return;done=true;cleanup();reject(new Error('Google Sheets load timeout: '+d.name));},60000);
-  window[cb]=(resp)=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,d);cleanup();resolve(raw)}catch(e){cleanup();reject(e)}};
+  const retire=(lateSafe=false)=>{try{if(lateSafe){window[cb]=function(){return null};setTimeout(()=>{try{delete window[cb]}catch(_){window[cb]=undefined}},180000)}else{delete window[cb]}}catch(_){window[cb]=function(){return null}}try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}};
+  const timeoutMs=location.protocol==='file:'?90000:60000;
+  const timer=setTimeout(()=>{if(done)return;done=true;retire(true);reject(new Error('Google Sheets load timeout: '+d.name));},timeoutMs);
+  window[cb]=(resp)=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,d);retire(false);resolve(raw)}catch(e){retire(true);reject(e)}};
   sc.async=true;
   sc.referrerPolicy='strict-origin-when-cross-origin';
-  sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup();reject(new Error('Unable to load Google Sheet: '+d.name));};
+  sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);retire(true);reject(new Error('Unable to load Google Sheet: '+d.name));};
   sc.src=gvizJsonpUrl(d,cb);
   document.head.appendChild(sc);
  });
@@ -603,8 +604,8 @@ function fetchGPHClosingBalance(){
   const cb='__SK_GPH_CLOSE_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   const sc=document.createElement('script');
   let done=false;
-  const cleanup=()=>{try{delete window[cb]}catch(_){window[cb]=undefined}try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}};
-  const timer=setTimeout(()=>{if(done)return;done=true;cleanup();reject(new Error('GP Hatchery Closing Balance load timeout'));},30000);
+  const cleanup=(lateSafe=false)=>{try{if(lateSafe){window[cb]=function(){return null};setTimeout(()=>{try{delete window[cb]}catch(_){window[cb]=undefined}},180000)}else{delete window[cb]}}catch(_){window[cb]=function(){return null}}try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}};
+  const timer=setTimeout(()=>{if(done)return;done=true;cleanup(true);reject(new Error('GP Hatchery Closing Balance load timeout'));},location.protocol==='file:'?60000:30000);
   window[cb]=(resp)=>{
    if(done)return;done=true;clearTimeout(timer);
    try{
@@ -620,7 +621,7 @@ function fetchGPHClosingBalance(){
   };
   sc.async=true;
   sc.referrerPolicy='strict-origin-when-cross-origin';
-  sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup();reject(new Error('Unable to load GP Hatchery Closing Balance'));};
+  sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup(true);reject(new Error('Unable to load GP Hatchery Closing Balance'));};
   const q=new URLSearchParams();
   q.set('sheet',d.sheet);q.set('range','E4:G4');q.set('headers','0');q.set('tqx','out:json;responseHandler:'+cb);q.set('_',String(Date.now()));
   sc.src=`https://docs.google.com/spreadsheets/d/${d.id}/gviz/tq?${q.toString()}`;
@@ -6743,7 +6744,7 @@ window.SK_EXECUTIVE_DASHBOARD_V216=Object.freeze({release:RELEASE,targets:['uxEx
 <script id="v213-startup-render-recovery">
 (function(){
 'use strict';
-const RELEASE='V1.2.6',FARMS_CHUNK=8000,MAX_ROWS=300000,RETRIES=3,PLAN_ID='1fij52q7240I-XKwcn5IaMf-FbBVZxUDFj10o-4sz080';
+const RELEASE='V1.2.6',FARMS_CHUNK=2500,MAX_ROWS=300000,RETRIES=3,PLAN_ID='1fij52q7240I-XKwcn5IaMf-FbBVZxUDFj10o-4sz080';
 Object.assign(CFG.sheets,{v214BRSetting:{id:PLAN_ID,sheet:'BR_Setting',header:0,endCol:'I',name:'Plan · BR_Setting'}});
 const STATE={promise:null,done:false,preloading:false,activeKey:'',started:0,finished:0,chunk:null,errors:new Map(),failedLoads:new Map(),renderPromise:null,renderSignature:'',queuedSignature:'',renderCount:0,recoveryCount:0,queue:[],queued:new Map(),networkActive:0,maxNetworkActive:0,requests:0,cacheHits:0,planApplied:false};
 const QUALITY=window.SK_DATA_QUALITY_V214={invalidDates:[],sourceIssues:[],minYear:2020,maxYear:2040};
@@ -6752,7 +6753,7 @@ const baseParseDate=parseDate;
 parseDate=function(value){const d=baseParseDate(value);if(!d)return d;const y=d.getFullYear();if(y<QUALITY.minYear||y>QUALITY.maxYear){if(QUALITY.invalidDates.length<250)QUALITY.invalidDates.push({value:String(value??''),year:y,page:S.page,at:new Date().toISOString()});return null}return d};
 function stamp(){try{if(window.SK_RELEASE_LOCK&&RELEASE!==window.SK_RELEASE_LOCK)return;CFG.version=RELEASE;document.title='Sama Karbala — Executive Cards Expected Balance '+RELEASE;const b=document.getElementById('brandSub');if(b)b.textContent=T('جميع التقارير محفوظة · بطاقات الرصيد المتوقع مصححة · '+RELEASE,'All reports preserved · Expected-balance cards corrected · '+RELEASE);document.querySelectorAll('.version').forEach(x=>x.textContent='PRESERVED REPORTS · '+RELEASE)}catch(e){window.SK_ERROR_BUS?.capture(e,'v124 stamp')}}
 function injectStyle(){if(document.getElementById('v214-style'))return;const s=document.createElement('style');s.id='v214-style';s.textContent='.v214-boot{margin:18px 0;padding:18px;border:1px solid rgba(74,183,237,.28);border-radius:16px;background:linear-gradient(135deg,rgba(74,183,237,.08),rgba(53,208,178,.04));display:grid;gap:12px}.v214-boot h2{margin:0;color:var(--text);font-size:20px}.v214-boot p{margin:0;color:var(--mut);font-size:13px}.v214-skeleton{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.v214-skeleton i{height:78px;border-radius:12px;background:linear-gradient(90deg,rgba(255,255,255,.035),rgba(255,255,255,.09),rgba(255,255,255,.035));background-size:240% 100%;animation:v214pulse 1.4s linear infinite}@keyframes v214pulse{to{background-position:-240% 0}}.v214-runtime{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(7,24,41,.45);font-size:10px;color:var(--mut)}@media(max-width:900px){.v214-skeleton{grid-template-columns:1fr 1fr}}';document.head.appendChild(s)}
-function requestRange(d,key,rangeText,headers,part){return new Promise((resolve,reject)=>{const cb='__SK_V214_'+key.replace(/[^A-Za-z0-9_$]/g,'_')+'_'+part+'_'+Date.now()+'_'+Math.random().toString(36).slice(2),sc=document.createElement('script');let done=false;const clean=()=>{try{delete window[cb]}catch(e){window.SK_ERROR_BUS?.capture(e,'jsonp cleanup')}try{sc.remove()}catch(e){window.SK_ERROR_BUS?.capture(e,'jsonp node cleanup')}};const timer=setTimeout(()=>{if(done)return;done=true;clean();reject(new Error(d.name+' chunk timeout: '+rangeText))},45000);window[cb]=resp=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,headers?d:{special:'gph'});clean();resolve(raw)}catch(e){clean();reject(e)}};sc.async=true;sc.referrerPolicy='strict-origin-when-cross-origin';sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);clean();reject(new Error('Unable to load '+d.name+' chunk '+rangeText))};const q=new URLSearchParams();q.set('sheet',d.sheet);q.set('headers',String(headers));q.set('range',rangeText);q.set('tqx','out:json;responseHandler:'+cb);q.set('_',String(Date.now())+'_'+part);sc.src='https://docs.google.com/spreadsheets/d/'+d.id+'/gviz/tq?'+q.toString();document.head.appendChild(sc)})}
+function requestRange(d,key,rangeText,headers,part){return new Promise((resolve,reject)=>{const cb='__SK_V214_'+key.replace(/[^A-Za-z0-9_$]/g,'_')+'_'+part+'_'+Date.now()+'_'+Math.random().toString(36).slice(2),sc=document.createElement('script');let done=false;const retire=(lateSafe=false)=>{try{if(lateSafe){window[cb]=function(){return null};setTimeout(()=>{try{delete window[cb]}catch(e){window[cb]=undefined}},180000)}else{delete window[cb]}}catch(e){window.SK_ERROR_BUS?.capture(e,'jsonp cleanup')}try{sc.remove()}catch(e){window.SK_ERROR_BUS?.capture(e,'jsonp node cleanup')}};const timeoutMs=location.protocol==='file:'?90000:60000;const timer=setTimeout(()=>{if(done)return;done=true;retire(true);reject(new Error(d.name+' chunk timeout: '+rangeText))},timeoutMs);window[cb]=resp=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,headers?d:{special:'gph'});retire(false);resolve(raw)}catch(e){retire(true);reject(e)}};sc.async=true;sc.referrerPolicy='strict-origin-when-cross-origin';sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);retire(true);reject(new Error('Unable to load '+d.name+' chunk '+rangeText))};const q=new URLSearchParams();q.set('sheet',d.sheet);q.set('headers',String(headers));q.set('range',rangeText);q.set('tqx','out:json;responseHandler:'+cb);q.set('_',String(Date.now())+'_'+part);sc.src='https://docs.google.com/spreadsheets/d/'+d.id+'/gviz/tq?'+q.toString();document.head.appendChild(sc)})}
 async function retryRange(d,key,rangeText,headers,part){let last;for(let a=1;a<=RETRIES;a++){try{return await requestRange(d,key,rangeText,headers,part)}catch(e){last=e;if(a<RETRIES)await wait(650*a)}}throw last}
 async function loadFarmsChunked(d,key){const all=[];let headers=null,offset=0,part=0;while(offset<MAX_ROWS){const first=offset===0,start=first?(d.header??0)+1:(d.header??0)+2+offset,end=first?start+FARMS_CHUNK:start+FARMS_CHUNK-1,rangeText='A'+start+':'+(d.endCol||'H')+end;STATE.chunk={key,part:part+1,range:rangeText,rows:offset};updateSync();const raw=await retryRange(d,key,rangeText,first?1:0,part);if(first&&Array.isArray(raw.__headers))headers=raw.__headers.slice();all.push(...raw);offset+=raw.length;part++;if(raw.length<FARMS_CHUNK)break;if(offset>=MAX_ROWS)throw new Error(d.name+' exceeded '+fmt(MAX_ROWS)+'-row safety ceiling')}if(headers)all.__headers=headers;if(!all.length)throw new Error(d.name+' returned no rows');S.rawCounts?.set(key,all.length);STATE.chunk=null;return all}
 const baseJsonp=fetchRawJsonp;
@@ -9560,7 +9561,7 @@ body.gp64-page #filterbar{display:none!important}
 <script id="gp64-script">
 (function(){
 'use strict';
-const RELEASE='V1.3.68';
+const RELEASE='V1.3.69';
 const G=window.SK_GP64||(window.SK_GP64={from:'',to:'',gran:'week',farms:[],flocks:[],lines:[],sexes:['F','M'],houses:[]});
 const cvx=v=>String(v??'').trim(),numx=v=>{const z=parseFloat(String(v??'').replace(/,/g,''));return Number.isFinite(z)?z:0};
 const sumx=(a,f)=>a.reduce((t,x)=>t+(+f(x)||0),0),uniq=a=>[...new Set(a.filter(Boolean))];
