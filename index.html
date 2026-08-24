@@ -8214,231 +8214,6 @@ window.SK_V1401_EXECUTIVE=Object.freeze({release:RELEASE,architecture:'single HO
 </script>
 
 
-<style id="v1405-unified-project-executive-design">
-/* V1.4.05 — ONE shared visual system for all operational project pages.
-   Tables remain governed by the approved Power-BI / Parent-Class table design. */
-body.v1405-project{
-  --pnavy:#17345b;--pnavy2:#214f7f;--pblue:#1685d1;--pteal:#13a98f;--pgold:#efb63e;
-  --pvio:#675bc8;--pred:#d64b50;--pgreen:#2b9b64;--pink:#173553;--pmut:#70859a;
-  --pline:#d6e1eb;--pbg:#eef3f8;--pcard:#ffffff;
-}
-body.v1405-project #view{color:var(--pink);font-family:Inter,Tajawal,"Segoe UI",Arial,sans-serif;font-weight:650}
-body.v1405-project #view>.hero{
-  background:linear-gradient(105deg,#17345b,#21588a)!important;border:1px solid #315e87!important;
-  border-bottom:4px solid var(--pgold)!important;border-radius:17px!important;padding:22px 24px!important;
-  box-shadow:0 10px 26px rgba(23,52,91,.16)!important;margin-bottom:13px!important;color:#fff!important
-}
-body.v1405-project #view>.hero:after{background:radial-gradient(circle,rgba(73,187,239,.22),transparent 68%)!important}
-body.v1405-project #view>.hero .eyebrow{color:#87d9ff!important;font-size:11px!important;font-weight:950!important;letter-spacing:.08em!important}
-body.v1405-project #view>.hero h1{color:#fff!important;font-size:30px!important;font-weight:1000!important;letter-spacing:-.25px!important}
-body.v1405-project #view>.hero p{color:#d8e6f1!important;font-size:13px!important;font-weight:750!important;line-height:1.7!important}
-body.v1405-project #view>.hero .version{background:rgba(255,255,255,.09)!important;color:#fff!important;border-color:rgba(255,255,255,.24)!important;font-size:10px!important;font-weight:950!important}
-
-/* The project filter bar adopts the executive command-strip language. */
-body.v1405-project #filterbar{
-  background:#fff!important;border:1px solid #cbd9e5!important;border-bottom:3px solid var(--pgold)!important;
-  color:var(--pink)!important;border-radius:13px!important;box-shadow:0 6px 18px rgba(23,63,105,.09)!important;
-  padding:10px 12px!important
-}
-body.v1405-project #filterbar label,body.v1405-project #filterbar .label{color:#647d94!important;font-size:10px!important;font-weight:900!important}
-body.v1405-project #filterbar input,body.v1405-project #filterbar select,body.v1405-project #filterbar button{
-  background:#f8fafc!important;color:#173553!important;border:1px solid #cbd8e3!important;border-radius:8px!important;
-  font-weight:850!important;min-height:35px!important
-}
-body.v1405-project #filterbar button:hover{border-color:#5a8fbd!important;background:#eef6fc!important}
-
-/* Previous project-to-project navigation remains hidden per the approved requirement. */
-body.v1405-project #view>.section-nav,body.v1405-project #v200ProjectNav,body.v1405-project #view>.chain-ribbon{display:none!important}
-
-/* Universal project panels — same visual hierarchy as Executive Dashboard. */
-body.v1405-project #view>.section,
-body.v1405-project #view .section{
-  background:#fff!important;color:var(--pink)!important;border:1px solid var(--pline)!important;border-radius:15px!important;
-  padding:16px 17px!important;margin-bottom:14px!important;box-shadow:0 6px 20px rgba(23,63,105,.075)!important
-}
-body.v1405-project #view .section-head{margin-bottom:13px!important;padding-bottom:9px!important;border-bottom:1px solid #e6edf3!important}
-body.v1405-project #view .section-head h2{color:#173f69!important;font-size:20px!important;line-height:1.35!important;font-weight:1000!important}
-body.v1405-project #view .section-head p{color:#72869a!important;font-size:11.5px!important;line-height:1.55!important;font-weight:700!important}
-body.v1405-project #view .section-tag{background:#edf5fb!important;border:1px solid #cfe0ed!important;color:#315c7d!important;font-size:9.5px!important;font-weight:950!important}
-
-/* KPI dashboard cards. */
-body.v1405-project #view .kpis{gap:10px!important}
-body.v1405-project #view .kpi{
-  background:#fff!important;border:1px solid #d6e1eb!important;border-radius:12px!important;min-height:104px!important;
-  padding:13px 14px!important;box-shadow:0 3px 11px rgba(22,58,91,.065)!important;color:var(--pink)!important
-}
-body.v1405-project #view .kpi:after{height:4px!important;background:var(--accent,var(--pblue))!important;opacity:1!important}
-body.v1405-project #view .kpi .k-label{color:#667d93!important;font-size:10.5px!important;font-weight:950!important;min-height:29px!important;line-height:1.35!important}
-body.v1405-project #view .kpi .k-val{color:#173553!important;font:1000 25px/1.15 Inter,Tajawal,"Segoe UI",Arial,sans-serif!important;margin-top:7px!important}
-body.v1405-project #view .kpi .k-sub{color:#8294a5!important;font-size:9px!important;font-weight:800!important;line-height:1.4!important}
-body.v1405-project #view .kpi .good{color:var(--pgreen)!important}body.v1405-project #view .kpi .bad{color:var(--pred)!important}
-
-/* Chart / dashboard cards. No table rules here. */
-body.v1405-project #view .card{
-  background:#fff!important;color:var(--pink)!important;border:1px solid #d6e1eb!important;border-radius:13px!important;
-  padding:13px 14px!important;box-shadow:0 3px 11px rgba(22,58,91,.055)!important
-}
-body.v1405-project #view .card h3,body.v1405-project #view .card h4{color:#173f69!important;font-size:15px!important;font-weight:1000!important;line-height:1.4!important}
-body.v1405-project #view .card .sub{color:#75899d!important;font-size:10px!important;font-weight:750!important}
-body.v1405-project #view .chartbox{
-  min-height:315px!important;height:330px!important;background:#fff!important;border:1px solid #e0e8ef!important;
-  border-radius:10px!important;padding:8px 8px 4px!important
-}
-body.v1405-project #view .chartbox.sm{height:285px!important}body.v1405-project #view .chartbox.lg{height:390px!important}
-
-/* Common custom dashboard tiles across legacy/new project renderers. */
-body.v1405-project #view [class*="kpi-card"],
-body.v1405-project #view [class*="metric-card"],
-body.v1405-project #view [class*="summary-card"],
-body.v1405-project #view [class*="dash-card"]{
-  background:#fff!important;color:#173553!important;border-color:#d6e1eb!important;box-shadow:0 3px 11px rgba(22,58,91,.06)!important
-}
-body.v1405-project #view [class*="kpi-card"] b,
-body.v1405-project #view [class*="metric-card"] b,
-body.v1405-project #view [class*="summary-card"] b,
-body.v1405-project #view [class*="dash-card"] b{font-weight:1000!important;color:#173553!important}
-
-/* Project-specific modern dashboard shells: visual only, no data/renderer changes. */
-body.v1405-project #view.gp64-view .gp64,
-body.v1405-project #view.psr1383-view,
-body.v1405-project #view.psr1391-view,
-body.v1405-project #view.psr1392-view,
-body.v1405-project #view.psp1383-view,
-body.v1405-project #view.brh1384-view{color:#173553!important}
-
-/* Text system: bigger and bolder throughout dashboards, but not table cells. */
-body.v1405-project #view :is(.metric-strip,.alerts,.flow,.stage-grid,.gp64-note,.cx-caption) {font-weight:750}
-body.v1405-project #view :is(.metric-strip,.alerts,.flow,.stage-grid) b{font-weight:1000}
-
-/* Approved Power BI tables are deliberately preserved; only their surrounding wrap is normalized. */
-body.v1405-project #view .tablewrap,
-body.v1405-project #view .v188-tablebox{
-  border-radius:10px!important;border-color:#d2deea!important;box-shadow:none!important;background:#fff!important
-}
-/* Do not alter th/td/colors here — table design stays exactly under Parent Class / Power BI rules. */
-
-/* Executive-like project canvas. */
-body.v1405-project .main{background:#eef3f8!important}
-body.v1405-project #view{padding-bottom:20px}
-
-/* Keep chart canvases readable in the white executive theme. */
-body.v1405-project #view canvas{filter:none!important}
-
-@media(max-width:1250px){body.v1405-project #view>.hero h1{font-size:27px!important}}
-@media(max-width:900px){body.v1405-project #view>.hero{padding:18px!important}body.v1405-project #view>.hero h1{font-size:24px!important}body.v1405-project #view .section-head h2{font-size:18px!important}}
-</style>
-<script id="v1405-unified-project-executive-design-script">
-(()=>{'use strict';
-const RELEASE='V1.4.05';
-const PROJECTS=new Set(['gp','gph','psr','psp','brh','broiler','plant']);
-function repaintCharts(){
-  if(!PROJECTS.has(S.page)||!window.Chart)return;
-  try{
-    Chart.defaults.color='#536d84';
-    Chart.defaults.font.family='Inter, Tajawal, Segoe UI, Arial, sans-serif';
-    Chart.defaults.font.weight='700';
-    for(const ch of Object.values(Chart.instances||{})){
-      if(!ch?.canvas || !document.getElementById('view')?.contains(ch.canvas))continue;
-      const o=ch.options||(ch.options={});
-      const p=o.plugins||(o.plugins={});
-      const lg=p.legend||(p.legend={}); const ll=lg.labels||(lg.labels={}); ll.color='#4d667d'; ll.font={...(ll.font||{}),weight:'800',size:11};
-      const tt=p.title||(p.title={}); if(tt.display){tt.color='#173f69';tt.font={...(tt.font||{}),weight:'900'}}
-      for(const s of Object.values(o.scales||{})){
-        if(!s)continue; s.ticks={...(s.ticks||{}),color:'#60778d',font:{...((s.ticks||{}).font||{}),weight:'700',size:10}};
-        s.grid={...(s.grid||{}),color:'rgba(40,75,105,.10)'};
-        if(s.title?.display)s.title={...s.title,color:'#60778d',font:{...(s.title.font||{}),weight:'800',size:10}};
-      }
-      try{ch.update('none')}catch(_){ }
-    }
-  }catch(_){ }
-}
-function apply(){
-  const on=PROJECTS.has(S.page);document.body.classList.toggle('v1405-project',on);
-  if(!on)return;
-  document.querySelectorAll('#view>.section-nav,#v200ProjectNav,#view>.chain-ribbon').forEach(x=>x.remove());
-  setTimeout(repaintCharts,100);setTimeout(repaintCharts,650);
-  try{CFG.version=RELEASE;document.querySelectorAll('.version').forEach(x=>x.textContent='CURRENT RELEASE · '+RELEASE);const b=document.getElementById('brandSub');if(b)b.textContent=T('تصميم تنفيذي موحد لكل المشاريع · الجداول بتصميم Power BI · '+RELEASE,'Unified executive design across all projects · Power BI tables retained · '+RELEASE)}catch(_){ }
-}
-try{const prev=renderCurrent;renderCurrent=async function(){const r=await prev.apply(this,arguments);apply();return r}}catch(_){ }
-try{const oldLang=setLang;setLang=function(){const r=oldLang.apply(this,arguments);setTimeout(apply,80);return r}}catch(_){ }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,700),{once:true});else setTimeout(apply,700);
-window.SK_V1405_PROJECT_DESIGN=Object.freeze({release:RELEASE,pages:[...PROJECTS],rule:'one shared executive visual system; tables untouched'});
-})();
-</script>
-
-
-<style id="v1405-project-custom-shell-alignments">
-/* Custom renderers are aligned to the same shared executive visual system. */
-body.v1405-project .gp64-filter{background:#fff!important;border:1px solid #cbd9e5!important;border-bottom:3px solid var(--pgold)!important;box-shadow:0 7px 20px rgba(23,63,105,.10)!important}
-body.v1405-project .gp64-field>label{color:#60788f!important;font-size:10.5px!important;font-weight:950!important}
-body.v1405-project .gp64-field input,body.v1405-project .gp64-field select,body.v1405-project .gp64-dd>summary{background:#f8fafc!important;color:#173553!important;border-color:#ccd9e5!important;font-weight:900!important}
-body.v1405-project .gp64-menu,body.v1405-project .gp64-actions{background:#fff!important;border-color:#ccd9e5!important;color:#173553!important}
-body.v1405-project .gp64-actions button{background:#edf5fb!important;color:#244b6d!important;border-color:#d0dfeb!important}
-body.v1405-project .gp64-opt{color:#31506b!important}.v1405-project .gp64-opt:hover{background:#eef6fc!important}
-body.v1405-project .gp64-filter-note,body.v1405-project .gp64-quick a{color:#637c92!important}.v1405-project .gp64-quick a{background:#fff!important;border-color:#cedce8!important}
-body.v1405-project .gp64-kpi{background:#fff!important;border-color:#d6e1eb!important;box-shadow:0 3px 11px rgba(22,58,91,.06)!important}
-body.v1405-project .gp64-kpi span{color:#657c92!important;font-size:10.5px!important}.v1405-project .gp64-kpi b{color:#173553!important;font-size:25px!important}.v1405-project .gp64-kpi small{color:#8093a5!important}
-body.v1405-project .gp64-section-title h2{color:#173f69!important;font-size:21px!important}.v1405-project .gp64-section-title p{color:#73889d!important}.v1405-project .gp64-tag{background:#eaf7f4!important;color:#16846e!important;border-color:#bfe6dd!important}
-body.v1405-project .gp64-note{background:#f5f9fc!important;color:#617b92!important;border-color:#d8e4ee!important}.v1405-project .gp64-note b{color:#173553!important}
-
-/* Broiler custom controls outside tables. */
-body.v1405-project #br114-cumulative.br1386-cum .br86-cum-controls label{color:#60788f!important;font-size:10.5px!important}
-body.v1405-project #br114-cumulative.br1386-cum .br86-cum-controls select{background:#f8fafc!important;color:#173553!important;border-color:#ccd9e5!important;font-weight:900!important}
-body.v1405-project #br114-cumulative.br1386-cum .br86-chip{background:#fff!important;color:#60788f!important;border-color:#d4e0e9!important}
-body.v1405-project #br114-cumulative.br1386-cum .br86-note{background:#f5f9fc!important;color:#617b92!important;border-color:#d8e4ee!important}
-
-/* Generic non-table control blocks used by project-specific dashboards. */
-body.v1405-project #view :is(.controls,.toolbar,.filter-row,.control-row):not(.tablebar):not(.v200-table-tools){color:#60788f!important}
-body.v1405-project #view :is(.controls,.filter-row,.control-row) select,
-body.v1405-project #view :is(.controls,.filter-row,.control-row) input{background:#f8fafc!important;color:#173553!important;border-color:#ccd9e5!important;font-weight:850!important}
-</style>
-
-
-<style id="v1407-report-separation-and-title-fix">
-/* V1.4.07 — final project/report visual separation. Tables keep the agreed Power BI styling. */
-#v1399Placement .bp-head,
-#v1399Placement .bp-title,
-#v1399Placement .bp-title h2,
-#v1399Placement .bp-title small{color:#fff!important}
-#v1399Placement .bp-title h2{font-size:23px!important;font-weight:1000!important;text-shadow:0 1px 1px rgba(0,0,0,.18)!important}
-#v1399Placement .bp-title small{color:#d8e6f3!important;font-size:11px!important;font-weight:850!important}
-
-/* Clear navy separation between major report sections. */
-#view > .section,
-#view .v179-section,
-#view .v131q-shell > .section,
-#view .gp64-section,
-#view .gph-section,
-#view .psr-section,
-#view .psp-section,
-#view .brh-section,
-#view .bro-section,
-#view .plant-section{
-  border-top:7px solid #102d4b!important;
-  margin-top:20px!important;
-  padding-top:16px!important;
-  box-shadow:0 4px 16px rgba(12,42,70,.07)!important;
-}
-#view .v179-section:first-child{margin-top:14px!important}
-#view .tblwrap,#view .tablewrap,#view .v1398-tablewrap,#view .v1397-tablewrap{
-  border-top:4px solid #173f67!important;
-  border-radius:10px!important;
-  margin-top:10px!important;
-}
-/* Keep headings unmistakably readable on white report surfaces. */
-#view .section-head h2,#view .v179-section>h3,#view .v131q-project>h3,#view .v131q-card>h3,
-#view .card>h3{color:#12395f!important;font-weight:1000!important}
-
-/* Monthly/quarterly are management reports: remove implementation/source notes from visual output. */
-body.v1407-report-clean #view .section-head p,
-body.v1407-report-clean #view .v133m-method,
-body.v1407-report-clean #view .v179-method,
-body.v1407-report-clean #view .v131q-note,
-body.v1407-report-clean #view .v131q-source,
-body.v1407-report-clean #view .v133m-source{display:none!important}
-body.v1407-report-clean #view .v179-head p,
-body.v1407-report-clean #view .v131q-head p{display:block!important;color:#5c7389!important;font-weight:850!important}
-</style>
 <script id="v1407-monthly-quarterly-visual-cleanup">
 (function(){
 'use strict';
@@ -8495,56 +8270,6 @@ stamp();window.SK_CLEANUP_V1408=Object.freeze({"removedScripts": ["v134-qa-audit
 </script>
 
 
-<style id="v1410-monthly-executive-style">
-/* V1.4.10 — final Monthly report authority: same executive visual system as project pages. */
-body.v1410-monthly #filterbar{display:none!important}
-body.v1410-monthly #view{background:#eef3f8!important;color:#173553!important;padding:14px!important}
-body.v1410-monthly #view>.hero{background:linear-gradient(100deg,#17345b,#24598d)!important;border:1px solid #2e628f!important;border-bottom:4px solid #e7b332!important;border-radius:18px!important;color:#fff!important;padding:22px 26px!important;margin:0 0 14px!important;box-shadow:0 10px 26px rgba(20,57,91,.14)!important}
-body.v1410-monthly #view>.hero h1,body.v1410-monthly #view>.hero h2{color:#fff!important;font-size:29px!important;font-weight:1000!important}
-body.v1410-monthly #view>.hero p{color:#d7e5f2!important;font-size:13px!important;font-weight:800!important}
-body.v1410-monthly .v142-head{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(360px,.7fr)!important;gap:12px!important;margin:0 0 14px!important;background:#fff!important;border:1px solid #d7e2ec!important;border-radius:16px!important;padding:16px!important;box-shadow:0 5px 16px rgba(21,58,92,.07)!important}
-body.v1410-monthly .v142-title h1{color:#173d66!important;font-size:25px!important;font-weight:1000!important;margin:3px 0 4px!important}
-body.v1410-monthly .v142-title .eyebrow{color:#1685d1!important;font-weight:1000!important;font-size:10px!important;letter-spacing:.08em!important}
-body.v1410-monthly .v142-title p{display:none!important}
-body.v1410-monthly .v142-meta{display:grid!important;grid-template-columns:repeat(2,minmax(150px,1fr))!important;gap:8px!important}
-body.v1410-monthly .v142-meta>div,body.v1410-monthly .v142-meta label{background:#f6f9fc!important;border:1px solid #dbe5ed!important;border-radius:11px!important;padding:10px!important;color:#536e86!important;font-size:10px!important;font-weight:850!important}
-body.v1410-monthly .v142-meta b{display:block!important;color:#173d66!important;font-size:14px!important;font-weight:1000!important;margin-top:4px!important}
-body.v1410-monthly .section{background:#fff!important;border:1px solid #d7e2ec!important;border-radius:17px!important;margin:0 0 16px!important;padding:16px!important;box-shadow:0 7px 20px rgba(21,58,92,.075)!important;overflow:hidden!important;position:relative!important}
-body.v1410-monthly .section:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:#173d66}
-body.v1410-monthly .section+.section{border-top:7px solid #17345b!important}
-body.v1410-monthly .section-head{margin-bottom:12px!important;padding-bottom:9px!important;border-bottom:1px solid #dde6ee!important}
-body.v1410-monthly .section-head h2,body.v1410-monthly .section-head h3{color:#173d66!important;font-size:20px!important;font-weight:1000!important;margin:0!important}
-body.v1410-monthly .section-head p{display:none!important}
-body.v1410-monthly .v142-kpis{display:grid!important;grid-template-columns:repeat(5,minmax(170px,1fr))!important;gap:10px!important}
-body.v1410-monthly .v142-kpi{background:#fff!important;border:1px solid #d9e3ec!important;border-top:4px solid var(--a,#1685d1)!important;border-radius:13px!important;padding:12px 14px!important;min-height:104px!important;box-shadow:0 4px 12px rgba(20,57,91,.06)!important}
-body.v1410-monthly .v142-kpi span{color:#60768c!important;font-size:10px!important;font-weight:900!important}
-body.v1410-monthly .v142-kpi b{display:block!important;color:#173d66!important;font-size:24px!important;font-weight:1000!important;margin:7px 0 4px!important}
-body.v1410-monthly .v142-kpi small{color:#8293a4!important;font-size:9px!important;font-weight:850!important;line-height:1.45!important}
-body.v1410-monthly .v142-project-grid{display:grid!important;grid-template-columns:repeat(4,minmax(230px,1fr))!important;gap:10px!important}
-body.v1410-monthly .v142-project{background:#fff!important;border:1px solid #d8e3ec!important;border-top:4px solid #1685d1!important;border-radius:13px!important;padding:12px!important;box-shadow:0 4px 12px rgba(20,57,91,.05)!important}
-body.v1410-monthly .v142-project h3{color:#173d66!important;font-size:13px!important;font-weight:1000!important;margin:0 0 9px!important}
-body.v1410-monthly .v142-project h3 small{color:#1685d1!important;font-weight:1000!important}
-body.v1410-monthly .v142-project dt{color:#657b90!important;font-size:10px!important;font-weight:850!important;border-bottom:1px dashed #dce5ed!important;padding:5px 0!important}
-body.v1410-monthly .v142-project dd{color:#173d66!important;font-size:11px!important;font-weight:1000!important;border-bottom:1px dashed #dce5ed!important;padding:5px 0!important}
-body.v1410-monthly .v142-grid2{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important}
-body.v1410-monthly .card{background:#fff!important;border:1px solid #d8e3ec!important;border-radius:13px!important;padding:12px!important;box-shadow:0 4px 12px rgba(20,57,91,.05)!important}
-body.v1410-monthly .card h3{color:#173d66!important;font-size:14px!important;font-weight:1000!important;margin:0 0 8px!important}
-body.v1410-monthly .chartbox,body.v1410-monthly .v142-chart{background:#fff!important;min-height:300px!important;height:330px!important;border-radius:10px!important}
-body.v1410-monthly .tablewrap,body.v1410-monthly .matrix-wrap{width:100%!important;overflow:auto!important;border:1px solid #d5e0e9!important;border-radius:12px!important;background:#fff!important}
-body.v1410-monthly table{width:100%!important;min-width:980px!important;border-collapse:separate!important;border-spacing:0!important;font-size:11px!important}
-body.v1410-monthly table th{background:#214f7f!important;color:#fff!important;font-size:11px!important;font-weight:1000!important;padding:10px 8px!important;border-inline-end:1px solid rgba(255,255,255,.14)!important;white-space:nowrap!important}
-body.v1410-monthly table td{background:#fff!important;color:#223e59!important;font-size:11px!important;font-weight:850!important;padding:9px 8px!important;border-bottom:1px solid #dde6ee!important}
-body.v1410-monthly table tr:nth-child(even) td{background:#f3f7fa!important}
-body.v1410-monthly .v142-risk-grid{display:grid!important;grid-template-columns:repeat(3,minmax(240px,1fr))!important;gap:9px!important}
-body.v1410-monthly .v142-risk{background:#fff!important;border:1px solid #d8e3ec!important;border-inline-start:5px solid #e7b332!important;border-radius:12px!important;padding:11px 12px!important;color:#173d66!important}
-body.v1410-monthly .v142-risk.bad{border-inline-start-color:#d74b52!important}.v1410-monthly .v142-risk.good{border-inline-start-color:#2d9b68!important}
-body.v1410-monthly .v142-risk b{color:#173d66!important;font-size:11px!important;font-weight:1000!important}.v1410-monthly .v142-risk span{color:#667d92!important;font-size:10px!important;font-weight:850!important}
-body.v1410-monthly #v142-m-sources{display:none!important}
-body.v1410-monthly .v117-note,body.v1410-monthly .v145-ribbon,body.v1410-monthly [id^="v145-"],body.v1410-monthly [id^="v177-"],body.v1410-monthly [id^="v181-"]{display:none!important}
-@media(max-width:1500px){body.v1410-monthly .v142-kpis{grid-template-columns:repeat(3,1fr)!important}.v1410-monthly .v142-project-grid{grid-template-columns:repeat(3,1fr)!important}}
-@media(max-width:1000px){body.v1410-monthly .v142-head,body.v1410-monthly .v142-grid2{grid-template-columns:1fr!important}.v1410-monthly .v142-kpis,.v1410-monthly .v142-project-grid{grid-template-columns:repeat(2,1fr)!important}}
-@media(max-width:650px){body.v1410-monthly .v142-kpis,body.v1410-monthly .v142-project-grid,body.v1410-monthly .v142-risk-grid{grid-template-columns:1fr!important}}
-</style>
 <script id="v1410-monthly-executive-rebuild">
 (()=>{'use strict';
 const RELEASE='V1.4.10';
@@ -8573,8 +8298,8 @@ window.SK_MONTHLY_V1410=Object.freeze({release:RELEASE,renderer:'v142IntegratedM
 })();
 </script>
 
-</body>
-</html>
+
+
 
 
 <!-- V1.3.66 | GP rebuild from V1.3.54 baseline: cleaner tables, directional variance markers, feed/water/HE flock summary, simplified standard-matched charts. -->
@@ -9354,47 +9079,6 @@ window.SK_BR_V1388=Object.freeze({release:RELEASE,parentClass:{sourceRows:PC87_E
 
 
 <!-- V1.3.89 · Processing Plant cleanup + unified white table/report semantic indicator system -->
-<style id="v1389-unified-report-style">
-/* Unified table language used across GP/GPH/PSR/PSP/BRH/BR/PL and management reports. */
-#view.v1389-report-theme .tablewrap,
-#view.v1389-report-theme .wr-tablewrap,
-#view.v1389-report-theme .tom-tablewrap,
-#view.v1389-report-theme .v179-tablewrap{
-  background:#fff!important;border:1px solid #d8e4ee!important;border-radius:13px!important;
-  box-shadow:0 2px 8px rgba(11,42,68,.08)!important;overflow:auto!important
-}
-#view.v1389-report-theme table:not(.br87-table){
-  background:#fff!important;color:#17324d!important;border-collapse:separate!important;border-spacing:0!important;
-  font-size:13.2px!important;font-weight:820!important;line-height:1.35!important
-}
-#view.v1389-report-theme table:not(.br87-table) thead th{
-  background:#173f67!important;color:#fff!important;border-color:#315b7c!important;
-  font-size:12.6px!important;font-weight:950!important;padding:9px 10px!important;white-space:nowrap!important
-}
-#view.v1389-report-theme table:not(.br87-table) tbody td{
-  background:#fff!important;color:#17324d!important;border-color:#dbe6ef!important;
-  font-size:13.2px!important;font-weight:820!important;padding:8px 10px!important;white-space:nowrap!important
-}
-#view.v1389-report-theme table:not(.br87-table) tbody tr:nth-child(even) td{background:#f4f8fb!important}
-#view.v1389-report-theme table:not(.br87-table) tbody tr:hover td{background:#eaf4fb!important}
-#view.v1389-report-theme table:not(.br87-table) th.v1389-actual{color:#7dd3fc!important}
-#view.v1389-report-theme table:not(.br87-table) th.v1389-ref{color:#f8c95d!important}
-#view.v1389-report-theme table:not(.br87-table) td.v1389-actual{color:#0868b8!important;font-weight:950!important}
-#view.v1389-report-theme table:not(.br87-table) td.v1389-ref{color:#b97700!important;font-weight:950!important}
-#view.v1389-report-theme table:not(.br87-table) td.v1389-good{color:#088a68!important;font-weight:950!important}
-#view.v1389-report-theme table:not(.br87-table) td.v1389-bad{color:#d43d51!important;font-weight:950!important}
-#view.v1389-report-theme table:not(.br87-table) td.v1389-warn{color:#9a6b00!important;font-weight:950!important}
-.v1389-arrow{display:inline-block;margin-inline-end:4px;font-size:11px;font-weight:1000;vertical-align:1px}
-.v1389-arrow.good{color:#088a68}.v1389-arrow.bad{color:#d43d51}.v1389-arrow.warn{color:#9a6b00}
-.v1389-arrow-note{font-size:9.6px!important;color:#61778c!important;font-weight:800!important;margin-top:6px!important}
-/* Keep dark section shell / charts, but make table toolbars visually match the white table. */
-#view.v1389-report-theme .tablebar{background:#fff!important;border:1px solid #d8e4ee!important;border-bottom:0!important;color:#17324d!important;border-radius:12px 12px 0 0!important;padding:8px 10px!important}
-#view.v1389-report-theme .tablebar .badge{background:#f7fafc!important;color:#17324d!important;border-color:#cddbe6!important;font-weight:900!important}
-#view.v1389-report-theme .tablebar .export{background:#fff!important;color:#17324d!important;border-color:#c9d8e4!important;font-weight:900!important}
-/* Plant-specific cleanup: remaining cards use full width after removed summaries. */
-#pl115-feedkg .grid2.v1389-single{grid-template-columns:1fr!important}
-@media(max-width:900px){#view.v1389-report-theme table:not(.br87-table){font-size:12px!important}#view.v1389-report-theme table:not(.br87-table) tbody td{font-size:12px!important;padding:7px 8px!important}}
-</style>
 <script id="v1389-unified-report-script">
 (function(){
 'use strict';
@@ -9709,297 +9393,261 @@ window.SK_V1399_BROILER_PLACEMENT={release:RELEASE,sheet:'Sheet1',headerRow:3,co
 
 
 
-<style id="v1406-project-design-final-authority">
-/* V1.4.06 — FINAL visual authority. Placed at the true end of the file so later legacy/custom renderer CSS cannot undo the shared executive design. Tables are intentionally excluded. */
-body.v1405-project #view{
-  color:#173553!important;
-  font-family:Inter,Tajawal,"Segoe UI",Arial,sans-serif!important;
-  font-weight:750!important;
-}
-body.v1405-project #view :where(h1,h2,h3,h4,h5,h6):not(table *){
-  color:#173f69!important;
-  font-weight:1000!important;
-  letter-spacing:-.1px!important;
-}
-body.v1405-project #view :where(p,span,small,label,em,strong,b):not(table *):not(.good):not(.bad):not(.warn):not(.actual):not(.standard):not(.std){
-  font-weight:800;
-}
-/* Project hero remains dark by design. */
-body.v1405-project #view>.hero :where(h1,h2,h3,h4,p,span,small,b,strong){color:#f8fbff!important}
-body.v1405-project #view>.hero .eyebrow{color:#8edcff!important}
-body.v1405-project #view>.hero p{color:#d9e7f2!important;font-size:14px!important}
-
-/* General non-table project panels and custom renderer shells. */
-body.v1405-project #view :where(.section,.card,.panel,.dashboard,.dashboard-card,.summary-panel,.executive-panel,.exec-panel,.gph70-section,.gp64-section):not(table *){
-  color:#173553!important;
-}
-body.v1405-project #view :where(.section-head,.gph70-title,.gp64-section-title) h2{
-  color:#173f69!important;font-size:21px!important;font-weight:1000!important
-}
-body.v1405-project #view :where(.section-head,.gph70-title,.gp64-section-title) p{
-  color:#6d8296!important;font-size:11.5px!important;font-weight:800!important;line-height:1.65!important
-}
-
-/* Operational alerts: executive-white cards with explicit readable type. */
-body.v1405-project #view .alerts{gap:10px!important}
-body.v1405-project #view .alerts .alert,
-body.v1405-project #view .v139-alert,
-body.v1405-project #view .v188-alert,
-body.v1405-project #view .v200-alert{
-  background:#fff!important;color:#173553!important;border:1px solid #d4e0ea!important;
-  border-inline-start:4px solid #efb63e!important;border-radius:12px!important;padding:12px 13px!important;
-  box-shadow:0 3px 10px rgba(23,63,105,.055)!important;min-height:68px!important
-}
-body.v1405-project #view .alerts .alert.bad,
-body.v1405-project #view .v139-alert.bad,
-body.v1405-project #view .v188-alert.bad,
-body.v1405-project #view .v200-alert.bad{border-inline-start-color:#d64b50!important}
-body.v1405-project #view .alerts .alert.good,
-body.v1405-project #view .v139-alert.good,
-body.v1405-project #view .v188-alert.good,
-body.v1405-project #view .v200-alert.good{border-inline-start-color:#2b9b64!important}
-body.v1405-project #view .alerts .alert b,
-body.v1405-project #view .v139-alert b,
-body.v1405-project #view .v188-alert b,
-body.v1405-project #view .v200-alert b{color:#173553!important;font-size:12px!important;font-weight:1000!important}
-body.v1405-project #view .alerts .alert p,
-body.v1405-project #view .v139-alert p,
-body.v1405-project #view .v188-alert p,
-body.v1405-project #view .v200-alert p{color:#657c92!important;font-size:10px!important;font-weight:850!important;line-height:1.55!important}
-
-/* Legacy metric strips must match the executive KPI language, not the old dark cards. */
-body.v1405-project #view .metric-strip>div{
-  background:#fff!important;color:#173553!important;border:1px solid #d6e1eb!important;border-radius:12px!important;
-  padding:12px 13px!important;box-shadow:0 3px 10px rgba(23,63,105,.05)!important
-}
-body.v1405-project #view .metric-strip span{color:#657c92!important;font-size:10.5px!important;font-weight:900!important}
-body.v1405-project #view .metric-strip b{color:#173553!important;font-size:20px!important;font-weight:1000!important}
-
-/* GP custom renderer — final light executive skin. */
-body.v1405-project .gp64-filter{
-  background:#fff!important;color:#173553!important;border:1px solid #cad8e4!important;border-bottom:3px solid #efb63e!important;
-  box-shadow:0 7px 20px rgba(23,63,105,.10)!important
-}
-body.v1405-project .gp64-field>label{color:#60788f!important;font-size:11px!important;font-weight:950!important}
-body.v1405-project .gp64-field input,body.v1405-project .gp64-field select,body.v1405-project .gp64-dd>summary{
-  background:#f8fafc!important;color:#173553!important;border-color:#cbd8e3!important;font-weight:900!important
-}
-body.v1405-project .gp64-menu,body.v1405-project .gp64-actions{background:#fff!important;color:#173553!important;border-color:#cbd8e3!important}
-body.v1405-project .gp64-actions button{background:#edf5fb!important;color:#244b6d!important;border-color:#d0dfeb!important}
-body.v1405-project .gp64-opt{color:#31506b!important}
-body.v1405-project .gp64-kpi{
-  background:#fff!important;color:#173553!important;border:1px solid #d6e1eb!important;border-radius:12px!important;
-  box-shadow:0 3px 11px rgba(22,58,91,.06)!important
-}
-body.v1405-project .gp64-kpi span{color:#657c92!important;font-size:11px!important;font-weight:950!important}
-body.v1405-project .gp64-kpi b{color:#173553!important;font-size:26px!important;font-weight:1000!important}
-body.v1405-project .gp64-kpi small{color:#7b90a3!important;font-size:9.5px!important;font-weight:850!important}
-
-/* GPH custom renderer was the largest visual conflict: force the same executive-light system. */
-body.v1405-project .gph70{
-  --navy:#17345b!important;--ink:#173553!important;--mut:#6d8296!important;
-  color:#173553!important
-}
-body.v1405-project .gph70-filter{
-  background:#fff!important;border:1px solid #cad8e4!important;border-bottom:3px solid #efb63e!important;
-  box-shadow:0 7px 20px rgba(23,63,105,.10)!important
-}
-body.v1405-project .gph70-field label{color:#60788f!important;font-size:11px!important;font-weight:950!important}
-body.v1405-project .gph70-field input,body.v1405-project .gph70-dd>summary{
-  background:#f8fafc!important;color:#173553!important;border-color:#cbd8e3!important;font-weight:900!important
-}
-body.v1405-project .gph70-menu,body.v1405-project .gph70-actions{background:#fff!important;color:#173553!important;border-color:#cbd8e3!important}
-body.v1405-project .gph70-menu label{color:#31506b!important}.v1405-project .gph70-actions button{background:#edf5fb!important;color:#244b6d!important;border-color:#d0dfeb!important}
-body.v1405-project .gph70-note{background:#f5f9fc!important;color:#617b92!important;border-color:#d8e4ee!important}
-body.v1405-project .gph70-kpi{
-  background:#fff!important;color:#173553!important;border:1px solid #d6e1eb!important;border-radius:12px!important;
-  box-shadow:0 3px 11px rgba(22,58,91,.06)!important;min-height:104px!important;padding:13px 14px!important
-}
-body.v1405-project .gph70-kpi:before{width:4px!important;background:var(--a,#1685d1)!important}
-body.v1405-project .gph70-kpi span{color:#657c92!important;font-size:11px!important;font-weight:950!important}
-body.v1405-project .gph70-kpi b{color:#173553!important;font-size:25px!important;font-weight:1000!important}
-body.v1405-project .gph70-kpi small{color:#7b90a3!important;font-size:9.5px!important;font-weight:850!important}
-body.v1405-project .gph70-kpi .act{color:#0875bf!important}.v1405-project .gph70-kpi .std{color:#b77900!important}
-body.v1405-project .gph70-title h2{color:#173f69!important;font-size:21px!important;font-weight:1000!important}
-body.v1405-project .gph70-title p{color:#6d8296!important;font-size:11.5px!important;font-weight:800!important}
-body.v1405-project .gph70-tag{background:#eaf7f4!important;color:#16846e!important;border-color:#bfe6dd!important}
-
-/* Other known custom KPI families — visual only, table rules untouched. */
-body.v1405-project #view :where(.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi,.sl-kpi,.wr-kpi,.v142-kpi,.v179-kpi,.v181-bank-kpi,.v188-kpi,.v200-source-kpi):not(table *){
-  background:#fff!important;color:#173553!important;border:1px solid #d6e1eb!important;border-radius:12px!important;
-  box-shadow:0 3px 11px rgba(22,58,91,.06)!important
-}
-body.v1405-project #view :where(.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi,.sl-kpi,.wr-kpi,.v142-kpi,.v179-kpi,.v181-bank-kpi,.v188-kpi,.v200-source-kpi) :where(b,strong):not(table *){
-  color:#173553!important;font-weight:1000!important
-}
-body.v1405-project #view :where(.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi,.sl-kpi,.wr-kpi,.v142-kpi,.v179-kpi,.v181-bank-kpi,.v188-kpi,.v200-source-kpi) :where(span,small,p):not(table *){
-  color:#667d93!important;font-weight:850!important
-}
-
-/* Generic control text and small pills remain legible. */
-body.v1405-project #view :where(.controls,.toolbar,.filter-row,.control-row,.filters):not(table *) label{color:#60788f!important;font-weight:950!important}
-body.v1405-project #view :where(.controls,.toolbar,.filter-row,.control-row,.filters):not(table *) :where(input,select,button){font-weight:900!important}
-body.v1405-project #view .note:not(table *){font-size:11px!important;font-weight:850!important;line-height:1.65!important}
-
-/* Larger project typography without touching approved Power BI table cells. */
-body.v1405-project #view .section-head h2{font-size:21px!important}
-body.v1405-project #view .section-head p{font-size:11.5px!important}
-body.v1405-project #view .card h3,body.v1405-project #view .card h4{font-size:16px!important}
-body.v1405-project #view .kpi .k-label{font-size:11px!important}
-body.v1405-project #view .kpi .k-val{font-size:26px!important}
-body.v1405-project #view .kpi .k-sub{font-size:9.5px!important}
-
-/* Explicitly keep the approved Power BI / Parent Class tables under their own visual rules. */
-body.v1405-project #view table,body.v1405-project #view table *{text-shadow:none!important}
-
-@media(max-width:1100px){
-  body.v1405-project #view .alerts{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-}
-@media(max-width:700px){
-  body.v1405-project #view .alerts{grid-template-columns:1fr!important}
-}
-</style>
-
-
-<style id="v1407-final-visual-authority">
-/* V1.4.07 FINAL VISUAL AUTHORITY — intentionally last in file. */
-#v1399Placement .bp-head,
-#v1399Placement .bp-head *{color:#fff!important}
-#v1399Placement .bp-title h2{color:#fff!important;font-size:23px!important;font-weight:1000!important;line-height:1.2!important;text-shadow:0 1px 2px rgba(0,0,0,.22)!important}
-#v1399Placement .bp-title small{color:#dbe9f6!important;font-size:11px!important;font-weight:900!important}
-#v1399Placement .bp-window,#v1399Placement .bp-controls .lbl{color:#e5eef7!important}
-
-/* Navy/ink separators so white report blocks never visually merge. */
-#view > .section,
-#view .v179-section,
-#view .v131q-shell > .section,
-#view .gp64-section,
-#view .gph70-section,
-#view .psr-section,
-#view .psp-section,
-#view .brh-section,
-#view .bro-section,
-#view .plant-section{
-  border-top:7px solid #102d4b!important;
-  margin-top:22px!important;
-  padding-top:16px!important;
-  box-shadow:0 5px 18px rgba(11,39,66,.08)!important;
-}
-#view .tblwrap,#view .tablewrap,#view .v1398-tablewrap,#view .v1397-tablewrap{
-  border-top:4px solid #173f67!important;
-  margin-top:11px!important;
-}
-#view .section-head h2,#view .v179-section>h3,#view .v131q-project>h3,#view .v131q-card>h3{color:#12395f!important;font-weight:1000!important}
-
-/* Monthly/Quarterly visual reports: business information only; implementation/source notes are removed. */
-body.v1407-report-clean #view .section-head p,
-body.v1407-report-clean #view .v133m-method,
-body.v1407-report-clean #view .v179-method,
-body.v1407-report-clean #view .v131q-note,
-body.v1407-report-clean #view .v131q-source,
-body.v1407-report-clean #view .v133m-source{display:none!important}
-body.v1407-report-clean #view .v179-head p,
-body.v1407-report-clean #view .v131q-head p{display:block!important;color:#5f758a!important;font-size:12px!important;font-weight:900!important}
-</style>
-
-
-
 <!-- V1.4.09 | Tom Report full-width hierarchy + Broiler Placement final title visibility authority. -->
-<style id="v1409-tom-broiler-final-authority">
-/* FINAL AUTHORITY — intentionally appended at the true end of the file. */
 
-/* Broiler Placement: keep the entire header readable on navy regardless of later project styles. */
-#view #v1399Placement .bp-head,
-#view #v1399Placement .bp-head .bp-title,
-#view #v1399Placement .bp-head .bp-title h2,
-#view #v1399Placement .bp-head .bp-title small,
-#view #v1399Placement .bp-head .bp-window,
-#view #v1399Placement .bp-head .bp-window span,
-#view #v1399Placement .bp-head .bp-controls,
-#view #v1399Placement .bp-head .bp-controls .lbl{
-  color:#ffffff!important;
-  -webkit-text-fill-color:#ffffff!important;
-  opacity:1!important;
-  visibility:visible!important;
-  text-shadow:0 1px 2px rgba(0,0,0,.28)!important;
+<style id="v1411-unified-design-system">
+/* V1.4.11 — SINGLE VISUAL AUTHORITY FOR THE ENTIRE APPLICATION.
+   Data/calculation renderers remain unchanged. Approved Power BI tables remain under V1393/V1349 table rules. */
+:root{
+ --ux-bg:#eef3f8;--ux-card:#ffffff;--ux-navy:#17345b;--ux-navy2:#214f7f;--ux-blue:#1685d1;
+ --ux-teal:#13a98f;--ux-gold:#efb63e;--ux-violet:#675bc8;--ux-green:#2b9b64;--ux-red:#d64b50;
+ --ux-text:#173553;--ux-muted:#687f95;--ux-muted2:#8799aa;--ux-line:#d6e1eb;--ux-line2:#c7d6e3;
+ --ux-shadow:0 6px 20px rgba(23,63,105,.075);--ux-shadow-sm:0 3px 11px rgba(23,63,105,.06);
+ --ux-radius:16px;--ux-radius-sm:12px;
 }
-#view #v1399Placement .bp-head .bp-title h2{
-  font-size:24px!important;
-  line-height:1.22!important;
-  font-weight:1000!important;
-  letter-spacing:0!important;
+body.v1411-unified{background:#071827!important;font-family:Inter,Tajawal,"Segoe UI",Arial,sans-serif!important}
+body.v1411-unified .main{background:var(--ux-bg)!important}
+body.v1411-unified #view{background:var(--ux-bg)!important;color:var(--ux-text)!important;font-family:Inter,Tajawal,"Segoe UI",Arial,sans-serif!important;padding-bottom:24px!important}
+body.v1411-unified #view *{box-sizing:border-box}
+
+/* ===== GLOBAL PAGE HEADER ===== */
+body.v1411-unified #view>.hero,
+body.v1411-unified #view .sl-head,
+body.v1411-unified #view .v131q-head,
+body.v1411-unified #view .v1401-header,
+body.v1411-unified #view .wr-page>.hero{
+ background:linear-gradient(105deg,#17345b 0%,#1d4c7b 62%,#245f91 100%)!important;
+ border:1px solid #315f88!important;border-bottom:4px solid var(--ux-gold)!important;border-radius:18px!important;
+ box-shadow:0 10px 26px rgba(23,52,91,.15)!important;color:#fff!important;padding:22px 25px!important;margin:0 0 14px!important;
 }
-#view #v1399Placement .bp-head .bp-title small{
-  color:#dceaf6!important;
-  -webkit-text-fill-color:#dceaf6!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  margin-top:4px!important;
+body.v1411-unified #view>.hero :is(h1,h2),
+body.v1411-unified #view .sl-head :is(h1,h2),
+body.v1411-unified #view .v131q-head :is(h1,h2),
+body.v1411-unified #view .v1401-header :is(h1,h2){color:#fff!important;font-size:29px!important;line-height:1.25!important;font-weight:1000!important;letter-spacing:-.2px!important}
+body.v1411-unified #view>.hero p,
+body.v1411-unified #view .sl-head p,
+body.v1411-unified #view .v131q-head p,
+body.v1411-unified #view .v1401-header p{color:#d9e7f2!important;font-size:12.5px!important;line-height:1.65!important;font-weight:800!important}
+body.v1411-unified #view>.hero .eyebrow,body.v1411-unified #view .eyebrow{color:#79d2fa!important;font-size:10px!important;font-weight:1000!important;letter-spacing:.08em!important}
+body.v1411-unified #view>.hero .version,body.v1411-unified #view .version{font-size:9.5px!important;font-weight:950!important}
+
+/* ===== GLOBAL FILTERS / COMMAND BARS ===== */
+body.v1411-unified #filterbar,
+body.v1411-unified #view :is(.gp64-filter,.gph70-filter,.sl-toolbar,.wr-controls,.v188-filterdock,.v142-meta,.bp-cyclebar){
+ background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line2)!important;border-bottom:3px solid var(--ux-gold)!important;
+ border-radius:13px!important;box-shadow:0 6px 18px rgba(23,63,105,.085)!important;
 }
-#view #v1399Placement .bp-head{
-  background:linear-gradient(90deg,#17345b 0%,#153d6c 55%,#102d51 100%)!important;
-  border-bottom:4px solid #e8b82f!important;
+body.v1411-unified #filterbar{padding:10px 12px!important}
+body.v1411-unified #view :is(.gp64-filter,.gph70-filter,.sl-toolbar,.wr-controls,.v188-filterdock){padding:10px 12px!important}
+body.v1411-unified #view :is(label,.label):not(table *){color:#60788f!important;font-size:10.5px!important;font-weight:950!important}
+body.v1411-unified #view :is(input,select,button):not(table *){font-family:inherit!important;font-weight:900!important}
+body.v1411-unified #view :is(input,select):not(table *){background:#f8fafc!important;color:var(--ux-text)!important;border-color:#cbd8e3!important}
+
+/* ===== SECTION HIERARCHY / NAVY SEPARATORS ===== */
+body.v1411-unified #view :is(.section,.gp64-section,.gph70-section,.v131q-project,.sl-panel,.wr-card,.v188-chartcard,.v188-tablebox,.v1401-section,.v142-section){
+ scroll-margin-top:110px;
+}
+body.v1411-unified #view>.section,
+body.v1411-unified #view .gp64-section,
+body.v1411-unified #view .gph70-section,
+body.v1411-unified #view .v179-section,
+body.v1411-unified #view .v131q-project,
+body.v1411-unified #view .v1401-section{
+ background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-top:6px solid var(--ux-navy)!important;
+ border-radius:var(--ux-radius)!important;padding:16px 17px!important;margin:20px 0 15px!important;box-shadow:var(--ux-shadow)!important;
+}
+body.v1411-unified #view :is(.section-head,.gp64-section-title,.gph70-title,.v1401-sec-head){padding-bottom:9px!important;margin-bottom:12px!important;border-bottom:1px solid #e3ebf2!important}
+body.v1411-unified #view :is(.section-head,.gp64-section-title,.gph70-title,.v1401-sec-head) :is(h2,h3){color:#173f69!important;font-size:20px!important;line-height:1.35!important;font-weight:1000!important}
+body.v1411-unified #view :is(.section-head,.gp64-section-title,.gph70-title,.v1401-sec-head) p{color:#6e8397!important;font-size:11px!important;line-height:1.55!important;font-weight:800!important}
+body.v1411-unified #view :is(.section-tag,.gp64-tag,.gph70-tag,.sl-tag,.wr-badge){background:#edf5fb!important;color:#315c7d!important;border-color:#cfe0ed!important;font-weight:950!important}
+
+/* ===== KPI CARDS — ONE LANGUAGE EVERYWHERE ===== */
+body.v1411-unified #view :is(.kpi,.gp64-kpi,.gph70-kpi,.sl-kpi,.wr-kpi,.v131q-kpi,.v1401-kpi,.v142-kpi,.v188-kpi,.v200-source-kpi,.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi){
+ background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-top:4px solid var(--a,var(--accent,var(--ux-blue)))!important;
+ border-radius:var(--ux-radius-sm)!important;box-shadow:var(--ux-shadow-sm)!important;min-height:98px!important;padding:12px 13px!important;
+}
+body.v1411-unified #view :is(.kpi,.gp64-kpi,.gph70-kpi,.sl-kpi,.wr-kpi,.v131q-kpi,.v1401-kpi,.v142-kpi,.v188-kpi,.v200-source-kpi,.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi) :is(span,.k-label,small):not(.good):not(.bad):not(.warn){color:#687f95!important;font-weight:900!important}
+body.v1411-unified #view :is(.kpi,.gp64-kpi,.gph70-kpi,.sl-kpi,.wr-kpi,.v131q-kpi,.v1401-kpi,.v142-kpi,.v188-kpi,.v200-source-kpi,.br86-pc-kpi,.br87-kpi,.brpc-kpi,.pc-kpi) :is(b,strong,.k-val){color:var(--ux-text)!important;font-size:24px!important;line-height:1.15!important;font-weight:1000!important}
+body.v1411-unified #view .good{color:var(--ux-green)!important}body.v1411-unified #view .bad{color:var(--ux-red)!important}body.v1411-unified #view .warn{color:#b27b12!important}
+
+/* ===== GENERIC CARDS / CHART PANELS ===== */
+body.v1411-unified #view :is(.card,.gp64-white,.gph70-white,.sl-panel,.wr-card,.v131q-card,.v131q-project,.v188-chartcard,.v188-tablebox,.v200-panel,.v1401-project,.v1401-bank,.v1401-alert,.v142-project){
+ background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-radius:14px!important;box-shadow:var(--ux-shadow-sm)!important;
+}
+body.v1411-unified #view :is(.card,.gp64-white,.gph70-white,.sl-panel,.wr-card,.v131q-card,.v131q-project,.v188-chartcard,.v200-panel,.v1401-project,.v142-project) :is(h2,h3,h4):not(table *){color:#173f69!important;font-weight:1000!important}
+body.v1411-unified #view :is(.card,.gp64-white,.gph70-white,.sl-panel,.wr-card,.v131q-card,.v131q-project,.v188-chartcard,.v200-panel,.v1401-project,.v142-project) :is(p,small,.sub):not(table *){color:#6d8296!important;font-weight:800!important}
+body.v1411-unified #view :is(.chartbox,.gp64-chart,.gph70-chart,.sl-chart,.v131q-chart,.v1401-chartbox,.v1401-project-chart,.v1401-bankchart,.v142-chart,.v188-chartcard .chartbox){
+ background:#fff!important;border:1px solid #e0e8ef!important;border-radius:11px!important;color:var(--ux-text)!important;
 }
 
-/* Tom Report: charts first, tables below, every analytical block full screen width. */
-#view .sl-page .sl-grid{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr)!important;
-  gap:16px!important;
-  width:100%!important;
-}
-#view .sl-page .sl-grid > .sl-panel{
-  width:100%!important;
-  max-width:none!important;
-  min-width:0!important;
-}
-/* Ranking chart first, Site League table underneath. */
-#view .sl-page .sl-grid > .sl-panel:nth-child(2){order:1!important}
-#view .sl-page .sl-grid > .sl-panel:nth-child(1){order:2!important}
+/* ===== GP / GPH CUSTOM CONTROLS ===== */
+body.v1411-unified .gp64-filter,body.v1411-unified .gph70-filter{position:sticky!important;top:68px!important;z-index:45!important}
+body.v1411-unified :is(.gp64-field,.gph70-field)>label{color:#60788f!important;font-size:10.5px!important;font-weight:950!important}
+body.v1411-unified :is(.gp64-field input,.gp64-field select,.gp64-dd>summary,.gph70-field input,.gph70-dd>summary){background:#f8fafc!important;color:var(--ux-text)!important;border-color:#cbd8e3!important}
+body.v1411-unified :is(.gp64-menu,.gp64-actions,.gph70-menu,.gph70-actions){background:#fff!important;color:var(--ux-text)!important;border-color:#cbd8e3!important;box-shadow:0 14px 30px rgba(23,63,105,.14)!important}
+body.v1411-unified :is(.gp64-actions button,.gph70-actions button){background:#edf5fb!important;color:#244b6d!important;border-color:#d0dfeb!important}
+body.v1411-unified :is(.gp64-opt,.gph70-menu label){color:#31506b!important}
+body.v1411-unified :is(.gp64-note,.gph70-note){background:#f5f9fc!important;color:#617b92!important;border-color:#d8e4ee!important}
 
-/* Lower Tom analytics also stack full width: trend chart then Parent Age chart + its table. */
-#view .sl-page .sl-bottom{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr)!important;
-  gap:16px!important;
-  width:100%!important;
-}
-#view .sl-page .sl-bottom > .sl-panel{
-  width:100%!important;
-  max-width:none!important;
-  min-width:0!important;
-}
-#view .sl-page .sl-tablewrap{
-  width:100%!important;
-  max-width:none!important;
-  overflow:auto!important;
-}
-#view .sl-page .sl-table{
-  width:100%!important;
-}
-#view .sl-page .sl-chart{
-  width:100%!important;
-  min-height:340px!important;
-}
-#view .sl-page .sl-chart.tall{
-  min-height:390px!important;
-}
-/* Parent Age table directly under its chart with full panel width. */
-#view .sl-page .sl-bottom .sl-panel:last-child .sl-chart + div{
-  width:100%!important;
-  margin-top:12px!important;
-}
+/* ===== BROILER PLACEMENT HEADER — LOCKED READABILITY ===== */
+body.v1411-unified #v1399Placement{background:#f5f7fb!important;color:var(--ux-text)!important;border-color:#b8cee1!important}
+body.v1411-unified #v1399Placement .bp-head{background:linear-gradient(90deg,#17345b 0%,#153d6c 55%,#102d51 100%)!important;border-bottom:4px solid var(--ux-gold)!important}
+body.v1411-unified #v1399Placement .bp-head,body.v1411-unified #v1399Placement .bp-head *{color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 2px rgba(0,0,0,.24)!important}
+body.v1411-unified #v1399Placement .bp-title h2{font-size:24px!important;font-weight:1000!important;line-height:1.2!important}
+body.v1411-unified #v1399Placement .bp-title small{color:#dceaf6!important;-webkit-text-fill-color:#dceaf6!important;font-size:11px!important;font-weight:900!important}
 
-@media(max-width:900px){
-  #view #v1399Placement .bp-head .bp-title h2{font-size:21px!important}
-  #view .sl-page .sl-chart,#view .sl-page .sl-chart.tall{min-height:300px!important}
+/* ===== MONTHLY / V142 ===== */
+body.v1411-page-monthly #filterbar{display:none!important}
+body.v1411-page-monthly #view{padding:14px!important}
+body.v1411-page-monthly .v142-head{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(330px,.7fr)!important;gap:12px!important;background:#fff!important;border:1px solid var(--ux-line)!important;border-radius:16px!important;padding:16px!important;box-shadow:var(--ux-shadow-sm)!important;margin-bottom:14px!important}
+body.v1411-page-monthly .v142-title h1{color:#173d66!important;font-size:25px!important;font-weight:1000!important}.v1411-page-monthly .v142-title .eyebrow{color:var(--ux-blue)!important;font-weight:1000!important}
+body.v1411-page-monthly .v142-title p{display:none!important}
+body.v1411-page-monthly .v142-meta{display:grid!important;grid-template-columns:repeat(2,minmax(150px,1fr))!important;gap:8px!important;border-bottom:0!important;box-shadow:none!important}
+body.v1411-page-monthly .v142-meta>div,body.v1411-page-monthly .v142-meta label{background:#f6f9fc!important;border:1px solid #dbe5ed!important;border-radius:11px!important;padding:10px!important;color:#536e86!important}
+body.v1411-page-monthly .v142-meta b{display:block!important;color:#173d66!important;font-size:14px!important;font-weight:1000!important}
+body.v1411-page-monthly .v142-kpis{display:grid!important;grid-template-columns:repeat(5,minmax(170px,1fr))!important;gap:10px!important}
+body.v1411-page-monthly .v142-project-grid{display:grid!important;grid-template-columns:repeat(4,minmax(230px,1fr))!important;gap:10px!important}
+body.v1411-page-monthly .v142-grid2{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+body.v1411-page-monthly #v142-m-sources,body.v1411-page-monthly .v117-note,body.v1411-page-monthly .v145-ribbon,body.v1411-page-monthly [id^="v145-"],body.v1411-page-monthly [id^="v177-"],body.v1411-page-monthly [id^="v181-"]{display:none!important}
+
+/* ===== QUARTERLY ===== */
+body.v1411-page-quarterly #view{padding:14px!important}
+body.v1411-page-quarterly .v131q-shell{background:var(--ux-bg)!important;color:var(--ux-text)!important}
+body.v1411-page-quarterly .v131q-head{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(330px,.6fr)!important;gap:12px!important;align-items:center!important}
+body.v1411-page-quarterly .v131q-meta{display:grid!important;grid-template-columns:repeat(2,minmax(150px,1fr))!important;gap:8px!important}
+body.v1411-page-quarterly .v131q-meta>div,body.v1411-page-quarterly .v131q-select{background:#f7fafc!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-radius:11px!important;padding:10px!important}
+body.v1411-page-quarterly .v131q-kpis{display:grid!important;grid-template-columns:repeat(5,minmax(170px,1fr))!important;gap:10px!important}
+body.v1411-page-quarterly .v131q-grid2{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+body.v1411-page-quarterly .v131q-project{padding:15px!important}
+body.v1411-page-quarterly .v131q-source,body.v1411-page-quarterly .v131q-note{display:none!important}
+
+/* ===== TOM REPORT ===== */
+body.v1411-page-tomreport #view{padding:14px!important}
+body.v1411-page-tomreport .sl-page{background:var(--ux-bg)!important;color:var(--ux-text)!important}
+body.v1411-page-tomreport .sl-toolbar{position:sticky!important;top:68px!important;z-index:40!important}
+body.v1411-page-tomreport .sl-kpis{gap:10px!important}.v1411-page-tomreport .sl-panel{padding:14px!important}
+body.v1411-page-tomreport .sl-grid,body.v1411-page-tomreport .sl-bottom{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px!important;width:100%!important}
+body.v1411-page-tomreport .sl-grid>.sl-panel,body.v1411-page-tomreport .sl-bottom>.sl-panel{width:100%!important;max-width:none!important;min-width:0!important}
+body.v1411-page-tomreport .sl-grid>.sl-panel:nth-child(2){order:1!important}body.v1411-page-tomreport .sl-grid>.sl-panel:nth-child(1){order:2!important}
+body.v1411-page-tomreport .sl-tablewrap{width:100%!important;max-width:none!important;overflow:auto!important}.v1411-page-tomreport .sl-chart{width:100%!important;min-height:340px!important}
+
+
+/* ===== TOM REPORT — FINAL STRUCTURAL AUTHORITY ===== */
+body.v1411-page-tomreport #view{padding:14px!important}
+body.v1411-page-tomreport .sl-page{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px!important;width:100%!important;background:var(--ux-bg)!important;color:var(--ux-text)!important}
+body.v1411-page-tomreport .sl-toolbar{position:sticky!important;top:68px!important;z-index:40!important;width:100%!important;background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line2)!important;border-bottom:3px solid var(--ux-gold)!important}
+body.v1411-page-tomreport .sl-grid,
+body.v1411-page-tomreport .sl-bottom{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:16px!important;width:100%!important;max-width:none!important}
+body.v1411-page-tomreport .sl-grid>.sl-panel,
+body.v1411-page-tomreport .sl-bottom>.sl-panel{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important}
+/* Performance Ranking chart first, full-width table second. */
+body.v1411-page-tomreport .sl-grid>.sl-panel:nth-child(2){order:1!important}
+body.v1411-page-tomreport .sl-grid>.sl-panel:nth-child(1){order:2!important}
+/* Cycle trend then Parent Age, each in its own full-width row. */
+body.v1411-page-tomreport .sl-bottom>.sl-panel:nth-child(1){order:1!important}
+body.v1411-page-tomreport .sl-bottom>.sl-panel:nth-child(2){order:2!important}
+body.v1411-page-tomreport .sl-panel{background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-top:5px solid var(--ux-navy)!important;border-radius:15px!important;padding:15px!important;box-shadow:var(--ux-shadow-sm)!important}
+/* sl-head is an internal panel heading in Tom, not a page hero. */
+body.v1411-page-tomreport .sl-panel>.sl-head{display:flex!important;justify-content:space-between!important;align-items:flex-start!important;gap:12px!important;background:#fff!important;color:var(--ux-text)!important;border:0!important;border-bottom:1px solid #e2eaf1!important;border-radius:0!important;box-shadow:none!important;padding:2px 2px 11px!important;margin:0 0 12px!important}
+body.v1411-page-tomreport .sl-panel>.sl-head h3{margin:0!important;color:#173f69!important;-webkit-text-fill-color:#173f69!important;font-size:18px!important;line-height:1.3!important;font-weight:1000!important}
+body.v1411-page-tomreport .sl-panel>.sl-head p{margin:4px 0 0!important;color:#667f95!important;-webkit-text-fill-color:#667f95!important;font-size:11px!important;line-height:1.55!important;font-weight:800!important}
+body.v1411-page-tomreport .sl-panel>.sl-head .sl-tag{background:#edf5fb!important;color:#315c7d!important;-webkit-text-fill-color:#315c7d!important;border:1px solid #cfe0ed!important;font-size:9px!important;font-weight:950!important}
+body.v1411-page-tomreport .sl-chart,
+body.v1411-page-tomreport .sl-chart.tall{display:block!important;width:100%!important;max-width:none!important;height:400px!important;min-height:400px!important;background:#fff!important;border:1px solid #e0e8ef!important;border-radius:11px!important;padding:6px!important}
+body.v1411-page-tomreport .sl-chart canvas{width:100%!important;max-width:100%!important;height:100%!important}
+body.v1411-page-tomreport .sl-tablewrap{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;overflow:auto!important;border:1px solid #d3dfe9!important;border-top:4px solid var(--ux-navy)!important;border-radius:11px!important;background:#fff!important}
+body.v1411-page-tomreport .sl-table{width:100%!important;max-width:none!important}
+body.v1411-page-tomreport .tom-parent-insight{width:100%!important;background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-inline-start:4px solid var(--ux-gold)!important;border-radius:13px!important;padding:13px!important}
+body.v1411-page-tomreport .tom-parent-insight h3{color:#173f69!important;font-size:17px!important;font-weight:1000!important}
+body.v1411-page-tomreport .tom-parent-insight p{color:#687f95!important;font-size:11px!important;font-weight:800!important}
+@media(max-width:900px){body.v1411-page-tomreport .sl-chart,body.v1411-page-tomreport .sl-chart.tall{height:330px!important;min-height:330px!important}}
+
+/* ===== WEEKLY RETURN ===== */
+body.v1411-page-weekly #view{padding:14px!important}
+body.v1411-page-weekly .wr-page{background:var(--ux-bg)!important;color:var(--ux-text)!important}
+body.v1411-page-weekly :is(.wr-controls,.wr-card,.wr-prof,.wr-ms-card,.wr-audit){background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-radius:14px!important;box-shadow:var(--ux-shadow-sm)!important}
+body.v1411-page-weekly .wr-card :is(h2,h3,h4),body.v1411-page-weekly .wr-prof-head :is(h2,h3,h4){color:#173f69!important;font-weight:1000!important}
+body.v1411-page-weekly .wr-tabs{background:#edf4fa!important;border:1px solid #d7e3ed!important;border-radius:11px!important}.v1411-page-weekly .wr-tab{color:#47627b!important}.v1411-page-weekly .wr-tab.active{background:var(--ux-navy)!important;color:#fff!important}
+body.v1411-page-weekly .wr-source-note{display:none!important}
+
+/* ===== CHAIN ANALYTICS ===== */
+body.v1411-page-chain #view{background:var(--ux-bg)!important;color:var(--ux-text)!important;padding:14px!important}
+body.v1411-page-chain :is(.v188-filterdock,.v188-chartcard,.v188-tablebox,.v188-governance,.chain24-toolbar,.chain24-chart,.chain24-glow,.chain24-node,.chain24-shell>.section){background:#fff!important;color:var(--ux-text)!important;border-color:var(--ux-line)!important;box-shadow:var(--ux-shadow-sm)!important}
+body.v1411-page-chain :is(.v188-chartcard,.chain24-chart,.chain24-glow,.chain24-node){border-radius:14px!important}
+body.v1411-page-chain :is(.chain24-card-title,.chain24-node-title h4,.chain24-node .v,.chain24-metrics b,.v188-chartcard h3){color:var(--ux-text)!important}
+body.v1411-page-chain :is(.chain24-metrics span,.chain24-node .n,.chain24-node .p,.v188-chartcard p){color:var(--ux-muted)!important}
+body.v1411-page-chain .chain24-legend{background:#f5f8fb!important;border-color:#d8e3ec!important}.v1411-page-chain .chain24-legend span{color:#5e758a!important}
+body.v1411-page-chain .chain24-flow-nav button{background:#edf5fb!important;color:#244b6d!important;border-color:#cad9e5!important}
+
+/* ===== DATA QUALITY ===== */
+body.v1411-page-data #view{padding:14px!important}
+body.v1411-page-data :is(.v200-source-kpi,.v200-panel,.v200-rule,.v200-source-card,.v200-status-card){background:#fff!important;color:var(--ux-text)!important;border:1px solid var(--ux-line)!important;border-radius:13px!important;box-shadow:var(--ux-shadow-sm)!important}
+body.v1411-page-data :is(.v200-panel-head h3,.v200-rule b){color:#173f69!important;font-weight:1000!important}.v1411-page-data .v200-panel-head p{color:var(--ux-muted)!important}
+
+/* ===== EXECUTIVE HOME: keep reference language, normalize typography only ===== */
+body.v1411-page-home #view{padding:14px!important}
+body.v1411-page-home .v1401-header{margin-bottom:14px!important}
+body.v1411-page-home .v1401-section{background:#fff!important;border:1px solid var(--ux-line)!important;border-radius:16px!important;box-shadow:var(--ux-shadow)!important}
+body.v1411-page-home .v1401-kpi b,body.v1411-page-home .v1401-chain-main b{font-weight:1000!important}
+
+/* ===== APPROVED TABLE SYSTEM PROTECTION ===== */
+body.v1411-unified #view :is(.tablewrap,.tblwrap,.gp64-tablewrap,.gph70-tablewrap,.sl-tablewrap,.wr-scroll,.v188-tablebox,.bp-scroll){background:#fff!important;border:1px solid #d3dfE9!important;border-top:4px solid var(--ux-navy)!important;border-radius:11px!important;box-shadow:none!important;overflow:auto!important}
+/* Do NOT change table th/td colors: V1393 / Parent Class / Power BI remains authoritative. */
+body.v1411-unified #view table,body.v1411-unified #view table *{text-shadow:none!important}
+
+/* ===== NO LEGACY PROJECT NAV ===== */
+body.v1411-unified #view>.section-nav,body.v1411-unified #v200ProjectNav,body.v1411-unified #view>.chain-ribbon{display:none!important}
+
+/* ===== TYPOGRAPHY ===== */
+body.v1411-unified #view :is(h1,h2,h3,h4):not(table *){font-family:Inter,Tajawal,"Segoe UI",Arial,sans-serif!important}
+body.v1411-unified #view :is(.card,.section,.gp64-white,.gph70-white,.sl-panel,.wr-card,.v131q-card,.v1401-section) :is(p,small,.sub):not(table *){line-height:1.55!important}
+
+@media(max-width:1500px){
+ body.v1411-page-monthly .v142-kpis,body.v1411-page-quarterly .v131q-kpis{grid-template-columns:repeat(3,1fr)!important}
+ body.v1411-page-monthly .v142-project-grid{grid-template-columns:repeat(3,1fr)!important}
+}
+@media(max-width:1000px){
+ body.v1411-page-monthly .v142-head,body.v1411-page-monthly .v142-grid2,body.v1411-page-quarterly .v131q-head,body.v1411-page-quarterly .v131q-grid2{grid-template-columns:1fr!important}
+ body.v1411-page-monthly .v142-kpis,body.v1411-page-monthly .v142-project-grid,body.v1411-page-quarterly .v131q-kpis{grid-template-columns:repeat(2,1fr)!important}
+}
+@media(max-width:650px){
+ body.v1411-unified #view>.hero :is(h1,h2){font-size:24px!important}
+ body.v1411-page-monthly .v142-kpis,body.v1411-page-monthly .v142-project-grid,body.v1411-page-quarterly .v131q-kpis{grid-template-columns:1fr!important}
 }
 </style>
-<script id="v1409-release-owner">
-(()=>{'use strict';const RELEASE='V1.4.09';
-function stamp(){try{window.SK_RELEASE_LOCK=RELEASE;CFG.version=RELEASE;document.title='Sama Karbala — Poultry Command Center '+RELEASE;document.querySelectorAll('.version').forEach(x=>x.textContent='CURRENT RELEASE · '+RELEASE)}catch(_){}}
-try{const base=renderCurrent;renderCurrent=async function(){const r=await base.apply(this,arguments);stamp();return r}}catch(_){ }
-try{const baseLang=setLang;setLang=function(){const r=baseLang.apply(this,arguments);stamp();return r}}catch(_){ }
-stamp();window.SK_LAYOUT_FIX_V1409=Object.freeze({release:RELEASE,tom:'full-width charts then tables',broilerPlacement:'final white title authority'});
+<script id="v1411-unified-design-system-script">
+(()=>{'use strict';
+const RELEASE='V1.4.12';
+const ALL=['home','gp','gph','psr','psp','brh','broiler','plant','monthly','quarterly','chain','tomreport','weekly','data'];
+function pageName(){return String(S?.page||'home').toLowerCase()}
+function repaintCharts(){
+ if(!window.Chart)return;
+ try{
+  Chart.defaults.color='#536d84';Chart.defaults.font.family='Inter, Tajawal, Segoe UI, Arial, sans-serif';Chart.defaults.font.weight='700';
+  for(const ch of Object.values(Chart.instances||{})){
+   if(!ch?.canvas||!document.getElementById('view')?.contains(ch.canvas))continue;
+   const o=ch.options||(ch.options={}),p=o.plugins||(o.plugins={});
+   const lg=p.legend||(p.legend={}),ll=lg.labels||(lg.labels={});ll.color='#4d667d';ll.font={...(ll.font||{}),weight:'800',size:10.5};
+   const title=p.title||(p.title={});if(title.display){title.color='#173f69';title.font={...(title.font||{}),weight:'900'};}
+   for(const sc of Object.values(o.scales||{})){if(!sc)continue;sc.ticks={...(sc.ticks||{}),color:'#60778d',font:{...((sc.ticks||{}).font||{}),weight:'700',size:9.5}};sc.grid={...(sc.grid||{}),color:'rgba(40,75,105,.10)'};if(sc.title?.display)sc.title={...sc.title,color:'#60778d',font:{...(sc.title.font||{}),weight:'800',size:10}};}
+   try{ch.update('none')}catch(_){ }
+  }
+ }catch(_){ }
+}
+function apply(){
+ const p=pageName();document.body.classList.add('v1411-unified');
+ [...document.body.classList].filter(x=>x.startsWith('v1411-page-')).forEach(x=>document.body.classList.remove(x));document.body.classList.add('v1411-page-'+p);
+ // Remove historical project navigation if any renderer recreated it.
+ document.querySelectorAll('#view>.section-nav,#v200ProjectNav,#view>.chain-ribbon').forEach(x=>x.remove());
+ // Release stamp only; no DOM scan or observer.
+ try{window.SK_RELEASE_LOCK=RELEASE;CFG.version=RELEASE;document.title='Sama Karbala — Poultry Command Center '+RELEASE;document.querySelectorAll('.version').forEach(x=>x.textContent='CURRENT RELEASE · '+RELEASE);const b=document.getElementById('brandSub');if(b)b.textContent=T('نظام تصميم موحد لكل الصفحات · Power BI tables retained · '+RELEASE,'One design system across all pages · Power BI tables retained · '+RELEASE)}catch(_){ }
+ setTimeout(repaintCharts,90);setTimeout(repaintCharts,550);
+}
+try{const base=renderCurrent;renderCurrent=async function(){const r=await base.apply(this,arguments);apply();return r}}catch(_){ }
+try{const baseLang=setLang;setLang=function(){const r=baseLang.apply(this,arguments);setTimeout(apply,0);return r}}catch(_){ }
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(apply,500),{once:true});else setTimeout(apply,500);
+window.SK_DESIGN_SYSTEM_V1411=Object.freeze({release:RELEASE,pages:ALL,tableAuthority:'Power BI / Parent Class unchanged',theme:'Executive light + navy headers + white panels + navy separators'});
 })();
 </script>
+</body>
+</html>
