@@ -2511,11 +2511,22 @@ v120Brand();
   return new Promise((resolve,reject)=>{
    const cb='__SK_CUM_'+offset+'_'+Date.now()+'_'+Math.random().toString(36).slice(2);
    const sc=document.createElement('script');let done=false;
-   const cleanup=()=>{try{delete window[cb]}catch(_){window[cb]=undefined}try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}};
-   const timer=setTimeout(()=>{if(done)return;done=true;cleanup();reject(new Error('Cumulative data chunk timeout @ '+offset));},45000);
-   window[cb]=(resp)=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,d);cleanup();resolve(raw)}catch(e){cleanup();reject(e)}};
+   /* JSONP scripts cannot be truly cancelled. A GViz response can arrive after
+      timeout/onerror; keep a temporary no-op callback so a late response does not
+      throw `ReferenceError: __SK_CUM_* is not defined`. */
+   const cleanup=(lateSafe=true)=>{
+    try{
+     if(lateSafe){
+      window[cb]=function(){};
+      setTimeout(()=>{try{delete window[cb]}catch(_){window[cb]=undefined}},120000);
+     }else{delete window[cb]}
+    }catch(_){window[cb]=function(){}}
+    try{sc.remove()}catch(_){window.SK_ERROR_BUS?.capture(_,'guarded legacy branch')}
+   };
+   const timer=setTimeout(()=>{if(done)return;done=true;cleanup(true);reject(new Error('Cumulative data chunk timeout @ '+offset));},60000);
+   window[cb]=(resp)=>{if(done)return;done=true;clearTimeout(timer);try{const raw=gvizToRaw(resp,d);cleanup(true);resolve(raw)}catch(e){cleanup(true);reject(e)}};
    sc.async=true;sc.referrerPolicy='strict-origin-when-cross-origin';
-   sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup();reject(new Error('Unable to load Cumulative data chunk @ '+offset))};
+   sc.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup(true);reject(new Error('Unable to load Cumulative data chunk @ '+offset))};
    const q=new URLSearchParams();
    q.set('sheet',d.sheet);q.set('headers','1');q.set('range','A3:S');
    q.set('tq','select A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S limit '+limit+' offset '+offset);
@@ -9802,7 +9813,7 @@ body.v1411-page-monthly .v142-risk-grid,body.v1411-page-quarterly .v142-risk-gri
 body.v1411-page-monthly .v142-risk,body.v1411-page-quarterly .v142-risk{background:#fff!important;color:#163b61!important;border:1px solid #d3dee8!important;border-inline-start:5px solid #e5aa25!important;border-radius:10px!important;padding:12px 14px!important}
 body.v1411-page-monthly .v142-risk.bad,body.v1411-page-quarterly .v142-risk.bad{border-inline-start-color:#cc454c!important}body.v1411-page-monthly .v142-risk.good,body.v1411-page-quarterly .v142-risk.good{border-inline-start-color:#278e61!important}
 body.v1411-page-monthly .v142-risk b,body.v1411-page-quarterly .v142-risk b{color:#173f68!important;font-size:14px!important;font-weight:950!important}body.v1411-page-monthly .v142-risk span,body.v1411-page-quarterly .v142-risk span{color:#5d758b!important;font-size:13px!important;font-weight:850!important}
-body.v1411-page-quarterly .v131q-meta span{font-size:11px!important;color:#dce9f4!important;font-weight:850!important}body.v1411-page-quarterly .v131q-meta b{font-size:14px!important;color:#fff!important;font-weight:950!important}
+body.v1411-page-quarterly .v131q-meta span{font-size:11px!important;color:#587189!important;font-weight:900!important}body.v1411-page-quarterly .v131q-meta b{font-size:14px!important;color:#123e69!important;font-weight:950!important}
 @media(max-width:1000px){.v1419-two{grid-template-columns:1fr}.v1419-legend{gap:9px}.v1419-legend span{white-space:normal}}
 </style>
 
@@ -9814,5 +9825,191 @@ body.v1411-page-quarterly .v131q-meta span{font-size:11px!important;color:#dce9f
 (()=>{try{window.SK_RELEASE_LOCK='V1.4.20';CFG.version='V1.4.20';document.title='Sama Karbala — Poultry Command Center V1.4.20';const apply=()=>{document.querySelectorAll('.version').forEach(x=>{if(/CURRENT RELEASE|NEW CORE|V1\./i.test(x.textContent||''))x.textContent='CURRENT RELEASE · V1.4.20'});};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();}catch(e){console.warn('V1.4.20 release marker',e)}})();
 </script>
 <script id="v1421-runtime-scope-diagnostic">window.SK_RELEASE_V1421=Object.freeze({release:'V1.4.21',feature:'Monthly/Quarterly forecast runtime-scope bridge + Flocks-authority forecast binding'});</script>
+
+<script id="v1422-global-release-identity-fix">
+(()=>{
+  'use strict';
+  const CURRENT_RELEASE='V1.4.23';
+  const applyReleaseIdentity=()=>{
+    try{
+      window.SK_RELEASE_LOCK=CURRENT_RELEASE;
+      if(window.CFG) CFG.version=CURRENT_RELEASE;
+      document.title='Sama Karbala — Poultry Command Center '+CURRENT_RELEASE;
+      const b=document.getElementById('brandSub');
+      if(b){
+        const en=(document.documentElement.lang||'').toLowerCase().startsWith('en');
+        b.textContent=en
+          ? 'Independent platform · Live Google Sheets · '+CURRENT_RELEASE
+          : 'منصة مستقلة · Live Google Sheets · '+CURRENT_RELEASE;
+      }
+      document.querySelectorAll('.version').forEach(x=>{
+        x.textContent='CURRENT RELEASE · '+CURRENT_RELEASE;
+      });
+    }catch(e){console.warn('V1.4.23 release identity',e)}
+  };
+
+  // One global owner for the visible release identity. Legacy project renderers may
+  // still carry their historical calculation labels internally, but they no longer
+  // own the application header version.
+  try{
+    if(typeof renderCurrent==='function' && !window.__SK_V1422_RENDER_WRAPPED__){
+      const prevRenderCurrent=renderCurrent;
+      renderCurrent=async function(){
+        try{return await prevRenderCurrent.apply(this,arguments)}
+        finally{applyReleaseIdentity()}
+      };
+      window.__SK_V1422_RENDER_WRAPPED__=true;
+    }
+  }catch(e){console.warn('V1.4.23 render wrapper',e)}
+
+  try{
+    if(typeof setLang==='function' && !window.__SK_V1422_LANG_WRAPPED__){
+      const prevSetLang=setLang;
+      setLang=function(){
+        const r=prevSetLang.apply(this,arguments);
+        applyReleaseIdentity();
+        return r;
+      };
+      window.__SK_V1422_LANG_WRAPPED__=true;
+    }
+  }catch(e){console.warn('V1.4.23 language wrapper',e)}
+
+  window.SK_RELEASE_V1423=Object.freeze({
+    release:CURRENT_RELEASE,
+    visibleHeaderOwner:'global',
+    note:'Legacy calculation-engine version strings do not control the top application header.'
+  });
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',applyReleaseIdentity,{once:true});
+  else applyReleaseIdentity();
+  setTimeout(applyReleaseIdentity,0);
+})();
+</script>
+
+<style id="v1423-quarterly-sidebar-contrast-authority">
+body.v1411-page-quarterly .v131q-head .v131q-meta>div{background:#f7fafc!important;color:#153451!important;border:1px solid #c9d8e5!important;box-shadow:0 2px 8px rgba(19,56,88,.06)!important}
+body.v1411-page-quarterly .v131q-head .v131q-meta span{color:#587189!important;font-size:11.5px!important;font-weight:900!important}
+body.v1411-page-quarterly .v131q-head .v131q-meta b{color:#123e69!important;font-size:14px!important;font-weight:950!important}
+body.v1411-page-quarterly .v131q-head .v131q-select{background:#fff!important;color:#123e69!important;border-color:#b9ccdc!important;font-weight:950!important}
+body.v1411-page-quarterly .v131q-head .v131q-select option{background:#fff!important;color:#123e69!important}
+body.v1411-page-quarterly .side,body.light.v1411-page-quarterly .side{background:linear-gradient(180deg,#07182a 0%,#061522 100%)!important;color:#e7f0f8!important;border-inline-end:1px solid #173754!important}
+body.v1411-page-quarterly .side .nav-title,body.light.v1411-page-quarterly .side .nav-title{color:#8fa8bf!important}
+body.v1411-page-quarterly .side .nav button,body.light.v1411-page-quarterly .side .nav button{background:transparent!important;color:#b9c8d8!important;border-color:transparent!important;font-weight:850!important}
+body.v1411-page-quarterly .side .nav button:hover,body.light.v1411-page-quarterly .side .nav button:hover{background:#10263b!important;color:#fff!important}
+body.v1411-page-quarterly .side .nav button.on,body.light.v1411-page-quarterly .side .nav button.on{background:linear-gradient(135deg,rgba(32,142,219,.20),rgba(31,190,166,.10))!important;color:#fff!important;border:1px solid rgba(55,157,219,.44)!important}
+body.v1411-page-quarterly .side .nav-icon,body.light.v1411-page-quarterly .side .nav-icon{background:#10263b!important;color:#c8d8e7!important;border-color:#244761!important}
+body.v1411-page-quarterly .side .nav button.on .nav-icon,body.light.v1411-page-quarterly .side .nav button.on .nav-icon{background:#123d3a!important;color:#57dcc7!important;border-color:#276a62!important}
+</style>
+<script id="v1423-quarterly-runtime-diagnostic">(()=>{window.SK_QUARTERLY_RUNTIME_V1423=Object.freeze({release:'V1.4.23',cumulativeJSONP:'late-response-safe callback tombstones; 60s timeout; 120s grace',quarterlyMeta:'light card + dark text',sidebar:'navy navigation independent of report theme'});})();</script>
+
+
+
+<style id="v1424-quarterly-meta-textfill-final-authority">
+/* V1.4.24 — final quarterly contrast authority.
+   V1411 globally applies -webkit-text-fill-color:white to every child of .v131q-head.
+   Override both color AND text-fill for the light metadata controls/cards. */
+body.v1411-page-quarterly .v131q-head .v131q-meta,
+body.v1411-page-quarterly .v131q-head .v131q-meta>div{
+  color:#153451!important;
+  -webkit-text-fill-color:#153451!important;
+}
+body.v1411-page-quarterly .v131q-head .v131q-meta>div{
+  background:#f5f8fc!important;
+  border:1px solid #b9ccdc!important;
+  box-shadow:0 3px 10px rgba(20,57,89,.08)!important;
+}
+body.v1411-page-quarterly .v131q-head .v131q-meta span,
+body.v1411-page-quarterly .v131q-head .v131q-meta label{
+  color:#526d86!important;
+  -webkit-text-fill-color:#526d86!important;
+  opacity:1!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+body.v1411-page-quarterly .v131q-head .v131q-meta b{
+  color:#123e69!important;
+  -webkit-text-fill-color:#123e69!important;
+  opacity:1!important;
+  font-size:15px!important;
+  font-weight:950!important;
+}
+body.v1411-page-quarterly .v131q-head .v131q-select{
+  background:#fff!important;
+  color:#123e69!important;
+  -webkit-text-fill-color:#123e69!important;
+  border:1px solid #8fb2cc!important;
+  color-scheme:light!important;
+  font-size:14px!important;
+  font-weight:950!important;
+  opacity:1!important;
+  text-shadow:none!important;
+}
+body.v1411-page-quarterly .v131q-head .v131q-select option{
+  background:#fff!important;
+  color:#123e69!important;
+  -webkit-text-fill-color:#123e69!important;
+  font-weight:850!important;
+}
+/* Keep the quarterly title area white on navy, but explicitly exclude light metadata. */
+body.v1411-page-quarterly .v131q-head>div:first-child,
+body.v1411-page-quarterly .v131q-head>div:first-child *{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+/* Sidebar remains its own dark navigation surface. */
+body.v1411-page-quarterly .side *,
+body.light.v1411-page-quarterly .side *{-webkit-text-fill-color:currentColor!important}
+</style>
+<script id="v1424-quarterly-release-and-contrast-runtime">
+(()=>{
+  const RELEASE='V1.4.24';
+  function stamp(){
+    try{
+      CFG.version=RELEASE;
+      window.SK_RELEASE_LOCK=RELEASE;
+      document.title='Sama Karbala — Poultry Command Center '+RELEASE;
+      document.querySelectorAll('.version').forEach(x=>x.textContent='CURRENT RELEASE · '+RELEASE);
+      const b=document.getElementById('brandSub');
+      if(b) b.textContent=T('Live Google Sheets · '+RELEASE,'Live Google Sheets · '+RELEASE);
+    }catch(_){ }
+  }
+  function repairQuarterMeta(){
+    try{
+      if(S?.page!=='quarterly') return;
+      document.body.classList.add('v1411-page-quarterly');
+      const meta=document.querySelector('.v131q-meta');
+      if(meta){
+        meta.querySelectorAll('span,label,b,select,option').forEach(el=>{
+          if(el.matches('span,label')){
+            el.style.setProperty('color','#526d86','important');
+            el.style.setProperty('-webkit-text-fill-color','#526d86','important');
+          }else{
+            el.style.setProperty('color','#123e69','important');
+            el.style.setProperty('-webkit-text-fill-color','#123e69','important');
+          }
+          el.style.setProperty('opacity','1','important');
+        });
+      }
+      stamp();
+    }catch(_){ }
+  }
+  try{
+    if(typeof RENDER==='object' && typeof RENDER.quarterly==='function' && !window.__SK_V1424_Q_WRAPPED__){
+      const prev=RENDER.quarterly;
+      RENDER.quarterly=async function(){
+        const r=await prev.apply(this,arguments);
+        repairQuarterMeta();
+        setTimeout(repairQuarterMeta,60);
+        setTimeout(repairQuarterMeta,450);
+        return r;
+      };
+      window.__SK_V1424_Q_WRAPPED__=true;
+    }
+  }catch(_){ }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{stamp();setTimeout(repairQuarterMeta,0)},{once:true});
+  else {stamp();setTimeout(repairQuarterMeta,0)}
+  window.SK_RELEASE_V1424=Object.freeze({release:RELEASE,fix:'quarter metadata color + webkit text-fill + late quarterly release badge'});
+})();
+</script>
 </body>
 </html>
